@@ -1,5 +1,6 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -7,7 +8,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role, ListingStatus } from '@prisma/client';
 
 export class UpdateStatusDto {
+  @IsEnum(ListingStatus)
   status: ListingStatus;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 @ApiTags('Administrador Master')
@@ -24,6 +30,12 @@ export class AdminController {
     return this.adminService.getDashboardStats();
   }
 
+  @Get('moderation/stats')
+  @ApiOperation({ summary: 'Obter indicadores da fila de moderação editorial' })
+  async getModerationStats() {
+    return this.adminService.getModerationStats();
+  }
+
   @Get('listings/pending')
   @ApiOperation({ summary: 'Listar estabelecimentos aguardando moderação' })
   async getPendingListings() {
@@ -33,7 +45,7 @@ export class AdminController {
   @Patch('listings/:id/status')
   @ApiOperation({ summary: 'Aprovar, rejeitar ou suspender um estabelecimento' })
   async updateListingStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto) {
-    return this.adminService.updateListingStatus(id, dto.status);
+    return this.adminService.updateListingStatus(id, dto.status, dto.notes);
   }
 }
 

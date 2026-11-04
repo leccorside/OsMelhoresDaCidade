@@ -198,6 +198,27 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - **Atalho Rápido na Tela de Login ([`apps/web/src/app/login/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/login/page.tsx))**:
     - Adicionado botão de preenchimento com 1 clique para a conta do "Comerciante Parceiro" (`comerciante@osmelhoresdacidade.com.br`) ao lado do "Administrador Master".
 
+### J. Central de Moderação Editorial de Anúncios no Painel Administrativo
+- **Backend NestJS (`apps/api`)**:
+  - **Fila de Moderação Enriquecida (`GET /admin/listings/pending`)**: Retorna os estabelecimentos pendentes com carregamento de relacionamentos completos: categoria, cidade, bairro, imagens ordenadas (`ListingImage`), comodidades e dados de contato do comerciante solicitante (`owners.merchantProfile.user`).
+  - **Estatísticas da Fila (`GET /admin/moderation/stats`)**: Indicadores em tempo real de estabelecimentos aguardando moderação (`PENDING`), ativos/publicados (`PUBLISHED`) e reprovados (`REJECTED`).
+  - **Aprovação e Reprovação Transacional (`PATCH /admin/listings/:id/status`)**: Permite aprovar para publicação imediata no portal (`PUBLISHED`) ou reprovar (`REJECTED`) com registro de observações e validação estrita via `class-validator` (`UpdateStatusDto` com `@IsEnum(ListingStatus)` e `@IsOptional() @IsString() notes`).
+- **Frontend Next.js (`apps/web`)**:
+  - **Funções de Integração de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**: Implementadas `fetchAdminPendingListings()`, `fetchAdminModerationStats()`, `fetchAdminDashboardStats()` e `updateAdminListingStatus()`, com cabeçalho JWT Bearer injetado automaticamente.
+  - **Central de Moderação Editorial ([`apps/web/src/app/admin/moderacao/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/moderacao/page.tsx))**:
+    - Interface escura de alta fidelidade visual com cards temáticos de métricas da moderação.
+    - Filtros por busca textual e categorias de negócio.
+    - Cards de moderação exibindo capa, galeria de fotos enviadas, dados de localização, canais de atendimento e perfil do lojista solicitante.
+    - **Ações Imediatas**:
+      - *Aprovar & Publicar*: Atualiza o status via API, publica no guia da cidade e remove da fila com feedback toast.
+      - *Rejeitar*: Abre modal com campo para inserir a justificativa de reprovação.
+      - *Editar*: Atalho para o formulário de edição com os dados pré-preenchidos para ajustes finos pelo administrador.
+      - *Pré-visualizar*: Modal com visualização integral de fotos e textos antes da tomada de decisão.
+  - **Integração no Dashboard Master ([`apps/web/src/app/admin/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/page.tsx))**:
+    - Conexão das métricas globais e fila rápida aos dados reais da API, com ações de aprovação/rejeição direta e atalho destacado para a Central de Moderação.
+  - **Navegação do Menu Lateral ([`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx))**:
+    - Inclusão do item "Moderação de Anúncios" com ícone dedicado e rota direta `/admin/moderacao`.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

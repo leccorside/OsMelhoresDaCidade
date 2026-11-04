@@ -567,3 +567,99 @@ export async function fetchMerchantListings(): Promise<any[]> {
 export async function createMerchantListing(payload: any) {
   return createOrUpdateListing(payload);
 }
+
+// --- ÁREA DE MODERAÇÃO ADMINISTRATIVA ---
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  totalMerchants: number;
+  totalListings: number;
+  pendingListings: number;
+  totalEvents: number;
+  totalReviews: number;
+  activeCities: number;
+}
+
+export async function fetchAdminDashboardStats(): Promise<AdminDashboardStats> {
+  const url = `${getApiBaseUrl()}/admin/dashboard/stats`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter estatísticas do painel admin: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAdminModerationStats(): Promise<{
+  pendingCount: number;
+  publishedCount: number;
+  rejectedCount: number;
+}> {
+  const url = `${getApiBaseUrl()}/admin/moderation/stats`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter estatísticas de moderação: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAdminPendingListings(): Promise<any[]> {
+  const url = `${getApiBaseUrl()}/admin/listings/pending`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter lista de pendentes: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateAdminListingStatus(
+  id: string,
+  status: 'PUBLISHED' | 'REJECTED' | 'SUSPENDED' | 'PENDING',
+  notes?: string
+) {
+  const url = `${getApiBaseUrl()}/admin/listings/${id}/status`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ status, notes }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao atualizar status do anúncio: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

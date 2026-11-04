@@ -36,16 +36,33 @@ export class AdminService {
     };
   }
 
+  async getModerationStats() {
+    const [pendingCount, publishedCount, rejectedCount] = await Promise.all([
+      this.prisma.listing.count({ where: { status: ListingStatus.PENDING } }),
+      this.prisma.listing.count({ where: { status: ListingStatus.PUBLISHED } }),
+      this.prisma.listing.count({ where: { status: ListingStatus.REJECTED } }),
+    ]);
+
+    return {
+      pendingCount,
+      publishedCount,
+      rejectedCount,
+    };
+  }
+
   async getPendingListings() {
     return this.prisma.listing.findMany({
       where: { status: ListingStatus.PENDING },
       include: {
         category: true,
         city: true,
+        neighborhood: true,
+        images: { orderBy: { order: 'asc' } },
+        amenities: { include: { amenity: true } },
         owners: {
           include: {
             merchantProfile: {
-              include: { user: { select: { name: true, email: true, phone: true } } },
+              include: { user: { select: { id: true, name: true, email: true, phone: true } } },
             },
           },
         },
@@ -54,13 +71,21 @@ export class AdminService {
     });
   }
 
-  async updateListingStatus(id: string, status: ListingStatus) {
+  async updateListingStatus(id: string, status: ListingStatus, notes?: string) {
     const listing = await this.prisma.listing.findUnique({ where: { id } });
     if (!listing) throw new NotFoundException('Estabelecimento não encontrado.');
 
     return this.prisma.listing.update({
       where: { id },
-      data: { status },
+      data: {
+        status,
+        ...(notes ? { metaDescription: listing.metaDescription } : {}),
+      },
+      include: {
+        category: true,
+        city: true,
+        neighborhood: true,
+      },
     });
   }
 }

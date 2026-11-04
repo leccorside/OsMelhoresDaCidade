@@ -24,6 +24,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  CheckSquare,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -51,6 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: 'Usuários', href: '/admin/usuarios', icon: Users },
     { label: 'Comerciantes', href: '/admin/comerciantes', icon: Briefcase },
     { label: 'Estabelecimentos', href: '/admin/estabelecimentos', icon: Store },
+    { label: 'Moderação de Anúncios', href: '/admin/moderacao', icon: CheckSquare },
     { label: 'Categorias', href: '/admin/categorias', icon: Layers },
     { label: 'Estados & Cidades', href: '/admin/cidades', icon: MapPin },
     { label: 'Eventos', href: '/admin/eventos', icon: Calendar },
