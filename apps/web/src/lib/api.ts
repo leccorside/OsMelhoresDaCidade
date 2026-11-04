@@ -77,6 +77,21 @@ export async function deleteListingApi(id: string) {
   return res.json();
 }
 
+export async function fetchAdminListingDetail(idOrSlug: string) {
+  const url = `${getApiBaseUrl()}/listings/admin/get/${idOrSlug}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Falha ao carregar detalhes do estabelecimento: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<PlaceDetailData | null> {
   const url = `${getApiBaseUrl()}/listings/${citySlug}/${slug}`;
   let apiItem: any = null;

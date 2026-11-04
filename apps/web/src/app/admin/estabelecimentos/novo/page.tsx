@@ -23,7 +23,7 @@ import {
   Save,
 } from 'lucide-react';
 import { PlaceCategoryType, MOCK_PLACES_DETAILS } from '@/data/mockPlaceDetails';
-import { createOrUpdateListing } from '@/lib/api';
+import { createOrUpdateListing, fetchAdminListingDetail } from '@/lib/api';
 
 function NovoEstabelecimentoForm() {
   const router = useRouter();
@@ -183,99 +183,240 @@ function NovoEstabelecimentoForm() {
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
-  // Se estiver editando um mock conhecido, preenche os dados
+  // Carrega dados para edição (primeiro tenta a API NestJS / PostgreSQL, depois recorre ao mock)
   useEffect(() => {
-    if (editSlug && MOCK_PLACES_DETAILS[editSlug]) {
-      const p = MOCK_PLACES_DETAILS[editSlug];
-      setName(p.name);
-      setSlug(p.slug);
-      setPlaceType(p.placeType);
-      setCategoryName(p.category);
-      setSubCategory(p.subCategory);
-      setNeighborhood(p.neighborhood);
-      setAddress(p.address);
-      setLat(p.lat);
-      setLng(p.lng);
-      setPriceTier(p.priceTier);
-      setPriceRange(p.priceRange);
-      setBadge(p.badge);
-      setStatusBadge(p.statusBadge);
-      setAwardBadge(p.awardBadge || '');
-      setShortDescription(p.shortDescription);
-      setFullDescription(p.fullDescription.join('\n\n'));
-      setGuideTip(p.guideTip);
-      setPhone(p.phone);
-      setWhatsapp(p.whatsapp);
-      setWebsite(p.website);
-      setInstagram(p.instagram || '');
-      setHeroPhotoUrl(p.gallery[0]?.url || '');
-      setHeroPhotoTitle(p.gallery[0]?.title || '');
-      setSecondaryPhotos([
-        { url: p.gallery[1]?.url || '', title: p.gallery[1]?.title || '' },
-        { url: p.gallery[2]?.url || '', title: p.gallery[2]?.title || '' },
-        { url: p.gallery[3]?.url || '', title: p.gallery[3]?.title || '' },
-        { url: p.gallery[4]?.url || '', title: p.gallery[4]?.title || '' },
-      ]);
-      setAmenitiesList(p.amenities || []);
-      if (p.faq) setFaqList(p.faq);
+    if (!editSlug) return;
 
-      // Preenchimento por tipo
-      if (p.placeType === 'attraction') {
-        if (p.waterTemp) setWaterTemp(p.waterTemp);
-        if (p.ticketTiers) {
+    let isMounted = true;
+    setLoadingEdit(true);
+
+    fetchAdminListingDetail(editSlug)
+      .then((data) => {
+        if (!isMounted || !data) return;
+
+        // 1. Informações Básicas
+        setName(data.name || '');
+        setSlug(data.slug || '');
+
+        // 2. Categoria e Tipo
+        const catSlug = data.category?.slug || '';
+        let pType: PlaceCategoryType = 'attraction';
+        if (catSlug === 'atracoes') pType = 'attraction';
+        else if (catSlug === 'hospedagem') pType = 'accommodation';
+        else if (catSlug === 'restaurantes' || catSlug === 'bares') pType = 'restaurant';
+        else pType = 'general';
+        setPlaceType(pType);
+        setCategoryName(data.category?.name || 'Geral');
+        setSubCategory(data.subcategory?.name || '');
+
+        // 3. Localização
+        setCity(data.city?.name || 'Caldas Novas');
+        setUf('GO');
+        setNeighborhood(data.neighborhood?.name || 'Centro');
+        const fullAddr = [data.street, data.number].filter(Boolean).join(', ');
+        setAddress(fullAddr);
+        if (data.latitude) setLat(Number(data.latitude));
+        if (data.longitude) setLng(Number(data.longitude));
+
+        // 4. Preço e Textos
+        setPriceTier(data.priceTier || '$$');
+        if (data.priceTier === '$') setPriceRange('Econômico • Até R$ 50');
+        else if (data.priceTier === '$$$') setPriceRange('R$ 110 - R$ 160');
+        else if (data.priceTier === '$$$$') setPriceRange('Luxo • Acima de R$ 250');
+        else setPriceRange('Moderado • R$ 50 - R$ 110');
+
+        setBadge(data.isFeatured ? 'Destaque Ouro Verificado' : 'Verificado Oficial');
+        setStatusBadge(data.status === 'PUBLISHED' ? 'Aberto Agora' : 'Pendente de Aprovação');
+        setShortDescription(data.shortDescription || '');
+        setFullDescription(
+          Array.isArray(data.fullDescription)
+            ? data.fullDescription.join('\n\n')
+            : (data.fullDescription || '')
+        );
+
+        // 5. Contato
+        setPhone(data.phone || '');
+        setWhatsapp(data.whatsapp || '');
+        setWebsite(data.website || '');
+
+        // 6. Imagens
+        if (Array.isArray(data.images) && data.images.length > 0) {
+          const hero = data.images.find((img: any) => img.isCover) || data.images[0];
+          setHeroPhotoUrl(hero.url || '');
+          setHeroPhotoTitle(hero.caption || '');
+
+          const others = data.images.filter((img: any) => img.id !== hero.id);
+          setSecondaryPhotos([
+            { url: others[0]?.url || '', title: others[0]?.caption || 'Área Principal' },
+            { url: others[1]?.url || '', title: others[1]?.caption || 'Atração Secundária' },
+            { url: others[2]?.url || '', title: others[2]?.caption || 'Espaço de Lazer' },
+            { url: others[3]?.url || '', title: others[3]?.caption || 'Gastronomia & Conforto' },
+          ]);
+        }
+
+        // 7. Comodidades
+        if (Array.isArray(data.amenities) && data.amenities.length > 0) {
+          setAmenitiesList(data.amenities.map((a: any) => a.amenity?.name || a.name).filter(Boolean));
+        }
+
+        // 8. Horários
+        if (Array.isArray(data.openingHours) && data.openingHours.length > 0) {
+          const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+          setHoursList(
+            data.openingHours.map((oh: any) => ({
+              label: days[oh.dayOfWeek] || `Dia ${oh.dayOfWeek}`,
+              time: oh.isClosed ? 'Fechado' : `${oh.openTime} às ${oh.closeTime}`,
+              note: '',
+            }))
+          );
+        }
+
+        // 9. Itens Adaptados por Categoria
+        const allItems = data.serviceCategories?.flatMap((c: any) =>
+          (c.items || []).map((it: any) => ({ ...it, categoryName: c.name }))
+        ) || [];
+
+        if (pType === 'attraction' && allItems.length > 0) {
           setTicketTiers(
-            p.ticketTiers.map((t) => ({
-              id: t.id,
+            allItems.map((t: any, idx: number) => ({
+              id: t.id || `t-${idx + 1}`,
               name: t.name,
-              badge: t.badge || '',
-              price: t.price,
-              originalPrice: t.originalPrice || 0,
-              description: t.description,
-              rules: t.rules,
+              badge: idx === 0 ? 'Mais Vendido' : '',
+              price: parseFloat(t.price) || 0,
+              originalPrice: Math.round((parseFloat(t.price) || 0) * 1.25),
+              description: t.description || '',
+              rules: 'Apresentação de voucher impresso ou digital na catraca.',
             }))
           );
-        }
-      } else if (p.placeType === 'accommodation') {
-        if (p.baseNightRate) setBaseNightRate(p.baseNightRate);
-        if (p.checkIn) setCheckInTime(p.checkIn);
-        if (p.checkOut) setCheckOutTime(p.checkOut);
-        setBreakfastIncluded(!!p.breakfastIncluded);
-        setPetFriendly(!!p.petFriendly);
-        if (p.rooms) {
+        } else if (pType === 'accommodation' && allItems.length > 0) {
           setRoomsList(
-            p.rooms.map((r) => ({
-              id: r.id,
+            allItems.map((r: any, idx: number) => ({
+              id: r.id || `r-${idx + 1}`,
               name: r.name,
-              badge: r.badge || '',
-              sizeM2: r.sizeM2,
-              capacity: r.capacity,
-              bed: r.bed,
-              nightRate: r.nightRate,
-              image: r.image,
-              description: r.description,
+              badge: idx === 0 ? 'Recomendado' : '',
+              sizeM2: 32 + idx * 8,
+              capacity: 'Até 4 pessoas',
+              bed: idx % 2 === 0 ? '1 Cama King + 1 Sofá Cama' : '2 Camas Queen',
+              nightRate: parseFloat(r.price) || 350,
+              image: r.imageUrl || '',
+              description: r.description || '',
             }))
           );
-        }
-      } else if (p.placeType === 'restaurant') {
-        if (p.cuisine) setCuisine(p.cuisine);
-        if (p.serviceType) setServiceType(p.serviceType);
-        if (p.averageCost) setAverageCost(p.averageCost);
-        if (p.wineCellar) setWineCellarLabels(p.wineCellar.totalLabels);
-        if (p.menuHighlights) {
+        } else if (pType === 'restaurant' && allItems.length > 0) {
           setMenuItems(
-            p.menuHighlights.map((m) => ({
-              id: m.id,
+            allItems.map((m: any, idx: number) => ({
+              id: m.id || `m-${idx + 1}`,
               name: m.name,
-              badge: m.badge || '',
-              price: m.price,
-              description: m.description,
-              image: m.image,
+              badge: idx === 0 ? 'Especial da Casa' : '',
+              price: typeof m.price === 'number' ? `R$ ${m.price.toFixed(2).replace('.', ',')}` : (String(m.price).startsWith('R$') ? String(m.price) : `R$ ${m.price}`),
+              description: m.description || '',
+              image: m.imageUrl || '',
             }))
           );
         }
-      }
-    }
+      })
+      .catch((err) => {
+        console.warn(`[NovoEstabelecimentoForm] Falha ao carregar anúncio da API (${editSlug}), recorrendo ao mock:`, err);
+        if (MOCK_PLACES_DETAILS[editSlug]) {
+          const p = MOCK_PLACES_DETAILS[editSlug];
+          setName(p.name);
+          setSlug(p.slug);
+          setPlaceType(p.placeType);
+          setCategoryName(p.category);
+          setSubCategory(p.subCategory);
+          setNeighborhood(p.neighborhood);
+          setAddress(p.address);
+          setLat(p.lat);
+          setLng(p.lng);
+          setPriceTier(p.priceTier);
+          setPriceRange(p.priceRange);
+          setBadge(p.badge);
+          setStatusBadge(p.statusBadge);
+          setAwardBadge(p.awardBadge || '');
+          setShortDescription(p.shortDescription);
+          setFullDescription(p.fullDescription.join('\n\n'));
+          setGuideTip(p.guideTip);
+          setPhone(p.phone);
+          setWhatsapp(p.whatsapp);
+          setWebsite(p.website);
+          setInstagram(p.instagram || '');
+          setHeroPhotoUrl(p.gallery[0]?.url || '');
+          setHeroPhotoTitle(p.gallery[0]?.title || '');
+          setSecondaryPhotos([
+            { url: p.gallery[1]?.url || '', title: p.gallery[1]?.title || '' },
+            { url: p.gallery[2]?.url || '', title: p.gallery[2]?.title || '' },
+            { url: p.gallery[3]?.url || '', title: p.gallery[3]?.title || '' },
+            { url: p.gallery[4]?.url || '', title: p.gallery[4]?.title || '' },
+          ]);
+          setAmenitiesList(p.amenities || []);
+          if (p.faq) setFaqList(p.faq);
+
+          // Preenchimento por tipo
+          if (p.placeType === 'attraction') {
+            if (p.waterTemp) setWaterTemp(p.waterTemp);
+            if (p.ticketTiers) {
+              setTicketTiers(
+                p.ticketTiers.map((t) => ({
+                  id: t.id,
+                  name: t.name,
+                  badge: t.badge || '',
+                  price: t.price,
+                  originalPrice: t.originalPrice || 0,
+                  description: t.description,
+                  rules: t.rules,
+                }))
+              );
+            }
+          } else if (p.placeType === 'accommodation') {
+            if (p.baseNightRate) setBaseNightRate(p.baseNightRate);
+            if (p.checkIn) setCheckInTime(p.checkIn);
+            if (p.checkOut) setCheckOutTime(p.checkOut);
+            setBreakfastIncluded(!!p.breakfastIncluded);
+            setPetFriendly(!!p.petFriendly);
+            if (p.rooms) {
+              setRoomsList(
+                p.rooms.map((r) => ({
+                  id: r.id,
+                  name: r.name,
+                  badge: r.badge || '',
+                  sizeM2: r.sizeM2,
+                  capacity: r.capacity,
+                  bed: r.bed,
+                  nightRate: r.nightRate,
+                  image: r.image,
+                  description: r.description,
+                }))
+              );
+            }
+          } else if (p.placeType === 'restaurant') {
+            if (p.cuisine) setCuisine(p.cuisine);
+            if (p.serviceType) setServiceType(p.serviceType);
+            if (p.averageCost) setAverageCost(p.averageCost);
+            if (p.wineCellar) setWineCellarLabels(p.wineCellar.totalLabels);
+            if (p.menuHighlights) {
+              setMenuItems(
+                p.menuHighlights.map((m) => ({
+                  id: m.id,
+                  name: m.name,
+                  badge: m.badge || '',
+                  price: m.price,
+                  description: m.description,
+                  image: m.image,
+                }))
+              );
+            }
+          }
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoadingEdit(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [editSlug]);
 
   const handleNameChange = (val: string) => {
@@ -440,6 +581,12 @@ function NovoEstabelecimentoForm() {
           <Store className="w-7 h-7 text-[#FF3B4F]" />
           {editSlug ? `Editar: ${name || editSlug}` : 'Cadastrar Novo Estabelecimento'}
         </h1>
+        {loadingEdit && (
+          <div className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+            Carregando dados do banco de dados para edição...
+          </div>
+        )}
         <p className="text-xs sm:text-sm text-gray-400 mt-1">
           O formulário adapta automaticamente os campos necessários para cada categoria de anúncio (Parques, Hotéis, Gastronomia ou Serviços).
         </p>

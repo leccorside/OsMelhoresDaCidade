@@ -222,6 +222,46 @@ export class ListingsService {
     return items;
   }
 
+  async findAdminByIdOrSlug(idOrSlug: string) {
+    const listing = await this.prisma.listing.findFirst({
+      where: {
+        OR: [
+          { id: idOrSlug },
+          { slug: idOrSlug },
+        ],
+      },
+      include: {
+        category: true,
+        subcategory: true,
+        city: true,
+        neighborhood: true,
+        images: {
+          orderBy: { order: 'asc' },
+        },
+        openingHours: true,
+        specialHours: true,
+        amenities: {
+          include: { amenity: true },
+        },
+        socialLinks: true,
+        serviceCategories: {
+          orderBy: { order: 'asc' },
+          include: {
+            items: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!listing) {
+      throw new NotFoundException(`Estabelecimento "${idOrSlug}" não encontrado no banco.`);
+    }
+
+    return listing;
+  }
+
   async createFull(dto: CreateListingFullDto) {
     // 1. Resolver Cidade (padrão Caldas Novas se não especificada)
     let city = await this.prisma.city.findFirst({

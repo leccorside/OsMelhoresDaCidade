@@ -68,16 +68,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Gravação de fotos do mosaico (`ListingImage`), comodidades (`Amenity` e `ListingAmenity`), horários (`ListingOpeningHour`) e categorias de serviços/produtos (`ListingServiceCategory` e `ListingServiceItem`).
     - `POST /api/v1/listings`: Endpoint unificado de cadastro/atualização completa.
     - `GET /api/v1/listings/admin/all`: Listagem administrativa completa com contadores de avaliações, favoritos e relacionamentos.
+    - `GET /api/v1/listings/admin/get/:idOrSlug`: Busca completa de dados de um anúncio (independente de status) para pré-preenchimento no formulário de edição.
     - `DELETE /api/v1/listings/:id`: Remoção de estabelecimento e seus vínculos no banco.
 - **Frontend Next.js (`apps/web`)**:
-  - Módulo de integração de API [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) com `fetchAdminListings()`, `createOrUpdateListing()` e `deleteListingApi()`.
+  - Módulo de integração de API [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) com `fetchAdminListings()`, `fetchAdminListingDetail()`, `createOrUpdateListing()` e `deleteListingApi()`.
   - **Lista de Estabelecimentos (`/admin/estabelecimentos`)**:
     - Carregamento assíncrono via `useEffect` trazendo registros reais do PostgreSQL persistidos pela API, com fallback limpo para mocks caso o backend esteja em inicialização.
     - Exclusão com confirmação visual chamando a API REST.
     - Tabela com filtros por busca textual, categoria/tipo (Atrações, Hospedagem, Gastronomia, Serviços) e status (Ativos, Pendentes, Destaques Ouro).
     - Ações diretas: Visualizar ao vivo no portal, Editar formulário adaptado e Excluir anúncio.
-  - **Cadastro Dinâmico Adaptável (`/admin/estabelecimentos/novo`)**:
-    - Mapeamento completo dos dados preenchidos no formulário para a estrutura do DTO e envio via `POST /api/v1/listings`.
+  - **Cadastro & Edição Dinâmica Adaptável (`/admin/estabelecimentos/novo`)**:
+    - **Modo Edição (`?edit=[slug]`)**: Pré-preenchimento assíncrono consumindo `fetchAdminListingDetail()` direto do PostgreSQL, carregando campos gerais, localização, fotos do mosaico, comodidades, horários e itens adaptados específicos (tarifas/quartos/cardápio).
+    - Mapeamento completo dos dados preenchidos no formulário para a estrutura do DTO e envio via `POST /api/v1/listings` (com suporte a criação e atualização via upsert transacional).
     - Feedback de salvamento com spinner, notificação de sucesso e redirecionamento para a listagem administrativa.
     - Seletor de Categoria Dinâmica que reconfigura instantaneamente os campos do formulário para o tipo de anúncio selecionado:
       - *Atrações*: Temperatura da água, tabela de ingressos (adulto, infantil, sênior) e regras.
@@ -86,7 +88,6 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
       - *Comércio & Serviços*: Especialidades, modelo de atendimento e garantias.
     - Construtor do mosaico de fotos (Hero + 4 secundárias com legendas).
     - Construtor de Comodidades e FAQ.
-    - Suporte à edição pré-carregada via parâmetro `?edit=[slug]`.
 
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:

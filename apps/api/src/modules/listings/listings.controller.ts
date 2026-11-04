@@ -78,6 +78,12 @@ export class ListingsController {
     return this.listingsService.findAllAdmin({ search, categorySlug, status });
   }
 
+  @Get('admin/get/:idOrSlug')
+  @ApiOperation({ summary: 'Obter dados completos de um estabelecimento para formulário de edição' })
+  async findOneAdmin(@Param('idOrSlug') idOrSlug: string) {
+    return this.listingsService.findAdminByIdOrSlug(idOrSlug);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Remover estabelecimento por ID' })
   async deleteListing(@Param('id') id: string) {
