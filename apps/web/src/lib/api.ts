@@ -1636,3 +1636,111 @@ export async function deleteNotificationApi(id: string): Promise<{ success: bool
 
   return res.json();
 }
+
+// ==========================================
+// DADOS DA CONTA E PERFIL DO COMERCIANTE
+// ==========================================
+
+export interface MerchantProfileData {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    avatarUrl?: string | null;
+    role: string;
+    createdAt: string;
+  };
+  merchantProfile: {
+    id: string;
+    userId: string;
+    companyName: string;
+    legalName?: string | null;
+    cnpj?: string | null;
+    phone?: string | null;
+    whatsapp?: string | null;
+    pixKey?: string | null;
+    pixKeyType?: string | null;
+    bankName?: string | null;
+    bankAgency?: string | null;
+    bankAccount?: string | null;
+    address?: string | null;
+    isApproved: boolean;
+    approvedAt?: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export async function fetchMerchantProfileApi(): Promise<MerchantProfileData> {
+  const url = `${getApiBaseUrl()}/auth/merchant-profile`;
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao carregar perfil: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateMerchantProfileApi(data: {
+  name?: string;
+  phone?: string;
+  avatarUrl?: string;
+  companyName?: string;
+  legalName?: string;
+  cnpj?: string;
+  whatsapp?: string;
+  pixKey?: string;
+  pixKeyType?: string;
+  bankName?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  address?: string;
+}): Promise<MerchantProfileData> {
+  const url = `${getApiBaseUrl()}/auth/merchant-profile`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao salvar perfil: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function changeMerchantPasswordApi(data: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ success: boolean; message: string }> {
+  const url = `${getApiBaseUrl()}/auth/change-password`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao trocar senha: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

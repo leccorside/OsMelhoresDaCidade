@@ -372,6 +372,24 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - **Exportação Excel (.csv)**: Geração client-side com codificação UTF-8 BOM (`\uFEFF`) preservando acentuação em português, estruturando colunas de ID, data, estabelecimento, nome do cliente, nota de 1 a 5★, depoimento na íntegra, status de resposta, texto da réplica oficial e data de resposta.
   - **Relatório Executivo em PDF / Impressão**: Layout customizado com regras `@media print`, incluindo cabeçalho institucional com marca oficial, data/hora de emissão, identificação do lojista credenciado, painel com as 4 métricas consolidadas (nota média, total de avaliações, taxa de resposta e pendências) e listagem formatada dos depoimentos.
 
+### S. Configurações e Dados da Conta do Comerciante
+- **Modelagem Prisma & PostgreSQL ([`apps/api/prisma/schema.prisma`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/prisma/schema.prisma))**:
+  - Extensão do modelo `MerchantProfile` com campos fiscais e financeiros: `legalName`, `cnpj`, `whatsapp`, `pixKey`, `pixKeyType`, `bankName`, `bankAgency`, `bankAccount` e `address`.
+- **Backend NestJS (`apps/api`)**:
+  - DTOs `UpdateMerchantProfileDto` e `ChangePasswordDto` em [`apps/api/src/modules/auth/dto/merchant-profile.dto.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/auth/dto/merchant-profile.dto.ts).
+  - Métodos em [`AuthService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/auth/auth.service.ts):
+    - `getMerchantProfile`: consulta completa dos dados do usuário e perfil do lojista (com auto-provisionamento caso não exista).
+    - `updateMerchantProfile`: sincronização atômica de dados pessoais e fiscais da empresa parceira.
+    - `changePassword`: verificação criptográfica com Argon2 da senha atual e gravação segura da nova credencial.
+  - Endpoints sob `/api/v1/auth`: `GET /merchant-profile`, `PUT /merchant-profile` e `POST /change-password` protegidos por `JwtAuthGuard`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens e funções clientes em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) (`fetchMerchantProfileApi`, `updateMerchantProfileApi`, `changeMerchantPasswordApi`).
+  - Interface moderna com abas em [`/comerciante/perfil`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/perfil/page.tsx) e re-export em [`/comerciante/configuracoes`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/configuracoes/page.tsx):
+    - **Dados do Responsável**: foto/avatar com upload direto, nome completo, e-mail fixo e telefone.
+    - **Dados da Empresa**: nome fantasia, razão social, CNPJ e WhatsApp comercial de atendimento.
+    - **Dados Bancários & PIX**: seletor de chave PIX (CNPJ, CPF, Email, Telefone, Aleatória), chave e dados da agência/conta para liquidação financeira.
+    - **Segurança & Senha**: formulário com alternadores de visibilidade de senha (Eye / EyeOff) e validação de tamanho mínimo.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

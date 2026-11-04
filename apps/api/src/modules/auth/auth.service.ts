@@ -349,5 +349,147 @@ export class AuthService implements OnModuleInit {
       },
     };
   }
+
+  // --- GESTÃO DE PERFIL E DADOS DA CONTA DO COMERCIANTE ---
+
+  async getMerchantProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        role: true,
+        createdAt: true,
+        merchantProfile: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    let merchantProfile = user.merchantProfile;
+    if (!merchantProfile) {
+      merchantProfile = await this.prisma.merchantProfile.create({
+        data: {
+          userId,
+          companyName: user.name || 'Empresa Parceira',
+          isApproved: true,
+          approvedAt: new Date(),
+        },
+      });
+    }
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatarUrl: user.avatarUrl,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+      merchantProfile,
+    };
+  }
+
+  async updateMerchantProfile(userId: string, dto: any) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { merchantProfile: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    // Atualiza dados do usuário
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name !== undefined ? dto.name.trim() : undefined,
+        phone: dto.phone !== undefined ? dto.phone.trim() : undefined,
+        avatarUrl: dto.avatarUrl !== undefined ? dto.avatarUrl : undefined,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        role: true,
+      },
+    });
+
+    // Atualiza ou cria perfil de comerciante
+    const updatedProfile = await this.prisma.merchantProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        companyName: dto.companyName || user.name,
+        legalName: dto.legalName,
+        cnpj: dto.cnpj,
+        phone: dto.phone,
+        whatsapp: dto.whatsapp,
+        pixKey: dto.pixKey,
+        pixKeyType: dto.pixKeyType,
+        bankName: dto.bankName,
+        bankAgency: dto.bankAgency,
+        bankAccount: dto.bankAccount,
+        address: dto.address,
+        isApproved: true,
+        approvedAt: new Date(),
+      },
+      update: {
+        companyName: dto.companyName !== undefined ? dto.companyName.trim() : undefined,
+        legalName: dto.legalName !== undefined ? dto.legalName.trim() : undefined,
+        cnpj: dto.cnpj !== undefined ? dto.cnpj.trim() : undefined,
+        phone: dto.phone !== undefined ? dto.phone.trim() : undefined,
+        whatsapp: dto.whatsapp !== undefined ? dto.whatsapp.trim() : undefined,
+        pixKey: dto.pixKey !== undefined ? dto.pixKey.trim() : undefined,
+        pixKeyType: dto.pixKeyType !== undefined ? dto.pixKeyType : undefined,
+        bankName: dto.bankName !== undefined ? dto.bankName.trim() : undefined,
+        bankAgency: dto.bankAgency !== undefined ? dto.bankAgency.trim() : undefined,
+        bankAccount: dto.bankAccount !== undefined ? dto.bankAccount.trim() : undefined,
+        address: dto.address !== undefined ? dto.address.trim() : undefined,
+      },
+    });
+
+    return {
+      user: updatedUser,
+      merchantProfile: updatedProfile,
+    };
+  }
+
+  async changePassword(userId: string, currentPass: string, newPass: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    const matches = await argon2.verify(user.passwordHash, currentPass);
+    if (!matches) {
+      throw new BadRequestException('A senha atual informada está incorreta.');
+    }
+
+    if (newPass.length < 6) {
+      throw new BadRequestException('A nova senha deve ter no mínimo 6 caracteres.');
+    }
+
+    const newHash = await argon2.hash(newPass);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
+    });
+
+    return { success: true, message: 'Senha atualizada com sucesso!' };
+  }
 }
 

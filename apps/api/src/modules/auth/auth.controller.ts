@@ -1,10 +1,11 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh.dto';
 import { ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto } from './dto/password.dto';
+import { UpdateMerchantProfileDto, ChangePasswordDto } from './dto/merchant-profile.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -76,6 +77,37 @@ export class AuthController {
       preferredCityId: user.preferredCityId,
       merchantProfile: user.merchantProfile,
     };
+  }
+
+  @Get('merchant-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter dados cadastrais completos e fiscais do comerciante' })
+  async getMerchantProfile(@CurrentUser() user: any) {
+    return this.authService.getMerchantProfile(user.id);
+  }
+
+  @Put('merchant-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar dados cadastrais, comerciais e bancários do comerciante' })
+  async updateMerchantProfile(
+    @CurrentUser() user: any,
+    @Body() dto: UpdateMerchantProfileDto,
+  ) {
+    return this.authService.updateMerchantProfile(user.id, dto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Alterar senha da conta do usuário autenticado' })
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
   }
 }
 

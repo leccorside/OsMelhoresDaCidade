@@ -144,9 +144,16 @@ model MerchantProfile {
   userId       String         @unique
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyName  String
+  legalName    String?
   cnpj         String?
   phone        String?
   whatsapp     String?
+  pixKey       String?
+  pixKeyType   String?
+  bankName     String?
+  bankAgency   String?
+  bankAccount  String?
+  address      String?
   isApproved   Boolean        @default(false)
   approvedAt   DateTime?
   createdAt    DateTime       @default(now())
