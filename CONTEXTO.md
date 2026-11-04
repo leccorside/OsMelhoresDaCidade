@@ -425,6 +425,15 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Tela de comunicados e avisos em massa em [`/admin/comunicados`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/comunicados/page.tsx) com seletor de público alvo, preview do alerta e histórico de envios.
   - Links adicionados na navegação lateral do painel master ([`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx)).
 
+### W. Envio de Notificações por E-mail (Nodemailer / SMTP)
+- **Backend NestJS (`apps/api`)**:
+  - Módulo global `MailModule` e serviço [`MailService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/common/mail/mail.service.ts) baseado em `nodemailer` com suporte a SMTP de produção e fallback para modo de desenvolvimento/simulação JSON.
+  - Template HTML responsivo de alta fidelidade visual para alertas de novas avaliações:
+    - Banner comemorativo verde para notas 5 estrelas ("🌟 Parabéns! Nova Avaliação 5 Estrelas!").
+    - Banner de alerta vermelho para notas críticas <= 2 estrelas ("⚠️ Atenção: Novo Feedback do Cliente Requer Sua Resposta").
+    - Transcrição do comentário, nome do avaliador, estrelas formatadas e botão de ação (CTA) direto para resposta rápida no painel.
+  - Disparo automático integrado no momento da criação de avaliações em [`ReviewsService.create`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/reviews/reviews.service.ts).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

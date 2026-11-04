@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../../common/mail/mail.service';
 import { ReviewStatus, NotificationType } from '@prisma/client';
 
 export interface MerchantReviewFilters {
@@ -14,6 +15,7 @@ export class ReviewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
   ) {}
 
   async create(userId: string, listingId: string, rating: number, comment?: string) {
@@ -62,6 +64,32 @@ export class ReviewsService {
         linkUrl: '/comerciante/avaliacoes',
         metadata: { reviewId: review.id, rating, listingId },
       });
+
+      // Disparar e-mail automático para os proprietários do estabelecimento
+      try {
+        const owners = await this.prisma.listingOwner.findMany({
+          where: { listingId },
+          include: {
+            merchantProfile: {
+              include: { user: { select: { email: true, name: true } } },
+            },
+          },
+        });
+
+        for (const o of owners) {
+          if (o.merchantProfile?.user?.email) {
+            await this.mailService.sendNewReviewEmail({
+              merchantName: o.merchantProfile.companyName || o.merchantProfile.user.name,
+              merchantEmail: o.merchantProfile.user.email,
+              listingName: listing?.name || 'Seu Estabelecimento',
+              reviewerName: reviewer?.name || 'Cliente Guia',
+              rating,
+              comment,
+              reviewUrl: 'http://localhost:4101/comerciante/avaliacoes',
+            });
+          }
+        }
+      } catch (err) {}
     } catch (e) {
       // Ignorar falhas secundárias de notificação
     }

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { MailModule } from './common/mail/mail.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ListingsModule } from './modules/listings/listings.module';
@@ -21,6 +22,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
       load: [configuration],
     }),
     PrismaModule,
+    MailModule,
     NotificationsModule,
     GeographyModule,
     AuthModule,
