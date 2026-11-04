@@ -1,10 +1,9 @@
 import { constructMetadata } from '@/lib/seo';
-import { CaldasNovasHomePage } from '@/components/home/CaldasNovasHomePage';
+import { NationalHomePage } from '@/components/home/NationalHomePage';
 
 export const metadata = constructMetadata({
-  title: 'Os Melhores de Caldas Novas (GO) | Guia Oficial de Gastronomia, Lazer e Termas',
-  description: 'O guia definitivo da maior estância hidrotermal do mundo. Descubra os melhores lugares, parques aquáticos, restaurantes e eventos em Caldas Novas.',
-  cityName: 'Caldas Novas',
+  title: 'Os Melhores da Cidade | O Guia Definitivo dos Municípios Brasileiros',
+  description: 'Descubra os melhores lugares da sua cidade. Encontre restaurantes premiados, bares autênticos, eventos imperdíveis e comércios locais avaliados por moradores reais.',
   canonical: '/',
 });
 
@@ -14,7 +13,7 @@ export default function HomePage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'Os Melhores da Cidade - Caldas Novas',
+    name: 'Os Melhores da Cidade',
     url: 'https://osmelhoresdacidade.com.br',
     potentialAction: {
       '@type': 'SearchAction',
@@ -29,7 +28,7 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CaldasNovasHomePage />
+      <NationalHomePage />
     </>
   );
 }
