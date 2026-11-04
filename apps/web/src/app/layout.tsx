@@ -22,6 +22,12 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+          rel="stylesheet"
+        />
       </head>
       <body className="min-h-screen bg-[#FCF9F8] text-[#171717] antialiased flex flex-col">
         {children}
