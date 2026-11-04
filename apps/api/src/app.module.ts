@@ -5,6 +5,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ListingsModule } from './modules/listings/listings.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ListingsModule } from './modules/listings/listings.module';
     GeographyModule,
     AuthModule,
     ListingsModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [],
