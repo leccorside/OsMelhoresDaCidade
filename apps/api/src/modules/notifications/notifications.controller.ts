@@ -53,3 +53,4 @@ export class NotificationsController {
     return this.notificationsService.deleteNotification(user.id, id);
   }
 }
+

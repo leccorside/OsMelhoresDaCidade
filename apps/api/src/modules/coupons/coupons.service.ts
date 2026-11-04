@@ -382,4 +382,107 @@ export class CouponsService {
       claimedAt: claim.createdAt,
     };
   }
+
+  // --- VALIDAÇÃO E BAIXA DE VOUCHERS NO BALCÃO ---
+
+  async validateVoucher(user: any, claimCode: string) {
+    const cleanCode = claimCode.trim().toUpperCase();
+
+    const claim = await this.prisma.couponClaim.findUnique({
+      where: { claimCode: cleanCode },
+      include: {
+        coupon: {
+          include: {
+            listing: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+
+    if (!claim) {
+      throw new NotFoundException(`Nenhum voucher encontrado com o código "${cleanCode}". Verifique os dígitos.`);
+    }
+
+    // Verificar se o comerciante é dono do estabelecimento associado
+    await this.verifyListingOwnership(user, claim.coupon.listingId);
+
+    const isExpired = claim.coupon.endDate && new Date(claim.coupon.endDate) < new Date();
+    const isAlreadyUsed = !!claim.usedAt;
+
+    let status = 'VALID';
+    let statusMessage = 'Voucher válido e pronto para uso!';
+
+    if (isAlreadyUsed) {
+      status = 'ALREADY_USED';
+      statusMessage = `Este voucher já foi utilizado em ${new Date(claim.usedAt!).toLocaleString('pt-BR')}.`;
+    } else if (isExpired) {
+      status = 'EXPIRED';
+      statusMessage = 'A data de validade desta promoção expirou.';
+    } else if (claim.coupon.status !== CouponStatus.ACTIVE) {
+      status = 'INACTIVE';
+      statusMessage = 'A promoção associada a este voucher está pausada ou inativa.';
+    }
+
+    return {
+      isValid: status === 'VALID',
+      status,
+      statusMessage,
+      claim: {
+        id: claim.id,
+        claimCode: claim.claimCode,
+        customerName: claim.customerName,
+        customerPhone: claim.customerPhone,
+        customerEmail: claim.customerEmail,
+        createdAt: claim.createdAt,
+        usedAt: claim.usedAt,
+      },
+      coupon: {
+        id: claim.coupon.id,
+        code: claim.coupon.code,
+        title: claim.coupon.title,
+        description: claim.coupon.description,
+        discountType: claim.coupon.discountType,
+        discountValue: claim.coupon.discountValue,
+        discountUnit: claim.coupon.discountUnit,
+        minSpend: claim.coupon.minSpend,
+        rules: claim.coupon.rules,
+        endDate: claim.coupon.endDate,
+        listing: claim.coupon.listing,
+      },
+    };
+  }
+
+  async redeemVoucher(user: any, claimCode: string) {
+    const validation = await this.validateVoucher(user, claimCode);
+
+    if (!validation.isValid) {
+      throw new BadRequestException(validation.statusMessage);
+    }
+
+    const updatedClaim = await this.prisma.couponClaim.update({
+      where: { id: validation.claim.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Notificar
+    try {
+      await this.notificationsService.createNotification({
+        userId: user.id,
+        type: NotificationType.COUPON_CLAIMED,
+        title: 'Voucher Utilizado no Balcão!',
+        message: `O voucher ${validation.claim.claimCode} (${validation.coupon.title}) foi baixado com sucesso em "${validation.coupon.listing.name}".`,
+        linkUrl: '/comerciante/cupons',
+        metadata: { claimCode: validation.claim.claimCode, usedAt: updatedClaim.usedAt },
+      });
+    } catch (e) {}
+
+    return {
+      success: true,
+      message: 'Voucher validado e baixado com sucesso!',
+      claimCode: updatedClaim.claimCode,
+      usedAt: updatedClaim.usedAt,
+      coupon: validation.coupon,
+      customerName: validation.claim.customerName,
+    };
+  }
 }

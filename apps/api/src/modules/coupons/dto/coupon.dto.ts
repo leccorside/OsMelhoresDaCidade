@@ -154,3 +154,10 @@ export class ClaimCouponDto {
   @IsString()
   customerEmail?: string;
 }
+
+export class ValidateVoucherDto {
+  @IsString({ message: 'Código do voucher é obrigatório' })
+  @IsNotEmpty({ message: 'Código do voucher não pode ser vazio' })
+  claimCode: string;
+}
+

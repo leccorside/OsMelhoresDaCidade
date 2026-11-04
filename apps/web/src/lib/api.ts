@@ -1521,6 +1521,83 @@ export async function deleteMerchantCouponApi(id: string): Promise<{ success: bo
   return res.json();
 }
 
+export interface VoucherValidationResult {
+  isValid: boolean;
+  status: 'VALID' | 'ALREADY_USED' | 'EXPIRED' | 'INACTIVE';
+  statusMessage: string;
+  claim: {
+    id: string;
+    claimCode: string;
+    customerName?: string | null;
+    customerPhone?: string | null;
+    customerEmail?: string | null;
+    createdAt: string;
+    usedAt?: string | null;
+  };
+  coupon: {
+    id: string;
+    code: string;
+    title: string;
+    description?: string | null;
+    discountType: string;
+    discountValue?: number | null;
+    discountUnit?: string | null;
+    minSpend?: number | null;
+    rules?: string | null;
+    endDate?: string | null;
+    listing: {
+      id: string;
+      name: string;
+      slug: string;
+    };
+  };
+}
+
+export async function validateVoucherApi(claimCode: string): Promise<VoucherValidationResult> {
+  const url = `${getApiBaseUrl()}/coupons/merchant/validate-voucher`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ claimCode }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao validar voucher: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function redeemVoucherApi(claimCode: string): Promise<{
+  success: boolean;
+  message: string;
+  claimCode: string;
+  usedAt: string;
+  coupon: any;
+  customerName?: string;
+}> {
+  const url = `${getApiBaseUrl()}/coupons/merchant/redeem-voucher`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ claimCode }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao dar baixa no voucher: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function fetchPublicListingCoupons(listingId: string): Promise<any[]> {
   const url = `${getApiBaseUrl()}/coupons/public/listing/${encodeURIComponent(listingId)}`;
   const res = await fetch(url, { cache: 'no-store' });

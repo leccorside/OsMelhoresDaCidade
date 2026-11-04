@@ -128,3 +128,4 @@ export class NotificationsService {
     return { success: true, message: 'Notificação excluída com sucesso.' };
   }
 }
+

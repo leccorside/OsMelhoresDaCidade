@@ -390,6 +390,17 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - **Dados Bancários & PIX**: seletor de chave PIX (CNPJ, CPF, Email, Telefone, Aleatória), chave e dados da agência/conta para liquidação financeira.
     - **Segurança & Senha**: formulário com alternadores de visibilidade de senha (Eye / EyeOff) e validação de tamanho mínimo.
 
+### T. Validação de Vouchers no Balcão (Frente de Caixa / PDV)
+- **Backend NestJS (`apps/api`)**:
+  - DTO `ValidateVoucherDto` e métodos `validateVoucher` e `redeemVoucher` em [`CouponsService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/coupons/coupons.service.ts).
+  - Verificação de posse do estabelecimento, checagem de validade, bloqueio de vouchers já utilizados e baixa atômica com gravação do timestamp `usedAt`.
+  - Disparo de notificação em tempo real ao lojista informando a baixa do voucher no balcão.
+  - Endpoints `POST /api/v1/coupons/merchant/validate-voucher` e `POST /api/v1/coupons/merchant/redeem-voucher`.
+- **Frontend Next.js (`apps/web`)**:
+  - Funções de integração `validateVoucherApi` e `redeemVoucherApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Tela de frente de balcão / PDV em [`/comerciante/validar-voucher`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/validar-voucher/page.tsx) com consulta por código, botão de colar da área de transferência, card de status visual (Válido, Já Utilizado, Expirado), botão de baixa imediata e histórico recente da sessão.
+  - Adicionado atalho "Validar Vouchers" com ícone `QrCode` no menu lateral do painel ([`layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/layout.tsx)).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

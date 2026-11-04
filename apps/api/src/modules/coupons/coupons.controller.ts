@@ -22,6 +22,7 @@ import {
   UpdateCouponDto,
   CouponFilterDto,
   ClaimCouponDto,
+  ValidateVoucherDto,
 } from './dto/coupon.dto';
 
 @ApiTags('Cupons e Promoções')
@@ -92,6 +93,30 @@ export class CouponsController {
     return this.couponsService.deleteMerchantCoupon(user, id);
   }
 
+  @Post('merchant/validate-voucher')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Consultar status do voucher do cliente pelo código' })
+  validateVoucher(
+    @CurrentUser() user: any,
+    @Body() dto: ValidateVoucherDto,
+  ) {
+    return this.couponsService.validateVoucher(user, dto.claimCode);
+  }
+
+  @Post('merchant/redeem-voucher')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Dar baixa definitiva no voucher do cliente' })
+  redeemVoucher(
+    @CurrentUser() user: any,
+    @Body() dto: ValidateVoucherDto,
+  ) {
+    return this.couponsService.redeemVoucher(user, dto.claimCode);
+  }
+
   // --- ROTAS PÚBLICAS E RESGATE ---
 
   @Get('public/listing/:listingId')
@@ -109,3 +134,4 @@ export class CouponsController {
     return this.couponsService.claimPublicCoupon(id, dto);
   }
 }
+
