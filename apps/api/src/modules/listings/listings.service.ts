@@ -262,7 +262,12 @@ export class ListingsService {
     return listing;
   }
 
-  async createFull(dto: CreateListingFullDto) {
+  async createFull(dto: CreateListingFullDto, user?: any) {
+    // Se for comerciante, forçar status PENDING para moderação editorial
+    if (user && user.role === 'MERCHANT') {
+      dto.status = ListingStatus.PENDING;
+    }
+
     // 1. Resolver Cidade (padrão Caldas Novas se não especificada)
     let city = await this.prisma.city.findFirst({
       where: dto.cityId
@@ -276,6 +281,32 @@ export class ListingsService {
       });
       if (!city) {
         throw new NotFoundException('Município não localizado no sistema.');
+      }
+    }
+
+    // Validação de posse para comerciantes em caso de atualização
+    if (user && user.role === 'MERCHANT' && user.merchantProfile) {
+      const existingListing = await this.prisma.listing.findUnique({
+        where: {
+          cityId_slug: {
+            cityId: city.id,
+            slug: dto.slug,
+          },
+        },
+      });
+
+      if (existingListing) {
+        const isOwner = await this.prisma.listingOwner.findUnique({
+          where: {
+            listingId_merchantProfileId: {
+              listingId: existingListing.id,
+              merchantProfileId: user.merchantProfile.id,
+            },
+          },
+        });
+        if (!isOwner) {
+          throw new ForbiddenException('Você não possui autorização para alterar este estabelecimento.');
+        }
       }
     }
 
@@ -391,6 +422,24 @@ export class ListingsService {
         });
       }
 
+      // Se usuário for comerciante ou tiver merchantProfile, vincular como proprietário
+      if (user?.merchantProfile?.id) {
+        await tx.listingOwner.upsert({
+          where: {
+            listingId_merchantProfileId: {
+              listingId: listing.id,
+              merchantProfileId: user.merchantProfile.id,
+            },
+          },
+          update: {},
+          create: {
+            listingId: listing.id,
+            merchantProfileId: user.merchantProfile.id,
+            role: 'OWNER',
+          },
+        });
+      }
+
       // 6. Comodidades & Diferenciais
       if (dto.amenities && dto.amenities.length > 0) {
         await tx.listingAmenity.deleteMany({ where: { listingId: listing.id } });
@@ -484,6 +533,23 @@ export class ListingsService {
 
   // --- ÁREA DO COMERCIANTE ---
 
+  async ensureAdminMerchantProfile(userId: string, userName?: string): Promise<string> {
+    let profile = await this.prisma.merchantProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) {
+      profile = await this.prisma.merchantProfile.create({
+        data: {
+          userId,
+          companyName: `Administração - ${userName || 'Master'}`,
+          isApproved: true,
+          approvedAt: new Date(),
+        },
+      });
+    }
+    return profile.id;
+  }
+
   async findMerchantListings(merchantProfileId: string) {
     return this.prisma.listing.findMany({
       where: {
@@ -495,6 +561,9 @@ export class ListingsService {
         category: true,
         city: true,
         neighborhood: true,
+        images: {
+          orderBy: { order: 'asc' },
+        },
         _count: {
           select: {
             reviews: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -17,16 +17,34 @@ import {
   Menu,
   X,
   ExternalLink,
+  ShieldAlert,
+  Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { clearAuthCookies } from '@/services/auth';
 
 export default function MerchantLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
+  const { user, isAuthenticated, clearAuth } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    // Checagem reativa de autenticação no cliente
+    const hasToken =
+      document.cookie.includes('auth_token=') ||
+      Boolean(localStorage.getItem('os-melhores-auth-storage'));
+
+    if (!hasToken) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [pathname, router]);
 
   const handleLogout = () => {
+    clearAuthCookies();
     clearAuth();
     router.push('/login');
   };
@@ -41,6 +59,17 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     { label: 'Estatísticas', href: '/comerciante/estatisticas', icon: BarChart3 },
     { label: 'Configurações', href: '/comerciante/configuracoes', icon: Settings },
   ];
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-[#171717] flex flex-col items-center justify-center text-white">
+        <Loader2 className="w-8 h-8 text-[#FF3B4F] animate-spin mb-3" />
+        <span className="text-xs font-semibold text-gray-400">
+          Autenticando sessão do comerciante...
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col md:flex-row">

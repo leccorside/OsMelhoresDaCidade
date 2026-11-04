@@ -4,7 +4,7 @@ import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Lock, AlertCircle, Shield, Sparkles } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Shield, Sparkles, Store } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { loginUser } from '@/services/auth';
 import { useAuthStore } from '@/stores/authStore';
@@ -54,21 +54,43 @@ function LoginForm() {
     setError(null);
   };
 
+  const handleFillMerchantDemo = () => {
+    setEmail('comerciante@osmelhoresdacidade.com.br');
+    setPassword('Comerciante@123456');
+    setError(null);
+  };
+
   return (
     <div className="bg-white py-8 px-6 sm:px-10 rounded-3xl shadow-hover border border-[#E5E7EB]">
-      {/* Atalho Demo para Administrador */}
-      <div className="mb-6 p-3.5 rounded-2xl bg-teal-50 border border-teal-200 text-xs text-teal-900 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-teal-600 shrink-0" />
-          <span>Acesso Master: <strong>admin@osmelhoresdacidade.com.br</strong></span>
+      {/* Atalhos de Demonstração / Homologação */}
+      <div className="mb-6 space-y-2">
+        <div className="p-3 rounded-2xl bg-teal-50 border border-teal-200 text-xs text-teal-900 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-teal-600 shrink-0" />
+            <span>Admin Master: <strong>admin@osmelhoresdacidade...</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={handleFillAdminDemo}
+            className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] transition-colors shrink-0 shadow-2xs"
+          >
+            Preencher
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleFillAdminDemo}
-          className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] transition-colors shrink-0 shadow-2xs"
-        >
-          Preencher
-        </button>
+
+        <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Store className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Comerciante: <strong>comerciante@osmelhoresdacidade...</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={handleFillMerchantDemo}
+            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition-colors shrink-0 shadow-2xs"
+          >
+            Preencher
+          </button>
+        </div>
       </div>
 
       {redirectUrl && (

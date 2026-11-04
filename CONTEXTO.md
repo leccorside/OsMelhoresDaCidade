@@ -175,6 +175,29 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - **Layout Administrativo ([`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx))**:
     - Dupla checagem reativa no client-side para reforço de segurança com tela de carregamento suave durante a validação da sessão e logout direto no menu lateral.
 
+### I. Painel do Comerciante Integrado com API, Métricas Reais e Fluxo de Moderação Editorial
+- **Backend NestJS (`apps/api`)**:
+  - **Seed Automático de Comerciante Parceiro**: Provisionamento no `onModuleInit()` de `AuthService` para o usuário `comerciante@osmelhoresdacidade.com.br` com senha `Comerciante@123456`, perfil `MERCHANT`, aprovado e com perfil empresarial `Restaurante Nonna Mia Ltda` criado.
+  - **Isolamento de Estabelecimentos por Comerciante (`GET /listings/merchant/mine`)**: Retorna estritamente os estabelecimentos associados ao `merchantProfileId` do usuário logado via relação `ListingOwner`, incluindo imagens e contadores de avaliações e favoritos.
+  - **Métricas e Estatísticas Consolidadas (`GET /listings/merchant/stats`)**: Agrega e calcula em tempo real o total de estabelecimentos, visualizações somadas, cliques de WhatsApp, cliques em rotas de direções, cliques de telefone, nota média ponderada e contagem de anúncios publicados vs. em análise.
+  - **Fluxo de Moderação Editorial (`POST /listings`)**: Comerciantes que submetem ou atualizam cadastros têm seus estabelecimentos automaticamente gravados com status `ListingStatus.PENDING` e vínculo como proprietário em `ListingOwner`.
+  - **Permissão de Acesso Seguro para Administradores**: Método `ensureAdminMerchantProfile` permite que Administradores Master visualizem e naveguem no painel do comerciante criando um perfil empresarial administrativo transparente sem erros de permissão.
+- **Frontend Next.js (`apps/web`)**:
+  - **Funções de Integração de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**: Implementadas `fetchMerchantStats()`, `fetchMerchantListings()` e `createMerchantListing()`, com cabeçalho JWT Bearer injetado automaticamente.
+  - **Dashboard do Comerciante ([`apps/web/src/app/comerciante/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/page.tsx))**:
+    - Consumo assíncrono das métricas reais do PostgreSQL via `useEffect` com tratamento de loading e empty-states.
+    - Cards dinâmicos de Alcance (Visualizações), Cliques no WhatsApp, Rotas no Google Maps e Avaliação Geral.
+    - Tabela de estabelecimentos próprios com badges de status (`PUBLICADO`, `EM MODERAÇÃO`), contadores de acessos e ações rápidas ("Ver no Guia" e "Editar").
+  - **Página de Meus Estabelecimentos ([`apps/web/src/app/comerciante/estabelecimentos/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/estabelecimentos/page.tsx))**:
+    - Gestão completa com filtros de status (`Todos`, `Publicados`, `Em Moderação`), barra de busca textual reativa e estatísticas detalhadas de cada estabelecimento.
+  - **Formulário de Cadastro/Edição do Comerciante ([`apps/web/src/app/comerciante/estabelecimentos/novo/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/estabelecimentos/novo/page.tsx))**:
+    - Pré-carregamento assíncrono para edição via query param `?edit=[slug]`.
+    - Integração com busca de CEP (ViaCEP) e geocodificação Nominatim.
+    - Upload de fotos (Hero e mosaico de até 4 fotos complementares) integrado com a API `/upload/image` e `/upload/images`.
+    - Envio do formulário via `createOrUpdateListing` com aviso claro de submissão para moderação editorial.
+  - **Atalho Rápido na Tela de Login ([`apps/web/src/app/login/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/login/page.tsx))**:
+    - Adicionado botão de preenchimento com 1 clique para a conta do "Comerciante Parceiro" (`comerciante@osmelhoresdacidade.com.br`) ao lado do "Administrador Master".
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

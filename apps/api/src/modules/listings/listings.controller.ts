@@ -62,8 +62,8 @@ export class ListingsController {
   @Roles(Role.ADMIN, Role.MERCHANT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cadastrar ou atualizar estabelecimento com campos adaptados por categoria' })
-  async createFull(@Body() dto: CreateListingFullDto) {
-    return this.listingsService.createFull(dto);
+  async createFull(@CurrentUser() user: any, @Body() dto: CreateListingFullDto) {
+    return this.listingsService.createFull(dto, user);
   }
 
   // --- ÁREA ADMINISTRATIVA MASTER ---
@@ -110,10 +110,14 @@ export class ListingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar estabelecimentos pertencentes ao comerciante logado' })
   async findMerchantListings(@CurrentUser() user: any) {
-    if (!user.merchantProfile) {
+    let merchantProfileId = user.merchantProfile?.id;
+    if (!merchantProfileId && user.role === Role.ADMIN) {
+      merchantProfileId = await this.listingsService.ensureAdminMerchantProfile(user.id, user.name);
+    }
+    if (!merchantProfileId) {
       throw new ForbiddenException('Perfil de comerciante não vinculado.');
     }
-    return this.listingsService.findMerchantListings(user.merchantProfile.id);
+    return this.listingsService.findMerchantListings(merchantProfileId);
   }
 
   @Get('merchant/stats')
@@ -122,10 +126,14 @@ export class ListingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obter métricas e estatísticas consolidadas do comerciante' })
   async getMerchantStats(@CurrentUser() user: any) {
-    if (!user.merchantProfile) {
+    let merchantProfileId = user.merchantProfile?.id;
+    if (!merchantProfileId && user.role === Role.ADMIN) {
+      merchantProfileId = await this.listingsService.ensureAdminMerchantProfile(user.id, user.name);
+    }
+    if (!merchantProfileId) {
       throw new ForbiddenException('Perfil de comerciante não vinculado.');
     }
-    return this.listingsService.getMerchantStats(user.merchantProfile.id);
+    return this.listingsService.getMerchantStats(merchantProfileId);
   }
 
   @Post('merchant/create')
@@ -134,10 +142,14 @@ export class ListingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cadastrar novo estabelecimento para moderação' })
   async createListing(@CurrentUser() user: any, @Body() dto: CreateListingDto) {
-    if (!user.merchantProfile) {
+    let merchantProfileId = user.merchantProfile?.id;
+    if (!merchantProfileId && user.role === Role.ADMIN) {
+      merchantProfileId = await this.listingsService.ensureAdminMerchantProfile(user.id, user.name);
+    }
+    if (!merchantProfileId) {
       throw new ForbiddenException('Perfil de comerciante não vinculado.');
     }
-    return this.listingsService.create(user.merchantProfile.id, dto);
+    return this.listingsService.create(merchantProfileId, dto);
   }
 
   // --- ROTA PÚBLICA DE DETALHES ---

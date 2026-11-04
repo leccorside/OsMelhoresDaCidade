@@ -512,3 +512,58 @@ export async function geocodeAddressApi(params: {
   }
   return res.json();
 }
+
+// --- ÁREA DO COMERCIANTE ---
+
+export interface MerchantStats {
+  totalListings: number;
+  totalViews: number;
+  totalWhatsappClicks: number;
+  totalDirectionsClicks: number;
+  totalPhoneClicks: number;
+  overallRating: string;
+  publishedListings: number;
+  pendingListings: number;
+}
+
+export async function fetchMerchantStats(): Promise<MerchantStats> {
+  const url = `${getApiBaseUrl()}/listings/merchant/stats`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter estatísticas: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchMerchantListings(): Promise<any[]> {
+  const url = `${getApiBaseUrl()}/listings/merchant/mine`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter estabelecimentos: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createMerchantListing(payload: any) {
+  return createOrUpdateListing(payload);
+}

@@ -23,6 +23,7 @@ export class AuthService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedDefaultAdmin();
+    await this.seedDefaultMerchant();
   }
 
   async seedDefaultAdmin() {
@@ -46,6 +47,67 @@ export class AuthService implements OnModuleInit {
         },
       });
       console.log(`🛡️ Usuário Administrador Master provisionado com sucesso: ${adminEmail}`);
+    }
+  }
+
+  async seedDefaultMerchant() {
+    const merchantEmail = 'comerciante@osmelhoresdacidade.com.br';
+    const merchantPassword = 'Comerciante@123456';
+
+    let merchant = await this.prisma.user.findUnique({
+      where: { email: merchantEmail.toLowerCase() },
+      include: { merchantProfile: true },
+    });
+
+    if (!merchant) {
+      const passwordHash = await argon2.hash(merchantPassword);
+      merchant = await this.prisma.user.create({
+        data: {
+          name: 'Comerciante Parceiro',
+          email: merchantEmail.toLowerCase(),
+          passwordHash,
+          phone: '(64) 99234-5678',
+          role: Role.MERCHANT,
+          isEmailVerified: true,
+          isActive: true,
+          merchantProfile: {
+            create: {
+              companyName: 'Restaurante Nonna Mia Ltda',
+              cnpj: '12.345.678/0001-90',
+              phone: '(64) 3453-1234',
+              whatsapp: '(64) 99234-5678',
+              isApproved: true,
+              approvedAt: new Date(),
+            },
+          },
+        },
+        include: { merchantProfile: true },
+      });
+      console.log(`🏪 Usuário Comerciante Parceiro provisionado com sucesso: ${merchantEmail}`);
+    }
+
+    // Vincular um estabelecimento de exemplo ao comerciante se existir
+    if (merchant.merchantProfile) {
+      const listing = await this.prisma.listing.findFirst({
+        where: { slug: 'restaurante-nonna-mia' },
+      });
+
+      if (listing) {
+        await this.prisma.listingOwner.upsert({
+          where: {
+            listingId_merchantProfileId: {
+              listingId: listing.id,
+              merchantProfileId: merchant.merchantProfile.id,
+            },
+          },
+          update: {},
+          create: {
+            listingId: listing.id,
+            merchantProfileId: merchant.merchantProfile.id,
+            role: 'OWNER',
+          },
+        });
+      }
     }
   }
 
