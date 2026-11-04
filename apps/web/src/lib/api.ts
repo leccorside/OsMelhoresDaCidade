@@ -310,7 +310,30 @@ export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<
         { name: 'Custo-benefício', score: 4.7 },
       ],
     },
-    reviews: baseMock?.reviews || [],
+    reviews: (() => {
+      const realReviews = Array.isArray(apiItem.reviews) && apiItem.reviews.length > 0
+        ? apiItem.reviews.map((r: any) => ({
+            id: r.id,
+            author: r.user?.name || 'Cliente Verificado',
+            avatar: r.user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+            location: `${apiItem.city?.name || 'Caldas Novas'}, GO`,
+            date: r.createdAt ? new Date(r.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : 'Recente',
+            title: r.rating >= 4 ? 'Experiência Excelente!' : 'Avaliação do Cliente',
+            text: r.comment || '',
+            rating: Number(r.rating) || 5,
+            stayDetails: 'Visita verificada',
+            reply: r.reply ? {
+              id: r.reply.id,
+              reply: r.reply.reply,
+              authorName: `Resposta de ${apiItem.title || apiItem.name}`,
+              createdAt: r.reply.createdAt ? new Date(r.reply.createdAt).toLocaleDateString('pt-BR') : undefined,
+            } : null,
+          }))
+        : [];
+      return realReviews.length > 0
+        ? [...realReviews, ...(baseMock?.reviews || [])]
+        : (baseMock?.reviews || []);
+    })(),
     faq: baseMock?.faq || [
       {
         question: `Como funciona o atendimento de ${apiItem.name}?`,

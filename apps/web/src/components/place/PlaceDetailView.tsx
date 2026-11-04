@@ -1109,6 +1109,36 @@ export function PlaceDetailView({
                           {rev.stayDetails} • {rev.date}
                         </span>
                       )}
+
+                      {/* Resposta Oficial do Comerciante / Estabelecimento */}
+                      {rev.reply && (
+                        <div className="mt-3.5 p-4 rounded-xl bg-emerald-50/80 border border-emerald-100 space-y-1.5 text-left">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="material-symbols-outlined text-[17px] text-emerald-700"
+                                style={{ fontVariationSettings: "'FILL' 1" }}
+                              >
+                                verified
+                              </span>
+                              <span className="font-bold text-xs text-emerald-950">
+                                {rev.reply.authorName || `Resposta de ${place.name}`}
+                              </span>
+                              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                                Resposta Oficial
+                              </span>
+                            </div>
+                            {rev.reply.createdAt && (
+                              <span className="text-[11px] text-emerald-700 font-medium">
+                                {rev.reply.createdAt}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-emerald-900 leading-relaxed pl-6">
+                            {rev.reply.reply}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

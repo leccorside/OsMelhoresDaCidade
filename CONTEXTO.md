@@ -334,6 +334,10 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Caixa de resposta oficial destacada em verde/esmeralda com data e identificador do comerciante, além de botão para editar ou excluir a resposta.
     - Formulário inline expansível para responder na hora, com dicas de boas práticas de atendimento e feedback imediato de sucesso.
 
+  - **Exibição Pública da Resposta Oficial ([`apps/web/src/components/place/PlaceDetailView.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/place/PlaceDetailView.tsx))**:
+    - Mapeamento completo de avaliações reais e respostas em `fetchPlaceDetail` ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts)).
+    - Renderização da resposta oficial do comerciante diretamente no card de cada avaliação do cliente na página pública do local (`/[city]/lugar/[slug]`), com badge de verificação verde esmeralda ("Resposta Oficial"), identificação da gerência do estabelecimento e data formatada.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

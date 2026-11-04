@@ -92,6 +92,7 @@ export interface PlaceDetailData {
     categories: Array<{ name: string; score: number }>;
   };
   reviews: Array<{
+    id?: string;
     author: string;
     avatar: string;
     location: string;
@@ -101,6 +102,12 @@ export interface PlaceDetailData {
     rating: number;
     photos?: string[];
     stayDetails?: string;
+    reply?: {
+      id?: string;
+      reply: string;
+      authorName?: string;
+      createdAt?: string;
+    } | null;
   }>;
   faq: Array<{
     question: string;
@@ -288,6 +295,11 @@ export const MOCK_PLACES_DETAILS: Record<string, PlaceDetailData> = {
         text: 'O parque é impecável. As águas termais são quentinhas de verdade, inclusive nos toboáguas mais altos. O espaço para crianças no navio pirata é seguro e os monitores são extremamente atentos.',
         rating: 5,
         stayDetails: 'Visitou com família de 4 pessoas',
+        reply: {
+          authorName: 'Resposta do Estabelecimento',
+          reply: 'Olá, Mariana! Ficamos imensamente felizes em saber que você e sua família tiveram momentos especiais em nossas piscinas termais. Aguardamos vocês em breve para mais diversão!',
+          createdAt: 'há 2 semanas',
+        },
       },
       {
         author: 'Rodrigo Vasconcelos',
