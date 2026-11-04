@@ -23,6 +23,9 @@ import {
   ChevronDown,
   User,
   Plus,
+  FileSpreadsheet,
+  Printer,
+  Download,
 } from 'lucide-react';
 import {
   fetchMerchantReviews,
@@ -165,10 +168,64 @@ export default function MerchantReviewsPage() {
     ? Math.round((metrics.answeredCount / metrics.totalReviews) * 100)
     : 100;
 
+  // Exportar para Excel (.csv com UTF-8 BOM)
+  const handleExportCSV = () => {
+    if (!data?.reviews || data.reviews.length === 0) {
+      setFeedback({ type: 'error', message: 'Não há avaliações disponíveis para exportação.' });
+      return;
+    }
+
+    const headers = [
+      'ID',
+      'Data',
+      'Estabelecimento',
+      'Cliente',
+      'Nota',
+      'Comentario',
+      'Status Resposta',
+      'Resposta Oficial',
+      'Data da Resposta',
+    ];
+
+    const rows = data.reviews.map((r) => [
+      `"${r.id}"`,
+      `"${new Date(r.createdAt).toLocaleDateString('pt-BR')}"`,
+      `"${(r.listing?.name || 'Estabelecimento').replace(/"/g, '""')}"`,
+      `"${(r.user?.name || 'Cliente').replace(/"/g, '""')}"`,
+      r.rating,
+      `"${(r.comment || '').replace(/"/g, '""')}"`,
+      `"${r.reply ? 'Respondida' : 'Aguardando Resposta'}"`,
+      `"${(r.reply?.reply || '').replace(/"/g, '""')}"`,
+      `"${r.reply?.createdAt ? new Date(r.reply.createdAt).toLocaleDateString('pt-BR') : ''}"`,
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((row) => row.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `relatorio_avaliacoes_reputacao_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setFeedback({ type: 'success', message: 'Relatório Excel (.csv) gerado e baixado com sucesso!' });
+  };
+
+  // Exportar / Imprimir PDF
+  const handlePrintPDF = () => {
+    if (!data?.reviews || data.reviews.length === 0) {
+      setFeedback({ type: 'error', message: 'Não há avaliações disponíveis para impressão.' });
+      return;
+    }
+    window.print();
+  };
+
   return (
     <div className="space-y-6">
       {/* Topo / Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Star className="w-7 h-7 text-amber-500 fill-amber-500" />
@@ -179,24 +236,88 @@ export default function MerchantReviewsPage() {
           </p>
         </div>
 
-        {/* Seletor de Estabelecimento */}
-        {data?.listings && data.listings.length > 0 && (
-          <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm">
-            <Store className="w-5 h-5 text-gray-400 shrink-0" />
-            <select
-              value={selectedListingId}
-              onChange={(e) => setSelectedListingId(e.target.value)}
-              className="bg-transparent text-sm font-semibold text-gray-800 focus:outline-none cursor-pointer"
+        <div className="flex items-center flex-wrap gap-2.5">
+          {/* Botões de Exportação */}
+          <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
+            <button
+              onClick={handleExportCSV}
+              title="Baixar planilha Excel com todas as notas e depoimentos"
+              className="px-3 py-1.5 rounded-lg bg-white text-xs font-bold text-gray-700 hover:text-emerald-700 hover:shadow-xs transition flex items-center gap-1.5"
             >
-              <option value="all">Todos os Estabelecimentos</option>
-              {data.listings.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Excel (CSV)</span>
+            </button>
+            <button
+              onClick={handlePrintPDF}
+              title="Imprimir relatório gerencial em PDF"
+              className="px-3 py-1.5 rounded-lg bg-white text-xs font-bold text-gray-700 hover:text-blue-700 hover:shadow-xs transition flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5 text-blue-600" />
+              <span>PDF / Imprimir</span>
+            </button>
           </div>
-        )}
+
+          {/* Seletor de Estabelecimento */}
+          {data?.listings && data.listings.length > 0 && (
+            <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-sm">
+              <Store className="w-5 h-5 text-gray-400 shrink-0" />
+              <select
+                value={selectedListingId}
+                onChange={(e) => setSelectedListingId(e.target.value)}
+                className="bg-transparent text-sm font-semibold text-gray-800 focus:outline-none cursor-pointer"
+              >
+                <option value="all">Todos os Estabelecimentos</option>
+                {data.listings.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Cabeçalho Executivo Exclusivo para Impressão em PDF */}
+      <div className="hidden print:block pb-6 mb-4 border-b-2 border-gray-900">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs uppercase font-black text-[#FF3B4F] tracking-wider block">
+              OS MELHORES DA CIDADE • RELATÓRIO EXECUTIVO
+            </span>
+            <h1 className="text-2xl font-black text-gray-900 mt-1">
+              Consolidado de Reputação & Avaliações
+            </h1>
+            <p className="text-xs text-gray-500 mt-1">
+              Emitido em {new Date().toLocaleDateString('pt-BR', { dateStyle: 'long' })} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-base font-black text-gray-900 block">
+              {data?.listings?.find((l) => l.id === selectedListingId)?.name || 'Todos os Estabelecimentos'}
+            </span>
+            <span className="text-xs text-gray-500">Parceiro Oficial Credenciado</span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-4 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200 text-center">
+          <div>
+            <span className="text-[10px] uppercase font-bold text-gray-500">Nota Média Geral</span>
+            <span className="block text-2xl font-black text-amber-600 mt-0.5">{metrics.averageRating.toFixed(1)} ★</span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-gray-500">Total de Avaliações</span>
+            <span className="block text-2xl font-black text-gray-900 mt-0.5">{metrics.totalReviews}</span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-gray-500">Taxa de Resposta</span>
+            <span className="block text-2xl font-black text-emerald-600 mt-0.5">{responseRate}%</span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-gray-500">Pendentes</span>
+            <span className="block text-2xl font-black text-orange-600 mt-0.5">{metrics.unansweredCount}</span>
+          </div>
+        </div>
       </div>
 
       {/* Alerta de Feedback */}

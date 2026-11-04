@@ -366,6 +366,12 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Componente interativo [`MerchantNotificationsBell.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/merchant/MerchantNotificationsBell.tsx) com polling automático em segundo plano a cada 30 segundos, badge animado de não lidas (`animate-ping`), popover com lista de alertas categorizados por ícones e marcação rápida como lida.
   - Integração no topo da interface mobile e barra superior do layout do comerciante ([`apps/web/src/app/comerciante/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/layout.tsx)), além de novo link direto no menu lateral para "Promoções & Cupons".
 
+### R. Exportação de Relatórios de Reputação em PDF e Excel (CSV)
+- **Frontend Next.js (`apps/web`)**:
+  - Implementada exportação com 1 clique de relatórios de satisfação e depoimentos em [`apps/web/src/app/comerciante/avaliacoes/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/avaliacoes/page.tsx).
+  - **Exportação Excel (.csv)**: Geração client-side com codificação UTF-8 BOM (`\uFEFF`) preservando acentuação em português, estruturando colunas de ID, data, estabelecimento, nome do cliente, nota de 1 a 5★, depoimento na íntegra, status de resposta, texto da réplica oficial e data de resposta.
+  - **Relatório Executivo em PDF / Impressão**: Layout customizado com regras `@media print`, incluindo cabeçalho institucional com marca oficial, data/hora de emissão, identificação do lojista credenciado, painel com as 4 métricas consolidadas (nota média, total de avaliações, taxa de resposta e pendências) e listagem formatada dos depoimentos.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
