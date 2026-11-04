@@ -582,7 +582,31 @@ export async function geocodeAddressApi(params: {
 
 // --- ÁREA DO COMERCIANTE ---
 
+export interface MerchantTimelinePoint {
+  date: string;
+  label: string;
+  views: number;
+  whatsapp: number;
+  directions: number;
+  vouchers: number;
+}
+
+export interface MerchantListingStatItem {
+  id: string;
+  name: string;
+  slug: string;
+  coverUrl?: string | null;
+  views: number;
+  whatsapp: number;
+  directions: number;
+  phone: number;
+  rating: number;
+  reviewsCount: number;
+  vouchersCount: number;
+}
+
 export interface MerchantStats {
+  period?: string;
   totalListings: number;
   totalViews: number;
   totalWhatsappClicks: number;
@@ -591,10 +615,24 @@ export interface MerchantStats {
   overallRating: string;
   publishedListings: number;
   pendingListings: number;
+  metrics?: {
+    totalListings: number;
+    totalViews: number;
+    totalWhatsappClicks: number;
+    totalDirectionsClicks: number;
+    totalPhoneClicks: number;
+    totalVouchersRedeemed: number;
+    overallRating: string;
+    totalRatingReviews: number;
+    publishedListings: number;
+    pendingListings: number;
+  };
+  timeline?: MerchantTimelinePoint[];
+  listings?: MerchantListingStatItem[];
 }
 
-export async function fetchMerchantStats(): Promise<MerchantStats> {
-  const url = `${getApiBaseUrl()}/listings/merchant/stats`;
+export async function fetchMerchantStats(period: '7d' | '30d' | '90d' = '30d'): Promise<MerchantStats> {
+  const url = `${getApiBaseUrl()}/listings/merchant/stats?period=${period}`;
   const res = await fetch(url, {
     method: 'GET',
     headers: {

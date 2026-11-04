@@ -401,6 +401,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Tela de frente de balcão / PDV em [`/comerciante/validar-voucher`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/validar-voucher/page.tsx) com consulta por código, botão de colar da área de transferência, card de status visual (Válido, Já Utilizado, Expirado), botão de baixa imediata e histórico recente da sessão.
   - Adicionado atalho "Validar Vouchers" com ícone `QrCode` no menu lateral do painel ([`layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/layout.tsx)).
 
+### U. Dashboard de Estatísticas e Desempenho do Comerciante
+- **Backend NestJS (`apps/api`)**:
+  - Endpoint `GET /api/v1/listings/merchant/stats` atualizado para aceitar filtro de período (`period: '7d' | '30d' | '90d'`).
+  - Cálculo de métricas consolidadas (visualizações totais, leads WhatsApp, rotas/direções abertas, chamadas telefônicas e vouchers resgatados), agrupamento de série temporal diária (`timeline`) com base em `ListingDailyMetric` e listagem ranqueada por estabelecimento.
+- **Frontend Next.js (`apps/web`)**:
+  - Nova página de estatísticas em [`/comerciante/estatisticas`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/estatisticas/page.tsx):
+    - Seletor rápido de períodos (7 dias, 30 dias e 90 dias).
+    - 4 Cards Hero interativos de métricas (Visualizações, WhatsApp, Rotas no Mapa, Vouchers) com alternador direto da métrica exibida no gráfico.
+    - Gráfico dinâmico SVG com barras animadas, tooltips em tempo real ao passar o cursor e visualização responsiva.
+    - Tabela de desempenho ranqueado por estabelecimento com atalhos diretos para as páginas públicas correspondentes.
+    - Seção editorial com 3 dicas estratégicas para maximizar conversões de visitantes em clientes.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

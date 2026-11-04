@@ -137,7 +137,10 @@ export class ListingsController {
   @Roles(Role.MERCHANT, Role.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obter métricas e estatísticas consolidadas do comerciante' })
-  async getMerchantStats(@CurrentUser() user: any) {
+  async getMerchantStats(
+    @CurrentUser() user: any,
+    @Query('period') period?: string,
+  ) {
     let merchantProfileId = user.merchantProfile?.id;
     if (!merchantProfileId && user.role === Role.ADMIN) {
       merchantProfileId = await this.listingsService.ensureAdminMerchantProfile(user.id, user.name);
@@ -145,7 +148,7 @@ export class ListingsController {
     if (!merchantProfileId) {
       throw new ForbiddenException('Perfil de comerciante não vinculado.');
     }
-    return this.listingsService.getMerchantStats(merchantProfileId);
+    return this.listingsService.getMerchantStats(merchantProfileId, period || '30d');
   }
 
   @Post('merchant/create')
