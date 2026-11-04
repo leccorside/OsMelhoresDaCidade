@@ -109,6 +109,18 @@ export interface PlaceDetailData {
       createdAt?: string;
     } | null;
   }>;
+  coupons?: Array<{
+    id: string;
+    code: string;
+    title: string;
+    description?: string;
+    discountType?: string;
+    discountValue?: number;
+    discountUnit?: string;
+    minSpend?: number;
+    rules?: string;
+    endDate?: string;
+  }>;
   faq: Array<{
     question: string;
     answer: string;
@@ -312,6 +324,18 @@ export const MOCK_PLACES_DETAILS: Record<string, PlaceDetailData> = {
         stayDetails: 'Visitou em casal',
       },
     ],
+    coupons: [
+      {
+        id: 'cupom-diroma-10',
+        code: 'TERMAS10',
+        title: '10% OFF no Ingresso Antecipado',
+        description: 'Válido para compras de ingressos adultos inteiros no balcão apresentando o código.',
+        discountType: 'PERCENTAGE',
+        discountValue: 10,
+        discountUnit: '%',
+        rules: 'Apresentar este voucher na bilheteria física. Válido até o fim do mês.',
+      },
+    ],
     faq: [
       {
         question: 'É permitido entrar com alimentos e bebidas no parque?',
@@ -493,6 +517,18 @@ export const MOCK_PLACES_DETAILS: Record<string, PlaceDetailData> = {
         text: 'Nosso golden retriever foi recebido com muito carinho. O píer privativo é perfeito para assistir ao entardecer e as piscinas à noite são incrivelmente relaxantes.',
         rating: 5,
         stayDetails: 'Ficou no Chalé Família Termal',
+      },
+    ],
+    coupons: [
+      {
+        id: 'cupom-diroma-10',
+        code: 'TERMAS10',
+        title: '10% OFF no Ingresso Antecipado',
+        description: 'Válido para compras de ingressos adultos inteiros no balcão apresentando o código.',
+        discountType: 'PERCENTAGE',
+        discountValue: 10,
+        discountUnit: '%',
+        rules: 'Apresentar este voucher na bilheteria física. Válido até o fim do mês.',
       },
     ],
     faq: [
@@ -688,6 +724,18 @@ export const MOCK_PLACES_DETAILS: Record<string, PlaceDetailData> = {
         text: 'A adega climatizada é linda e possui vinhos para todos os bolsos. O tortéi de abóbora com manteiga de sálvia derrete na boca. Vale muito a pena reservar para não esperar na fila.',
         rating: 5,
         stayDetails: 'Almoço em casal',
+      },
+    ],
+    coupons: [
+      {
+        id: 'cupom-diroma-10',
+        code: 'TERMAS10',
+        title: '10% OFF no Ingresso Antecipado',
+        description: 'Válido para compras de ingressos adultos inteiros no balcão apresentando o código.',
+        discountType: 'PERCENTAGE',
+        discountValue: 10,
+        discountUnit: '%',
+        rules: 'Apresentar este voucher na bilheteria física. Válido até o fim do mês.',
       },
     ],
     faq: [

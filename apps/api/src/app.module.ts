@@ -11,6 +11,7 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UploadModule } from './modules/upload/upload.module';
     ListingsModule,
     EventsModule,
     ReviewsModule,
+    CouponsModule,
     FavoritesModule,
     AdminModule,
     BlogModule,

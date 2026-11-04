@@ -380,6 +380,20 @@ export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<
           categoryName: evt.category?.name,
         }))
       : undefined,
+    coupons: Array.isArray(apiItem.coupons) && apiItem.coupons.length > 0
+      ? apiItem.coupons.map((c: any) => ({
+          id: c.id,
+          code: c.code,
+          title: c.title,
+          description: c.description,
+          discountType: c.discountType,
+          discountValue: c.discountValue ? Number(c.discountValue) : undefined,
+          discountUnit: c.discountUnit,
+          minSpend: c.minSpend ? Number(c.minSpend) : undefined,
+          rules: c.rules,
+          endDate: c.endDate,
+        }))
+      : (baseMock?.coupons || []),
   };
 
   return result;
@@ -598,7 +612,15 @@ export async function fetchMerchantStats(): Promise<MerchantStats> {
   return res.json();
 }
 
-export async function fetchMerchantListings(): Promise<any[]> {
+export interface MerchantListing {
+  id: string;
+  title: string;
+  slug: string;
+  coverUrl?: string;
+  [key: string]: any;
+}
+
+export async function fetchMerchantListings(): Promise<MerchantListing[]> {
   const url = `${getApiBaseUrl()}/listings/merchant/mine`;
   const res = await fetch(url, {
     method: 'GET',
@@ -1313,6 +1335,213 @@ export async function deleteMerchantReviewReplyApi(replyId: string): Promise<{ s
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `Erro ao excluir resposta: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// ==========================================
+// CUPONS E PROMOÇÕES DO COMERCIANTE
+// ==========================================
+
+export interface MerchantCouponClaim {
+  id: string;
+  claimCode: string;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  createdAt: string;
+  usedAt?: string | null;
+}
+
+export interface MerchantCouponItem {
+  id: string;
+  listingId: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREEBIE' | 'CUSTOM';
+  discountValue?: number | null;
+  discountUnit?: string | null;
+  minSpend?: number | null;
+  maxUses?: number | null;
+  usedCount: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  rules?: string | null;
+  status: 'ACTIVE' | 'PAUSED' | 'EXPIRED';
+  createdAt: string;
+  updatedAt: string;
+  listing: {
+    id: string;
+    title?: string;
+    name?: string;
+    slug: string;
+    coverUrl?: string | null;
+  };
+  claims?: MerchantCouponClaim[];
+}
+
+export interface MerchantCouponsMetrics {
+  totalCoupons: number;
+  activeCoupons: number;
+  totalClaims: number;
+  estimatedSavings: number;
+}
+
+export interface MerchantCouponsData {
+  metrics: MerchantCouponsMetrics;
+  coupons: MerchantCouponItem[];
+}
+
+export async function fetchMerchantCoupons(params?: {
+  listingId?: string;
+  status?: string;
+  search?: string;
+}): Promise<MerchantCouponsData> {
+  const query = new URLSearchParams();
+  if (params?.listingId) query.append('listingId', params.listingId);
+  if (params?.status && params.status !== 'ALL') query.append('status', params.status);
+  if (params?.search) query.append('search', params.search);
+
+  const url = `${getApiBaseUrl()}/coupons/merchant/mine${query.toString() ? `?${query.toString()}` : ''}`;
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao buscar cupons: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createMerchantCouponApi(data: {
+  listingId: string;
+  code: string;
+  title: string;
+  description?: string;
+  discountType?: string;
+  discountValue?: number;
+  discountUnit?: string;
+  minSpend?: number;
+  maxUses?: number;
+  startDate?: string;
+  endDate?: string;
+  rules?: string;
+}): Promise<MerchantCouponItem> {
+  const url = `${getApiBaseUrl()}/coupons/merchant`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao cadastrar cupom: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateMerchantCouponApi(
+  id: string,
+  data: Partial<{
+    title: string;
+    description: string;
+    discountType: string;
+    discountValue: number;
+    discountUnit: string;
+    minSpend: number;
+    maxUses: number;
+    startDate: string;
+    endDate: string;
+    rules: string;
+    status: string;
+  }>
+): Promise<MerchantCouponItem> {
+  const url = `${getApiBaseUrl()}/coupons/merchant/${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao atualizar cupom: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function toggleMerchantCouponStatusApi(id: string): Promise<MerchantCouponItem> {
+  const url = `${getApiBaseUrl()}/coupons/merchant/${encodeURIComponent(id)}/toggle`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao alternar status do cupom: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteMerchantCouponApi(id: string): Promise<{ success: boolean; message: string }> {
+  const url = `${getApiBaseUrl()}/coupons/merchant/${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao excluir cupom: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchPublicListingCoupons(listingId: string): Promise<any[]> {
+  const url = `${getApiBaseUrl()}/coupons/public/listing/${encodeURIComponent(listingId)}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function claimPublicCouponApi(
+  couponId: string,
+  data: { customerName?: string; customerPhone?: string; customerEmail?: string }
+): Promise<{ success: boolean; claimCode: string; coupon: any; claimedAt: string }> {
+  const url = `${getApiBaseUrl()}/coupons/public/${encodeURIComponent(couponId)}/claim`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao resgatar cupom: HTTP ${res.status}`);
   }
 
   return res.json();

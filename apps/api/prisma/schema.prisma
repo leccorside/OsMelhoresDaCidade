@@ -132,6 +132,7 @@ model User {
   reviewReports          ReviewReport[]
   favorites              Favorite[]
   eventFavorites         EventFavorite[]
+  couponClaims          CouponClaim[]
 
   @@index([email])
   @@map("users")
@@ -152,6 +153,7 @@ model MerchantProfile {
   listings     ListingOwner[]
   reviewReplies ReviewReply[]
   events       Event[]
+  coupons      Coupon[]
 
   @@map("merchant_profiles")
 }
@@ -288,6 +290,7 @@ model Listing {
   reviews          Review[]
   favorites        Favorite[]
   dailyMetrics     ListingDailyMetric[]
+  coupons          Coupon[]
 
   @@unique([cityId, slug])
   @@index([cityId, status])
@@ -708,3 +711,69 @@ model EventDailyMetric {
   @@map("event_daily_metrics")
 }
 
+// -----------------------------------------------------------------------------
+// PROMOÇÕES, CUPONS & VOUCHERS
+// -----------------------------------------------------------------------------
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREEBIE
+  CUSTOM
+}
+
+enum CouponStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+}
+
+model Coupon {
+  id                String          @id @default(uuid())
+  listingId         String
+  merchantProfileId String?
+  code              String
+  title             String
+  description       String?         @db.Text
+  discountType      DiscountType    @default(PERCENTAGE)
+  discountValue     Decimal?        @db.Decimal(10, 2)
+  discountUnit      String?
+  minSpend          Decimal?        @db.Decimal(10, 2)
+  maxUses           Int?
+  usedCount         Int             @default(0)
+  startDate         DateTime?
+  endDate           DateTime?
+  rules             String?         @db.Text
+  status            CouponStatus    @default(ACTIVE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  listing           Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  merchantProfile   MerchantProfile? @relation(fields: [merchantProfileId], references: [id], onDelete: SetNull)
+  claims            CouponClaim[]
+
+  @@unique([listingId, code])
+  @@index([listingId])
+  @@index([status])
+  @@index([endDate])
+  @@map("coupons")
+}
+
+model CouponClaim {
+  id            String    @id @default(uuid())
+  couponId      String
+  userId        String?
+  customerName  String?
+  customerPhone String?
+  customerEmail String?
+  claimCode     String    @unique
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  coupon        Coupon    @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([couponId])
+  @@index([claimCode])
+  @@map("coupon_claims")
+}

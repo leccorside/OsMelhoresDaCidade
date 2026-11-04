@@ -388,6 +388,79 @@ export function PlaceDetailView({
                 )}
               </div>
 
+              {/* CUPONS & PROMOÇÕES EXCLUSIVAS DO GUIA */}
+              {place.coupons && place.coupons.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-orange-200/80 p-5 sm:p-6 rounded-3xl shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-[#FF3B4F] text-white flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[20px]">local_activity</span>
+                      </div>
+                      <div>
+                        <h2 className="text-base sm:text-lg font-black text-[#1C1B1B] flex items-center gap-2">
+                          Ofertas & Cupons Exclusivos
+                          <span className="text-[10px] uppercase font-extrabold bg-[#FF3B4F] text-white px-2 py-0.5 rounded-full">
+                            Exclusivo do Guia
+                          </span>
+                        </h2>
+                        <p className="text-xs text-[#8C7A6B]">
+                          Apresente o cupom no estabelecimento ou utilize no atendimento
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {place.coupons.map((cp) => (
+                      <div
+                        key={cp.id}
+                        className="bg-white rounded-2xl border border-orange-200/90 p-4 shadow-xs flex flex-col justify-between relative overflow-hidden"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-orange-600 bg-orange-100/80 px-2 py-0.5 rounded-md">
+                              {cp.discountType === 'PERCENTAGE'
+                                ? `${cp.discountValue}% OFF`
+                                : cp.discountType === 'FIXED_AMOUNT'
+                                ? `R$ ${cp.discountValue} OFF`
+                                : cp.discountUnit || 'CUPOM'}
+                            </span>
+                            {cp.endDate && (
+                              <span className="text-[10px] text-gray-500">
+                                Até {new Date(cp.endDate).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-sm font-bold text-[#1C1B1B]">
+                            {cp.title}
+                          </h3>
+                          {cp.description && (
+                            <p className="text-xs text-[#5C3F3F] line-clamp-2">
+                              {cp.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 font-mono font-black text-xs text-[#1C1B1B] bg-gray-100 px-2.5 py-1 rounded-lg">
+                            <span>{cp.code}</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(cp.code);
+                              showToast(`Cupom "${cp.code}" copiado com sucesso!`);
+                            }}
+                            className="px-3 py-1 rounded-lg bg-[#FF3B4F] text-white text-xs font-bold hover:bg-[#e03445] transition"
+                          >
+                            Copiar Cupom
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ======================================================== */}
               {/* SEÇÃO ESPECÍFICA POR CATEGORIA */}
               {/* ======================================================== */}

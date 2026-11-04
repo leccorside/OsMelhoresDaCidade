@@ -338,6 +338,20 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Mapeamento completo de avaliações reais e respostas em `fetchPlaceDetail` ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts)).
     - Renderização da resposta oficial do comerciante diretamente no card de cada avaliação do cliente na página pública do local (`/[city]/lugar/[slug]`), com badge de verificação verde esmeralda ("Resposta Oficial"), identificação da gerência do estabelecimento e data formatada.
 
+### P. Painel de Promoções, Cupons & Vouchers do Comerciante
+- **Modelagem Prisma & PostgreSQL ([`apps/api/prisma/schema.prisma`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/prisma/schema.prisma))**:
+  - Enums `DiscountType` (`PERCENTAGE`, `FIXED_AMOUNT`, `FREEBIE`, `CUSTOM`) e `CouponStatus` (`ACTIVE`, `PAUSED`, `EXPIRED`).
+  - Modelos `Coupon` e `CouponClaim` com relacionamentos em cascata com `Listing`, `MerchantProfile` e `User`.
+  - Migrações aplicadas no banco PostgreSQL em execução.
+- **Backend NestJS (`apps/api`)**:
+  - DTOs `CreateCouponDto`, `UpdateCouponDto`, `CouponFilterDto` e `ClaimCouponDto` em [`apps/api/src/modules/coupons/dto/coupon.dto.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/coupons/dto/coupon.dto.ts).
+  - Serviço [`CouponsService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/coupons/coupons.service.ts) com validação de posse, métricas de resgates, controle de concorrência e geração de códigos de resgate (`VOUCH-XXXX`).
+  - Controlador REST [`CouponsController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/coupons/coupons.controller.ts) com rotas autenticadas sob `/api/v1/coupons/merchant` e públicas sob `/api/v1/coupons/public`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens e funções clientes em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Painel [`/comerciante/cupons`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/cupons/page.tsx) com 4 cards de métricas (Total, Ativas, Resgates, Economia Gerada), filtros, alternador de status com 1 clique, modais de criação/edição e visualizador de clientes que resgataram vouchers.
+  - Exibição de cupons ativos com cópia de código em 1 clique na página pública do local [`PlaceDetailView.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/place/PlaceDetailView.tsx).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

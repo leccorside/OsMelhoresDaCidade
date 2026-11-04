@@ -172,6 +172,17 @@ export class ListingsService {
           orderBy: { createdAt: 'desc' },
           take: 10,
         },
+        coupons: {
+          where: {
+            status: 'ACTIVE',
+            OR: [
+              { endDate: null },
+              { endDate: { gte: new Date() } },
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
       },
     });
 
