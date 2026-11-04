@@ -663,3 +663,223 @@ export async function updateAdminListingStatus(
 
   return res.json();
 }
+
+
+// --- CARDÁPIO & SERVIÇOS DO COMERCIANTE ---
+
+export interface MerchantServiceItem {
+  id: string;
+  categoryId: string;
+  name: string;
+  description?: string | null;
+  price?: number | null;
+  imageUrl?: string | null;
+  isAvailable: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MerchantServiceCategory {
+  id: string;
+  listingId: string;
+  name: string;
+  description?: string | null;
+  order: number;
+  items: MerchantServiceItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MerchantListingServicesData {
+  listing: {
+    id: string;
+    title: string;
+    name?: string;
+    slug: string;
+    primaryCity?: {
+      name: string;
+      state: string;
+    } | null;
+  };
+  categories: MerchantServiceCategory[];
+}
+
+export async function fetchMerchantServices(listingIdOrSlug: string): Promise<MerchantListingServicesData> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/${encodeURIComponent(listingIdOrSlug)}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao carregar cardápio e serviços: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createServiceCategoryApi(
+  listingIdOrSlug: string,
+  payload: { name: string; description?: string; order?: number }
+): Promise<MerchantServiceCategory> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/${encodeURIComponent(listingIdOrSlug)}/category`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao criar categoria/seção: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateServiceCategoryApi(
+  categoryId: string,
+  payload: { name?: string; description?: string; order?: number }
+): Promise<MerchantServiceCategory> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/category/${encodeURIComponent(categoryId)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao atualizar categoria: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteServiceCategoryApi(categoryId: string): Promise<{ success: boolean }> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/category/${encodeURIComponent(categoryId)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao excluir categoria: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createServiceItemApi(
+  categoryId: string,
+  payload: {
+    name: string;
+    description?: string;
+    price?: number;
+    imageUrl?: string;
+    isAvailable?: boolean;
+    order?: number;
+  }
+): Promise<MerchantServiceItem> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/category/${encodeURIComponent(categoryId)}/item`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao criar item do cardápio: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateServiceItemApi(
+  itemId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    price?: number;
+    imageUrl?: string;
+    isAvailable?: boolean;
+    order?: number;
+  }
+): Promise<MerchantServiceItem> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/item/${encodeURIComponent(itemId)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao atualizar item: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function toggleServiceItemAvailabilityApi(
+  itemId: string,
+  isAvailable?: boolean
+): Promise<MerchantServiceItem> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/item/${encodeURIComponent(itemId)}/toggle`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(typeof isAvailable === 'boolean' ? { isAvailable } : {}),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao alternar disponibilidade: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteServiceItemApi(itemId: string): Promise<{ success: boolean }> {
+  const url = `${getApiBaseUrl()}/listings/merchant/services/item/${encodeURIComponent(itemId)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao excluir item: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

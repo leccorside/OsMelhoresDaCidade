@@ -659,4 +659,248 @@ export class ListingsService {
       },
     });
   }
+
+  // --- GERENCIAMENTO DE CARDÁPIO & SERVIÇOS DO COMERCIANTE ---
+
+  async verifyMerchantOwnership(user: any, listingIdOrSlug: string) {
+    const listing = await this.prisma.listing.findFirst({
+      where: {
+        OR: [{ id: listingIdOrSlug }, { slug: listingIdOrSlug }],
+      },
+      include: {
+        city: {
+          include: {
+            state: true,
+          },
+        },
+      },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Estabelecimento não encontrado.');
+    }
+
+    if (user.role === 'ADMIN') {
+      return listing;
+    }
+
+    if (!user.merchantProfile) {
+      throw new ForbiddenException('Usuário não possui perfil de comerciante credenciado.');
+    }
+
+    const isOwner = await this.prisma.listingOwner.findUnique({
+      where: {
+        listingId_merchantProfileId: {
+          listingId: listing.id,
+          merchantProfileId: user.merchantProfile.id,
+        },
+      },
+    });
+
+    if (!isOwner) {
+      throw new ForbiddenException('Você não tem permissão para gerenciar este estabelecimento.');
+    }
+
+    return listing;
+  }
+
+  async getMerchantServices(user: any, listingIdOrSlug: string) {
+    const listing = await this.verifyMerchantOwnership(user, listingIdOrSlug);
+
+    const categories = await this.prisma.listingServiceCategory.findMany({
+      where: { listingId: listing.id },
+      orderBy: { order: 'asc' },
+      include: {
+        items: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    return {
+      listing: {
+        id: listing.id,
+        name: listing.name,
+        title: listing.name,
+        slug: listing.slug,
+        primaryCity: listing.city
+          ? {
+              name: listing.city.name,
+              state: listing.city.state?.uf || listing.city.state?.name || '',
+            }
+          : null,
+      },
+      categories,
+    };
+  }
+
+  async createServiceCategory(user: any, listingIdOrSlug: string, name: string, order?: number) {
+    const listing = await this.verifyMerchantOwnership(user, listingIdOrSlug);
+
+    const count = await this.prisma.listingServiceCategory.count({
+      where: { listingId: listing.id },
+    });
+
+    return this.prisma.listingServiceCategory.create({
+      data: {
+        listingId: listing.id,
+        name: name.trim(),
+        order: order !== undefined ? order : count,
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+
+  async updateServiceCategory(user: any, categoryId: string, name: string, order?: number) {
+    const category = await this.prisma.listingServiceCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Seção de serviço não encontrada.');
+    }
+
+    await this.verifyMerchantOwnership(user, category.listingId);
+
+    return this.prisma.listingServiceCategory.update({
+      where: { id: categoryId },
+      data: {
+        name: name.trim(),
+        ...(order !== undefined ? { order } : {}),
+      },
+      include: {
+        items: true,
+      },
+    });
+  }
+
+  async deleteServiceCategory(user: any, categoryId: string) {
+    const category = await this.prisma.listingServiceCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Seção de serviço não encontrada.');
+    }
+
+    await this.verifyMerchantOwnership(user, category.listingId);
+
+    return this.prisma.listingServiceCategory.delete({
+      where: { id: categoryId },
+    });
+  }
+
+  async createServiceItem(
+    user: any,
+    categoryId: string,
+    dto: {
+      name: string;
+      description?: string;
+      price?: number;
+      imageUrl?: string;
+      isAvailable?: boolean;
+      order?: number;
+    },
+  ) {
+    const category = await this.prisma.listingServiceCategory.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Seção de serviço não encontrada.');
+    }
+
+    await this.verifyMerchantOwnership(user, category.listingId);
+
+    const count = await this.prisma.listingServiceItem.count({
+      where: { serviceCategoryId: categoryId },
+    });
+
+    return this.prisma.listingServiceItem.create({
+      data: {
+        serviceCategoryId: categoryId,
+        name: dto.name.trim(),
+        description: dto.description?.trim() || null,
+        price: dto.price !== undefined ? new Prisma.Decimal(dto.price) : null,
+        imageUrl: dto.imageUrl || null,
+        isAvailable: dto.isAvailable !== undefined ? dto.isAvailable : true,
+        order: dto.order !== undefined ? dto.order : count,
+      },
+    });
+  }
+
+  async updateServiceItem(
+    user: any,
+    itemId: string,
+    dto: {
+      name?: string;
+      description?: string;
+      price?: number;
+      imageUrl?: string;
+      isAvailable?: boolean;
+      order?: number;
+    },
+  ) {
+    const item = await this.prisma.listingServiceItem.findUnique({
+      where: { id: itemId },
+      include: { serviceCategory: true },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item de serviço não encontrado.');
+    }
+
+    await this.verifyMerchantOwnership(user, item.serviceCategory.listingId);
+
+    return this.prisma.listingServiceItem.update({
+      where: { id: itemId },
+      data: {
+        ...(dto.name ? { name: dto.name.trim() } : {}),
+        ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
+        ...(dto.price !== undefined ? { price: dto.price !== null ? new Prisma.Decimal(dto.price) : null } : {}),
+        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl || null } : {}),
+        ...(dto.isAvailable !== undefined ? { isAvailable: dto.isAvailable } : {}),
+        ...(dto.order !== undefined ? { order: dto.order } : {}),
+      },
+    });
+  }
+
+  async toggleServiceItemAvailability(user: any, itemId: string) {
+    const item = await this.prisma.listingServiceItem.findUnique({
+      where: { id: itemId },
+      include: { serviceCategory: true },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item de serviço não encontrado.');
+    }
+
+    await this.verifyMerchantOwnership(user, item.serviceCategory.listingId);
+
+    return this.prisma.listingServiceItem.update({
+      where: { id: itemId },
+      data: {
+        isAvailable: !item.isAvailable,
+      },
+    });
+  }
+
+  async deleteServiceItem(user: any, itemId: string) {
+    const item = await this.prisma.listingServiceItem.findUnique({
+      where: { id: itemId },
+      include: { serviceCategory: true },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Item de serviço não encontrado.');
+    }
+
+    await this.verifyMerchantOwnership(user, item.serviceCategory.listingId);
+
+    return this.prisma.listingServiceItem.delete({
+      where: { id: itemId },
+    });
+  }
 }

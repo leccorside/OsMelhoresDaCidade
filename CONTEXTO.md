@@ -219,6 +219,37 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - **Navegação do Menu Lateral ([`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx))**:
     - Inclusão do item "Moderação de Anúncios" com ícone dedicado e rota direta `/admin/moderacao`.
 
+### K. Gerenciamento de Cardápio & Catálogo de Serviços do Comerciante
+- **Backend NestJS (`apps/api`)**:
+  - **DTOs com Validação Estrita ([`apps/api/src/modules/listings/dto/service-menu.dto.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/dto/service-menu.dto.ts))**:
+    - `CreateServiceCategoryDto` e `UpdateServiceCategoryDto` com `class-validator` e `class-transformer` para nome, descrição opcional e ordenação.
+    - `CreateServiceItemDto` e `UpdateServiceItemDto` para itens de cardápio/serviço com nome, descrição, preço numérico (mínimo 0), URL de foto, disponibilidade booleana e ordem de exibição.
+  - **Serviço de Negócio ([`apps/api/src/modules/listings/listings.service.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/listings.service.ts))**:
+    - `verifyMerchantOwnership`: Validação de autorização que garante que apenas o proprietário cadastrado em `ListingOwner` ou o Administrador Master (`ADMIN`) possa visualizar ou gerenciar os serviços do estabelecimento.
+    - `getMerchantServices`: Retorna as seções ordenadas e seus respectivos itens de cardápio com suporte a identificação por ID ou slug.
+    - `createServiceCategory` / `updateServiceCategory` / `deleteServiceCategory`: CRUD completo de categorias com exclusão em cascata.
+    - `createServiceItem` / `updateServiceItem` / `deleteServiceItem`: CRUD completo de itens associados à categoria.
+    - `toggleServiceItemAvailability`: Endpoint dedicado para alternar o status de disponibilidade do prato/serviço com 1 único clique (ativo/pausado).
+  - **Controlador REST ([`apps/api/src/modules/listings/listings.controller.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/listings.controller.ts))**:
+    - `GET /api/v1/listings/merchant/services/:listingIdOrSlug`
+    - `POST /api/v1/listings/merchant/services/:listingIdOrSlug/category`
+    - `PUT /api/v1/listings/merchant/services/category/:categoryId`
+    - `DELETE /api/v1/listings/merchant/services/category/:categoryId`
+    - `POST /api/v1/listings/merchant/services/category/:categoryId/item`
+    - `PUT /api/v1/listings/merchant/services/item/:itemId`
+    - `PATCH /api/v1/listings/merchant/services/item/:itemId/toggle`
+    - `DELETE /api/v1/listings/merchant/services/item/:itemId`
+- **Frontend Next.js (`apps/web`)**:
+  - **Funções de Integração de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**:
+    - Adicionadas interfaces tipadas `MerchantServiceItem`, `MerchantServiceCategory`, `MerchantListingServicesData`.
+    - Implementadas as funções cliente: `fetchMerchantServices`, `createServiceCategoryApi`, `updateServiceCategoryApi`, `deleteServiceCategoryApi`, `createServiceItemApi`, `updateServiceItemApi`, `toggleServiceItemAvailabilityApi` e `deleteServiceItemApi`.
+  - **Interface do Painel do Comerciante ([`apps/web/src/app/comerciante/servicos/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/servicos/page.tsx))**:
+    - Seletor de estabelecimento ativo para parceiros com múltiplos negócios.
+    - Cards de métricas rápidas: Total de Seções, Total de Itens, Itens Disponíveis e Itens Esgotados/Pausados.
+    - Acordeom interativo de seções com botões de recolher/expandir, adicionar item, editar seção e excluir com confirmação.
+    - Grade responsiva de itens com foto, nome, descrição, preço em Real (R$), badge de status e alternador de disponibilidade com 1 clique (Toggle rápido).
+    - Modais interativos com upload de fotos via `/upload/image` e validação amigável de campos.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

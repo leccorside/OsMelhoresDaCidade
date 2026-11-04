@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -12,6 +14,12 @@ import {
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ListingsService, CreateListingDto } from './listings.service';
 import { CreateListingFullDto } from './dto/create-listing-full.dto';
+import {
+  CreateServiceCategoryDto,
+  UpdateServiceCategoryDto,
+  CreateServiceItemDto,
+  UpdateServiceItemDto,
+} from './dto/service-menu.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -150,6 +158,108 @@ export class ListingsController {
       throw new ForbiddenException('Perfil de comerciante não vinculado.');
     }
     return this.listingsService.create(merchantProfileId, dto);
+  }
+
+  // --- GERENCIAMENTO DE CARDÁPIO & SERVIÇOS DO COMERCIANTE ---
+
+  @Get('merchant/services/:listingIdOrSlug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter seções e itens do cardápio/serviços de um estabelecimento' })
+  async getMerchantServices(
+    @CurrentUser() user: any,
+    @Param('listingIdOrSlug') listingIdOrSlug: string,
+  ) {
+    return this.listingsService.getMerchantServices(user, listingIdOrSlug);
+  }
+
+  @Post('merchant/services/:listingIdOrSlug/category')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Criar nova seção de cardápio/serviço' })
+  async createServiceCategory(
+    @CurrentUser() user: any,
+    @Param('listingIdOrSlug') listingIdOrSlug: string,
+    @Body() dto: CreateServiceCategoryDto,
+  ) {
+    return this.listingsService.createServiceCategory(user, listingIdOrSlug, dto.name, dto.order);
+  }
+
+  @Put('merchant/services/category/:categoryId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar seção de cardápio/serviço' })
+  async updateServiceCategory(
+    @CurrentUser() user: any,
+    @Param('categoryId') categoryId: string,
+    @Body() dto: UpdateServiceCategoryDto,
+  ) {
+    return this.listingsService.updateServiceCategory(user, categoryId, dto.name, dto.order);
+  }
+
+  @Delete('merchant/services/category/:categoryId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Excluir seção de cardápio/serviço e seus itens' })
+  async deleteServiceCategory(
+    @CurrentUser() user: any,
+    @Param('categoryId') categoryId: string,
+  ) {
+    return this.listingsService.deleteServiceCategory(user, categoryId);
+  }
+
+  @Post('merchant/services/category/:categoryId/item')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Adicionar novo item ao cardápio/serviço' })
+  async createServiceItem(
+    @CurrentUser() user: any,
+    @Param('categoryId') categoryId: string,
+    @Body() dto: CreateServiceItemDto,
+  ) {
+    return this.listingsService.createServiceItem(user, categoryId, dto);
+  }
+
+  @Put('merchant/services/item/:itemId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar dados de um item do cardápio/serviço' })
+  async updateServiceItem(
+    @CurrentUser() user: any,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdateServiceItemDto,
+  ) {
+    return this.listingsService.updateServiceItem(user, itemId, dto);
+  }
+
+  @Patch('merchant/services/item/:itemId/toggle')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Alternar disponibilidade imediata do item (disponível / esgotado)' })
+  async toggleServiceItemAvailability(
+    @CurrentUser() user: any,
+    @Param('itemId') itemId: string,
+  ) {
+    return this.listingsService.toggleServiceItemAvailability(user, itemId);
+  }
+
+  @Delete('merchant/services/item/:itemId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Excluir item do cardápio/serviço' })
+  async deleteServiceItem(
+    @CurrentUser() user: any,
+    @Param('itemId') itemId: string,
+  ) {
+    return this.listingsService.deleteServiceItem(user, itemId);
   }
 
   // --- ROTA PÚBLICA DE DETALHES ---
