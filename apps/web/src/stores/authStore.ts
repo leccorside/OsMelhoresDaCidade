@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { setAuthCookies, clearAuthCookies } from '@/services/auth';
 
 export interface User {
   id: string;
@@ -32,20 +33,24 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      setAuth: (user, accessToken, refreshToken) =>
+      setAuth: (user, accessToken, refreshToken) => {
+        setAuthCookies(accessToken, user.role);
         set({
           user,
           accessToken,
           refreshToken,
           isAuthenticated: true,
-        }),
-      clearAuth: () =>
+        });
+      },
+      clearAuth: () => {
+        clearAuthCookies();
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
-        }),
+        });
+      },
     }),
     {
       name: 'os-melhores-auth-storage',
@@ -53,3 +58,27 @@ export const useAuthStore = create<AuthState>()(
   ),
 );
 
+/**
+ * Função utilitária para recuperar o token JWT atual (Zustand ou cookie)
+ */
+export function getStoredAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const state = useAuthStore.getState();
+    if (state.accessToken) return state.accessToken;
+
+    // Fallback: ler do cookie
+    const cookies = document.cookie.split(';');
+    for (const c of cookies) {
+      const [key, val] = c.trim().split('=');
+      if (key === 'auth_token' && val) {
+        return decodeURIComponent(val);
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  return null;
+}

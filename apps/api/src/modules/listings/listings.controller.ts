@@ -58,6 +58,9 @@ export class ListingsController {
   // --- ROTA DE CADASTRO COMPLETO ADAPTADO (Painel Admin & Sistema) ---
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.MERCHANT)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cadastrar ou atualizar estabelecimento com campos adaptados por categoria' })
   async createFull(@Body() dto: CreateListingFullDto) {
     return this.listingsService.createFull(dto);
@@ -66,6 +69,9 @@ export class ListingsController {
   // --- ÁREA ADMINISTRATIVA MASTER ---
 
   @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todos os estabelecimentos para o painel administrativo' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'categorySlug', required: false })
@@ -79,12 +85,18 @@ export class ListingsController {
   }
 
   @Get('admin/get/:idOrSlug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Obter dados completos de um estabelecimento para formulário de edição' })
   async findOneAdmin(@Param('idOrSlug') idOrSlug: string) {
     return this.listingsService.findAdminByIdOrSlug(idOrSlug);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Remover estabelecimento por ID' })
   async deleteListing(@Param('id') id: string) {
     return this.listingsService.deleteListing(id);

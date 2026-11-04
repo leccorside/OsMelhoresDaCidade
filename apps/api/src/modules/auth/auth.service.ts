@@ -1,5 +1,6 @@
 import {
   Injectable,
+  OnModuleInit,
   ConflictException,
   UnauthorizedException,
   NotFoundException,
@@ -14,11 +15,39 @@ import { LoginDto } from './dto/login.dto';
 import { Role } from '@prisma/client';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async onModuleInit() {
+    await this.seedDefaultAdmin();
+  }
+
+  async seedDefaultAdmin() {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@osmelhoresdacidade.com.br';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123456';
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: adminEmail.toLowerCase() },
+    });
+
+    if (!existing) {
+      const passwordHash = await argon2.hash(adminPassword);
+      await this.prisma.user.create({
+        data: {
+          name: 'Administrador Master',
+          email: adminEmail.toLowerCase(),
+          passwordHash,
+          role: Role.ADMIN,
+          isEmailVerified: true,
+          isActive: true,
+        },
+      });
+      console.log(`🛡️ Usuário Administrador Master provisionado com sucesso: ${adminEmail}`);
+    }
+  }
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');

@@ -150,6 +150,31 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - **Painel Flutuante de Agrupamento**: Exibe um card limpo com a lista completa dos estabelecimentos daquele ponto com fotos, nomes, categorias, notas e preços para seleção imediata.
     - **Fechamento Automático (Unspiderfy)**: Ao clicar no mapa livre, ao dar zoom out ou ao selecionar um local, a teia é desfeita e os marcadores retornam à posição consolidada.
 
+### H. Autenticação Real com JWT, Controle de Acesso por Papéis (RBAC) e Proteção de Rotas Administrativas
+- **Backend NestJS (`apps/api`)**:
+  - **Seed Automático de Administrador Master**: Integrado via ciclo de vida `OnModuleInit` em `AuthService`. Na inicialização do serviço, o sistema verifica a existência do usuário `admin@osmelhoresdacidade.com.br` e, se ausente, cria automaticamente o registro com hash de senha seguro Argon2, perfil `ADMIN`, verificado e ativo.
+  - **Módulo de Autenticação Global (`AuthModule`)**: Declarado como `@Global()` e exportando `JwtAuthGuard`, `RolesGuard`, `JwtModule` e `PassportModule`, viabilizando o uso imediato dos guards em qualquer módulo do ecossistema NestJS sem dependências circulares.
+  - **Proteção Estrita com Guards e Roles**:
+    - `ListingsController`: Endpoints de mutação e consultas restritas (`POST /listings`, `GET /listings/admin/all`, `GET /listings/admin/get/:idOrSlug`, `DELETE /listings/:id`) protegidos com `@UseGuards(JwtAuthGuard, RolesGuard)` e `@Roles(Role.ADMIN)`. Chamadas sem token JWT válido ou com perfil inadequado recebem automaticamente `401 Unauthorized` ou `403 Forbidden`.
+    - `UploadController`: Endpoints de upload de imagens individual e múltiplo protegidos com `@Roles(Role.ADMIN, Role.MERCHANT)`.
+- **Frontend Next.js (`apps/web`)**:
+  - **Middleware Edge de Proteção de Rotas ([`middleware.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/middleware.ts))**:
+    - Intercepta todas as rotas sob `/admin/:path*` e `/comerciante/:path*` diretamente na camada do servidor.
+    - Valida a presença dos cookies de autenticação `auth_token` e `user_role`.
+    - Redireciona usuários desautenticados com status `307 Temporary Redirect` para `/login?redirect=[caminho_solicitado]`.
+    - Bloqueia usuários comuns (`USER`) de acessarem áreas restritas de `/admin` ou `/comerciante`.
+  - **Store e Serviços de Autenticação ([`authStore.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/stores/authStore.ts) & [`auth.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/services/auth.ts))**:
+    - Gravação atômica sincronizada no `localStorage` e cookies HTTP (`auth_token`, `user_role` com `SameSite=Lax` e expiração de 7 dias).
+    - Limpeza completa em logout (`clearAuthCookies()`).
+    - Obtenção do token de autenticação via `getStoredAuthToken()` tanto de cookies quanto de local storage.
+  - **Cliente de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**:
+    - Injeção automática do cabeçalho `Authorization: Bearer ${token}` em todas as chamadas administrativas (`createOrUpdateListing`, `deleteListingApi`, `fetchAdminListings`, `fetchAdminListingDetail`, `uploadImage`, `uploadMultipleImages`).
+  - **Tela de Login Unificada ([`apps/web/src/app/login/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/login/page.tsx))**:
+    - Suporte a redirecionamento dinâmico após login via parâmetro `redirect` da URL (ou roteamento automático por papel: `/admin` para Administradores, `/comerciante` para Comerciantes e `/app` para Usuários finais).
+    - Atalho visual para autopreenchimento com credenciais do Administrador Master para desenvolvimento e homologação ágil.
+  - **Layout Administrativo ([`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx))**:
+    - Dupla checagem reativa no client-side para reforço de segurança com tela de carregamento suave durante a validação da sessão e logout direto no menu lateral.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

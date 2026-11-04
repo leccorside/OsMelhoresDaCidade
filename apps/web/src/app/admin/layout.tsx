@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -30,8 +30,16 @@ import { useAuthStore } from '@/stores/authStore';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, clearAuth } = useAuthStore();
+  const { user, isAuthenticated, clearAuth } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!isAuthenticated || user?.role !== 'ADMIN') {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [isAuthenticated, user, pathname, router]);
 
   const handleLogout = () => {
     clearAuth();
@@ -53,6 +61,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: 'SEO Global & Local', href: '/admin/seo', icon: Search },
     { label: 'Configurações do Sistema', href: '/admin/configuracoes', icon: Settings },
   ];
+
+  if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) {
+    return (
+      <div className="min-h-screen bg-[#111111] flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-[#FF3B4F] mb-4 shadow-lg shadow-red-500/10">
+          <ShieldAlert className="w-6 h-6 animate-pulse" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-1">Acesso Restrito ao Administrador</h2>
+        <p className="text-xs text-gray-400 mb-4 max-w-sm">
+          Redirecionando para a tela de autenticação segura...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#111111] text-gray-200 flex flex-col md:flex-row">

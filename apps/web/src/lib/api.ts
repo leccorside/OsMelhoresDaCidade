@@ -17,12 +17,36 @@ export function getApiBaseUrl(): string {
   return process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4102/api/v1';
 }
 
+export function getAuthHeader(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem('os-melhores-auth-storage');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.state?.accessToken) {
+        return { Authorization: `Bearer ${parsed.state.accessToken}` };
+      }
+    }
+    const cookies = document.cookie.split(';');
+    for (const c of cookies) {
+      const [k, v] = c.trim().split('=');
+      if (k === 'auth_token' && v) {
+        return { Authorization: `Bearer ${decodeURIComponent(v)}` };
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+  return {};
+}
+
 export async function createOrUpdateListing(payload: any) {
   const url = `${getApiBaseUrl()}/listings`;
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeader(),
     },
     body: JSON.stringify(payload),
   });
@@ -52,7 +76,10 @@ export async function fetchAdminListings(filters?: {
   const url = `${getApiBaseUrl()}/listings/admin/all?${params.toString()}`;
   const res = await fetch(url, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
     cache: 'no-store',
   });
 
@@ -67,7 +94,10 @@ export async function deleteListingApi(id: string) {
   const url = `${getApiBaseUrl()}/listings/${id}`;
   const res = await fetch(url, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
   });
 
   if (!res.ok) {
@@ -81,7 +111,10 @@ export async function fetchAdminListingDetail(idOrSlug: string) {
   const url = `${getApiBaseUrl()}/listings/admin/get/${idOrSlug}`;
   const res = await fetch(url, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
     cache: 'no-store',
   });
 
@@ -392,6 +425,9 @@ export async function uploadImage(file: File, folder = 'places'): Promise<{ url:
   const url = `${getApiBaseUrl()}/upload/image?folder=${encodeURIComponent(folder)}`;
   const res = await fetch(url, {
     method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+    },
     body: formData,
   });
 
@@ -413,6 +449,9 @@ export async function uploadMultipleImages(
   const url = `${getApiBaseUrl()}/upload/images?folder=${encodeURIComponent(folder)}`;
   const res = await fetch(url, {
     method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+    },
     body: formData,
   });
 
