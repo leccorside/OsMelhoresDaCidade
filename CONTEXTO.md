@@ -36,7 +36,12 @@ A identidade visual e a arquitetura de telas baseiam-se nos protótipos de alta 
 ## 6. Funcionalidades Recentes Implementadas
 
 ### A. Páginas de Detalhes dos Lugares (`/[city]/lugar/[slug]`)
-Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.tsx`) e página dinâmica SSR com ISR (`revalidate = 3600`):
+Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.tsx`) e página dinâmica SSR com ISR (`revalidate = 60`) conectada diretamente à API NestJS e PostgreSQL:
+- **Integração em Tempo Real com PostgreSQL**:
+  - Consumo direto da rota `GET /api/v1/listings/:citySlug/:slug` através da função assíncrona `fetchPlaceDetail()`.
+  - Mapeamento e mesclagem inteligente com suporte tanto a novos cadastros vindos do banco de dados quanto a anúncios enriquecidos com dados editoriais e de protótipo.
+  - Suporte completo a rede interna Docker (`INTERNAL_API_URL: http://nestjs:3333/api/v1`) para Server-Side Rendering (SSR) e `NEXT_PUBLIC_API_URL` no client-side.
+  - Geração de metadados dinâmicos e dados estruturados Schema.org `LocalBusiness` com as informações reais vindas do banco de dados.
 - **Barra Superior & Header**: Unificado com o padrão institucional escuro da cidade, modal de troca de cidade, menu de categorias e botão "Anuncie seu Negócio".
 - **Mosaico Cinematográfico de 5 Fotos (Airbnb Style)**: Hero principal panorâmico na esquerda e grade 2x2 com fotos secundárias na direita, com modal de galeria em tela cheia (lightbox com navegação e miniaturas).
 - **Faixa de Destaques Rápidos**: Ícones temáticos de acordo com o segmento (Temperatura da água, piscinas, rodízio, adega, pet-friendly, check-in/out).

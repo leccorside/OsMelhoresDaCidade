@@ -257,3 +257,4 @@ export class CreateListingFullDto {
   @Type(() => CreateServiceCategoryDto)
   serviceCategories?: CreateServiceCategoryDto[];
 }
+

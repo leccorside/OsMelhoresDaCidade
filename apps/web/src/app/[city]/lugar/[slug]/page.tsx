@@ -4,7 +4,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { constructMetadata, generateLocalBusinessSchema } from '@/lib/seo';
-import { getPlaceDetailData } from '@/data/mockPlaceDetails';
+import { fetchPlaceDetail } from '@/lib/api';
 import { PlaceDetailView } from '@/components/place/PlaceDetailView';
 
 interface LugarPageProps {
@@ -17,7 +17,7 @@ interface LugarPageProps {
 export async function generateMetadata({ params }: LugarPageProps): Promise<Metadata> {
   const { city, slug } = await params;
   const cityName = city === 'caldas-novas' ? 'Caldas Novas' : city;
-  const place = getPlaceDetailData(slug);
+  const place = await fetchPlaceDetail(city, slug);
 
   if (!place) {
     return constructMetadata({
@@ -34,12 +34,12 @@ export async function generateMetadata({ params }: LugarPageProps): Promise<Meta
   });
 }
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export default async function ListingDetailPage({ params }: LugarPageProps) {
   const { city, slug } = await params;
   const cityName = city === 'caldas-novas' ? 'Caldas Novas' : city;
-  const place = getPlaceDetailData(slug);
+  const place = await fetchPlaceDetail(city, slug);
 
   if (!place) {
     notFound();
