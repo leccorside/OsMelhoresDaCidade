@@ -8,6 +8,8 @@ import { ListingsModule } from './modules/listings/listings.module';
 import { EventsModule } from './modules/events/events.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { BlogModule } from './modules/blog/blog.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { FavoritesModule } from './modules/favorites/favorites.module';
     EventsModule,
     ReviewsModule,
     FavoritesModule,
+    AdminModule,
+    BlogModule,
   ],
   controllers: [],
   providers: [],
