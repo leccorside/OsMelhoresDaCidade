@@ -1185,3 +1185,112 @@ export async function deleteMerchantGalleryImageApi(imageId: string): Promise<{ 
 
   return res.json();
 }
+
+
+// --- PAINEL DE AVALIAÇÕES E RESPOSTAS DO COMERCIANTE ---
+
+export interface MerchantReviewItem {
+  id: string;
+  listingId: string;
+  listing: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  userId: string;
+  user: {
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+    email: string;
+  };
+  rating: number;
+  comment?: string | null;
+  status: string;
+  createdAt: string;
+  reply?: {
+    id: string;
+    reply: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+}
+
+export interface MerchantReviewsMetrics {
+  totalReviews: number;
+  averageRating: number;
+  answeredCount: number;
+  unansweredCount: number;
+  distribution: Record<number, number>;
+}
+
+export interface MerchantReviewsData {
+  metrics: MerchantReviewsMetrics;
+  reviews: MerchantReviewItem[];
+  listings: Array<{ id: string; name: string; slug: string }>;
+}
+
+export async function fetchMerchantReviews(params?: {
+  listingId?: string;
+  rating?: number;
+  answered?: boolean;
+}): Promise<MerchantReviewsData> {
+  const query = new URLSearchParams();
+  if (params?.listingId && params.listingId !== 'all') query.append('listingId', params.listingId);
+  if (params?.rating) query.append('rating', String(params.rating));
+  if (params?.answered !== undefined) query.append('answered', String(params.answered));
+
+  const url = `${getApiBaseUrl()}/reviews/merchant/mine${query.toString() ? `?${query.toString()}` : ''}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter avaliações: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function replyMerchantReviewApi(reviewId: string, reply: string) {
+  const url = `${getApiBaseUrl()}/reviews/${encodeURIComponent(reviewId)}/reply`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ reply }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao enviar resposta: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteMerchantReviewReplyApi(replyId: string): Promise<{ success: boolean }> {
+  const url = `${getApiBaseUrl()}/reviews/reply/${encodeURIComponent(replyId)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao excluir resposta: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

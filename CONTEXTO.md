@@ -310,6 +310,30 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Zona de upload com drag-and-drop e suporte a seleção de múltiplos arquivos simultâneos integrado com `/upload/images`.
     - Grade visual de fotos com badges de Capa Oficial e posição ordinal (#1 a #N), botões para definir como capa com 1 clique, setas de reordenação instantânea para a esquerda/direita e botão de exclusão com modal de confirmação.
 
+### O. Painel de Avaliações e Reputação do Comerciante
+- **Backend NestJS (`apps/api`)**:
+  - **DTOs com Validação Estrita ([`apps/api/src/modules/reviews/dto/review.dto.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/reviews/dto/review.dto.ts))**:
+    - `ReplyReviewDto` para respostas públicas do lojista (mínimo de 3 caracteres e texto obrigatório).
+    - `MerchantReviewFilterDto` com filtros opcionais por `listingId`, `rating` (1 a 5 estrelas), `status` (`ALL`, `PENDING`, `REPLIED`) e termo de busca textual `search`.
+  - **Serviço de Avaliações ([`apps/api/src/modules/reviews/reviews.service.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/reviews/reviews.service.ts))**:
+    - `findMerchantReviews`: consulta isolada das avaliações pertencentes exclusivamente aos estabelecimentos do parceiro autenticado, com métricas consolidadas (total de avaliações, média aritmética real calculada, contagem de respondidas vs. pendentes e histograma de distribuição de 1 a 5 estrelas).
+    - `replyAsMerchant`: validação estrita de posse do estabelecimento avaliado pelo lojista (ou privilégio `ADMIN`) e gravação via `upsert` na tabela `ReviewReply` do Prisma.
+    - `deleteReply`: remoção de resposta com verificação de autorização e preservação da avaliação original intacta.
+  - **Controlador REST ([`apps/api/src/modules/reviews/reviews.controller.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/reviews/reviews.controller.ts))**:
+    - `GET /api/v1/reviews/merchant/mine`: endpoint protegido por `JwtAuthGuard` e `RolesGuard` (`MERCHANT` e `ADMIN`) retornando as métricas e a listagem de avaliações filtrada.
+    - `POST /api/v1/reviews/:id/reply`: registro ou atualização da resposta oficial do lojista.
+    - `DELETE /api/v1/reviews/reply/:replyId`: exclusão de resposta oficial.
+- **Frontend Next.js (`apps/web`)**:
+  - **Integração de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**:
+    - Interfaces tipadas `MerchantReviewItem`, `MerchantReviewsMetrics` e `MerchantReviewsData`.
+    - Funções: `fetchMerchantReviews`, `replyMerchantReviewApi` e `deleteMerchantReviewReplyApi`.
+  - **Interface do Painel do Comerciante ([`apps/web/src/app/comerciante/avaliacoes/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/avaliacoes/page.tsx))**:
+    - Painel com 4 cards de métricas em tempo real: Nota Média Geral (com estrelas visuais), Total de Avaliações, Avaliações Respondidas e Pendentes de Resposta (com badge de atenção caso haja pendências).
+    - Barra de filtros com busca textual por cliente/comentário, seletor de estabelecimento para parceiros com múltiplos negócios, filtro por pontuação (1 a 5★) e abas de status (Todas, Aguardando Resposta, Respondidas).
+    - Feed de avaliações com cabeçalho do avaliador, data em formato relativo ("há 2 dias", etc.), estrelas douradas, badge do estabelecimento correspondente e texto do depoimento.
+    - Caixa de resposta oficial destacada em verde/esmeralda com data e identificador do comerciante, além de botão para editar ou excluir a resposta.
+    - Formulário inline expansível para responder na hora, com dicas de boas práticas de atendimento e feedback imediato de sucesso.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

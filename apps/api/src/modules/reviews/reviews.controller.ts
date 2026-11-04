@@ -1,18 +1,12 @@
-import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Get, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-
-export class CreateReviewDto {
-  listingId: string;
-  rating: number;
-  comment?: string;
-}
-
-export class ReplyReviewDto {
-  reply: string;
-}
+import { Role } from '@prisma/client';
+import { CreateReviewDto, ReplyReviewDto, MerchantReviewFilterDto } from './dto/review.dto';
 
 @ApiTags('Avaliações')
 @Controller('reviews')
@@ -35,16 +29,51 @@ export class ReviewsController {
     return this.reviewsService.findUserReviews(userId);
   }
 
-  @Post(':id/reply')
-  @UseGuards(JwtAuthGuard)
+  // --- ÁREA DO COMERCIANTE ---
+
+  @Get('merchant/mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Responder a uma avaliação como comerciante' })
+  @ApiOperation({ summary: 'Listar avaliações dos estabelecimentos do comerciante com filtros' })
+  @ApiQuery({ name: 'listingId', required: false })
+  @ApiQuery({ name: 'rating', required: false, type: Number })
+  @ApiQuery({ name: 'answered', required: false, type: Boolean })
+  async findMerchantReviews(
+    @CurrentUser() user: any,
+    @Query('listingId') listingId?: string,
+    @Query('rating') rating?: string,
+    @Query('answered') answered?: string,
+  ) {
+    return this.reviewsService.findMerchantReviews(user, {
+      listingId,
+      rating: rating ? parseInt(rating, 10) : undefined,
+      answered: answered !== undefined ? answered === 'true' : undefined,
+    });
+  }
+
+  @Post(':id/reply')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Responder ou atualizar resposta de uma avaliação como comerciante' })
   async replyReview(
     @CurrentUser() user: any,
     @Param('id') reviewId: string,
     @Body() dto: ReplyReviewDto,
   ) {
-    return this.reviewsService.replyAsMerchant(user.merchantProfile.id, reviewId, dto.reply);
+    return this.reviewsService.replyAsMerchant(user, reviewId, dto.reply);
+  }
+
+  @Delete('reply/:replyId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Excluir resposta do comerciante' })
+  async deleteReply(
+    @CurrentUser() user: any,
+    @Param('replyId') replyId: string,
+  ) {
+    return this.reviewsService.deleteReply(user, replyId);
   }
 }
-
