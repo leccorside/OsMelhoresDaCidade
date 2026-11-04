@@ -176,7 +176,12 @@ export function DirectoryPlacesMap({
   const leafletMapRef = useRef<any>(null);
   const currentTileLayerRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
+  const spiderLayerRef = useRef<any>(null);
   const [activePopupPlace, setActivePopupPlace] = useState<MapPlaceItem | null>(null);
+  const [activeCluster, setActiveCluster] = useState<{
+    center: { lat: number; lng: number };
+    items: MapPlaceItem[];
+  } | null>(null);
   const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('osm');
   const [styleMenuOpen, setStyleMenuOpen] = useState(false);
   const [searchAsIMove, setSearchAsIMove] = useState(true);
@@ -203,6 +208,74 @@ export function DirectoryPlacesMap({
 
     return counts;
   }, [places]);
+
+  // Função para limpar dispersão em leque (unspiderfy)
+  const clearSpiderfy = () => {
+    if (spiderLayerRef.current && leafletMapRef.current) {
+      leafletMapRef.current.removeLayer(spiderLayerRef.current);
+      spiderLayerRef.current = null;
+    }
+    // Restaura opacidade dos marcadores originais
+    places.forEach((p) => {
+      const marker = markersRef.current[p.id];
+      if (marker && marker.setOpacity) {
+        marker.setOpacity(1);
+      }
+    });
+  };
+
+  // Dispersa os marcadores em círculo/leque ao redor do centro com linhas conectoras
+  const triggerSpiderfy = (L: any, map: any, items: MapPlaceItem[], centerPlace: MapPlaceItem) => {
+    clearSpiderfy();
+
+    const layerGroup = L.layerGroup().addTo(map);
+    spiderLayerRef.current = layerGroup;
+
+    // Diminui a opacidade dos marcadores originais centralizados
+    items.forEach((it) => {
+      const marker = markersRef.current[it.id];
+      if (marker && marker.setOpacity) {
+        marker.setOpacity(0.25);
+      }
+    });
+
+    const N = items.length;
+    const radiusPixels = Math.min(55 + N * 5, 85); // Raio dinâmico proporcional à quantidade
+    const centerPoint = map.latLngToLayerPoint([centerPlace.lat, centerPlace.lng]);
+
+    items.forEach((item, index) => {
+      const angle = (2 * Math.PI * index) / N - Math.PI / 2;
+      const spiderX = centerPoint.x + radiusPixels * Math.cos(angle);
+      const spiderY = centerPoint.y + radiusPixels * Math.sin(angle);
+      const spiderLatLng = map.layerPointToLatLng(L.point(spiderX, spiderY));
+
+      // Linha conectora suave com pontilhado teal
+      const polyline = L.polyline([[centerPlace.lat, centerPlace.lng], spiderLatLng], {
+        color: '#008779',
+        weight: 2.5,
+        dashArray: '4, 5',
+        opacity: 0.85,
+      });
+      layerGroup.addLayer(polyline);
+
+      // Marcador disperso individual com ícone da categoria do estabelecimento
+      const isSelected = item.id === selectedPlaceId;
+      const spiderIcon = createCategoryMarkerIcon(L, item, isSelected, 1);
+      const spiderMarker = L.marker(spiderLatLng, {
+        icon: spiderIcon,
+        zIndexOffset: 1500,
+      });
+
+      spiderMarker.on('click', (e: any) => {
+        L.DomEvent.stopPropagation(e);
+        setActivePopupPlace(item);
+        onSelectPlace?.(item.id);
+        map.panTo(spiderLatLng, { animate: true });
+      });
+
+      layerGroup.addLayer(spiderMarker);
+    });
+  };
 
   // Atualizar o popup se o card selecionado vier de fora (ex: hover no card da lista)
   useEffect(() => {
@@ -295,19 +368,61 @@ export function DirectoryPlacesMap({
         currentTileLayerRef.current = tileLayer;
         leafletMapRef.current = map;
 
-        // Adicionar marcadores com pino da categoria (Sem o nome do lugar)
+        // Limpa cluster e popups ao clicar no mapa livre
+        map.on('click', () => {
+          clearSpiderfy();
+          setActivePopupPlace(null);
+          setActiveCluster(null);
+          onSelectPlace?.(null);
+        });
+
+        // Desfaz o leque ao alterar o nível de zoom
+        map.on('zoomstart', () => {
+          clearSpiderfy();
+          setActiveCluster(null);
+        });
+
+        // Adicionar marcadores com pino da categoria
         markersRef.current = {};
         places.forEach((place) => {
           const isSelected = place.id === selectedPlaceId;
-          const count = clusterCounts[place.id];
+          const count = clusterCounts[place.id] || 1;
           const customIcon = createCategoryMarkerIcon(L, place, isSelected, count);
 
           const marker = L.marker([place.lat, place.lng], { icon: customIcon }).addTo(map);
 
-          marker.on('click', () => {
-            setActivePopupPlace(place);
-            onSelectPlace?.(place.id);
-            map.panTo([place.lat, place.lng], { animate: true });
+          marker.on('click', (e: any) => {
+            L.DomEvent.stopPropagation(e);
+
+            if (count > 1) {
+              // Identifica todos os estabelecimentos deste agrupamento
+              const clusterGroup = places.filter((p) => {
+                const dLat = Math.abs(p.lat - place.lat);
+                const dLng = Math.abs(p.lng - place.lng);
+                return dLat < 0.0035 && dLng < 0.0035;
+              });
+
+              // Zoom suave de aproximação se estiver afastado
+              const currentZoom = map.getZoom();
+              const targetZoom = Math.min(Math.max(currentZoom + 1, 16), 18);
+              map.flyTo([place.lat, place.lng], targetZoom, { duration: 0.6 });
+
+              // Dispersa os pinos em leque suave
+              triggerSpiderfy(L, map, clusterGroup, place);
+
+              // Abre o painel com a listagem dos locais do cluster
+              setActiveCluster({
+                center: { lat: place.lat, lng: place.lng },
+                items: clusterGroup,
+              });
+              setActivePopupPlace(null);
+            } else {
+              clearSpiderfy();
+              setActiveCluster(null);
+              setActivePopupPlace(place);
+              onSelectPlace?.(place.id);
+              map.panTo([place.lat, place.lng], { animate: true });
+            }
           });
 
           markersRef.current[place.id] = marker;
@@ -321,6 +436,7 @@ export function DirectoryPlacesMap({
 
     return () => {
       isMounted = false;
+      clearSpiderfy();
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
@@ -412,6 +528,81 @@ export function DirectoryPlacesMap({
           </button>
         </div>
       </div>
+
+      {/* CARD FLUTUANTE DE AGRUPAMENTO (CLUSTER SPIDERFY) */}
+      {activeCluster && !activePopupPlace && (
+        <div className="absolute top-16 left-4 sm:left-6 z-30 animate-in fade-in zoom-in-95 duration-200 max-w-[92vw]">
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-3 w-72 sm:w-84 border border-teal-100 relative">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-[#008779] text-white flex items-center justify-center text-xs font-black shadow-xs">
+                  {activeCluster.items.length}
+                </span>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900 leading-tight">
+                    Locais neste Endereço
+                  </h4>
+                  <p className="text-[10px] text-gray-500">
+                    Dispersos em leque no mapa
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  clearSpiderfy();
+                  setActiveCluster(null);
+                }}
+                className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors"
+                title="Fechar agrupamento"
+              >
+                <span className="material-symbols-outlined text-[14px]">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+              {activeCluster.items.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    setActivePopupPlace(item);
+                    onSelectPlace?.(item.id);
+                    if (leafletMapRef.current) {
+                      leafletMapRef.current.panTo([item.lat, item.lng], { animate: true });
+                    }
+                  }}
+                  className="flex items-center gap-2.5 p-2 rounded-xl border border-gray-100 hover:border-teal-400 bg-white hover:bg-teal-50/40 cursor-pointer transition-all shadow-2xs group"
+                >
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 relative shrink-0">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform"
+                      sizes="50px"
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0 text-left">
+                    <h5 className="text-[12px] font-bold text-gray-900 truncate group-hover:text-teal-700">
+                      {item.name}
+                    </h5>
+                    <p className="text-[10px] text-gray-500 truncate">{item.category}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[11px] font-extrabold text-[#4338CA]">
+                        {item.price}
+                      </span>
+                      <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                        Ver local →
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* POPUP CARD FLUTUANTE - Idêntico à imagem 2 de referência */}
       {activePopupPlace && (

@@ -140,6 +140,16 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Botão "Usar Meu GPS" com integração à Geolocation API do navegador do administrador.
     - Alertas contextuais com feedback de sucesso, status e aviso de coordenadas obtidas.
 
+### G. Cluster Interativo com Dispersão em Leque (Spiderfy) e Painel Flutuante no Mapa Público
+- **Comportamento Interativo de Agrupamentos (`DirectoryPlacesMap.tsx`)**:
+  - Quando múltiplos estabelecimentos compartilham a mesma coordenada ou estão próximos (< 350m com badge de contagem `2`, `5`, etc.):
+    - **Aproximação Suave com Voo (`map.flyTo`)**: Ao clicar no marcador com agrupamento, o mapa realiza um voo suave aproximando a câmera até o zoom ideal (16 a 18).
+    - **Dispersão em Leque / Teia (Spiderfy Geométrico)**: Os pinos individuais dos estabelecimentos são projetados radialmente em círculo ao redor do ponto central em posições calculadas na tela (`map.latLngToLayerPoint` e `map.layerPointToLatLng`).
+    - **Linhas Conectoras Estilizadas**: Cada pino disperso é ligado à coordenada central por uma linha pontilhada teal suave (`L.polyline` com opacidade 0.85 e dash `4, 5`).
+    - **Marcador com Ícone Individual de Categoria**: Cada pino disperso exibe seu ícone temático próprio (piscina, restaurante, hotel, etc.) e pode ser clicado diretamente no mapa.
+    - **Painel Flutuante de Agrupamento**: Exibe um card limpo com a lista completa dos estabelecimentos daquele ponto com fotos, nomes, categorias, notas e preços para seleção imediata.
+    - **Fechamento Automático (Unspiderfy)**: Ao clicar no mapa livre, ao dar zoom out ou ao selecionar um local, a teia é desfeita e os marcadores retornam à posição consolidada.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
