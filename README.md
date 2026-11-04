@@ -36,14 +36,18 @@ os-melhores-da-cidade/
 
 ### Com Docker Compose (Recomendado)
 
+O projeto utiliza um bloco dedicado de portas (**4100 a 4103**) para não conflitar com nenhum outro projeto local (Apache, PostgreSQL padrão, outros apps Node/React):
+
 ```bash
 docker compose up -d --build
 ```
 
 Acesse:
-- **Frontend**: [http://localhost](http://localhost) (ou [http://localhost:3000](http://localhost:3000))
-- **API REST**: [http://localhost/api/v1](http://localhost/api/v1)
-- **Documentação Swagger**: [http://localhost/docs](http://localhost/docs)
+- **Gateway Principal (Nginx)**: [http://localhost:4100](http://localhost:4100) (Portal completo unificado)
+- **Frontend Direto (Next.js)**: [http://localhost:4101](http://localhost:4101)
+- **API REST Direta (NestJS)**: [http://localhost:4102/api/v1](http://localhost:4102/api/v1)
+- **Documentação Swagger**: [http://localhost:4100/docs](http://localhost:4100/docs) (ou direto em [http://localhost:4102/docs](http://localhost:4102/docs))
+- **PostgreSQL**: `localhost:4103` (user: `postgres`, pass: `postgres`, db: `os_melhores_da_cidade`)
 
 ---
 
