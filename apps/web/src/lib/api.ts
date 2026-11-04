@@ -327,6 +327,36 @@ export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<
     bookingPolicies: baseMock?.bookingPolicies,
     menuHighlights,
     wineCellar: baseMock?.wineCellar,
+    serviceCategories: Array.isArray(apiItem.serviceCategories) && apiItem.serviceCategories.length > 0
+      ? apiItem.serviceCategories.map((cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          items: (cat.items || []).map((it: any) => ({
+            id: it.id,
+            name: it.name,
+            description: it.description,
+            price: it.price !== null && it.price !== undefined ? parseFloat(it.price) : null,
+            imageUrl: it.imageUrl,
+            isAvailable: it.isAvailable !== false,
+          })),
+        }))
+      : undefined,
+    upcomingEvents: Array.isArray(apiItem.events) && apiItem.events.length > 0
+      ? apiItem.events.map((evt: any) => ({
+          id: evt.id,
+          name: evt.name,
+          slug: evt.slug,
+          description: evt.description,
+          startDate: evt.startDate,
+          startTime: evt.startTime,
+          isFree: !!evt.isFree,
+          priceInfo: evt.priceInfo,
+          ticketUrl: evt.ticketUrl,
+          imageUrl: evt.images?.find((i: any) => i.isCover)?.url || evt.images?.[0]?.url,
+          categoryName: evt.category?.name,
+        }))
+      : undefined,
   };
 
   return result;

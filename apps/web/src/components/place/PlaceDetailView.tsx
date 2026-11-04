@@ -32,6 +32,7 @@ export function PlaceDetailView({
     place.rooms?.[0]?.id || ''
   );
   const [nightsCount, setNightsCount] = useState(2);
+  const [activeMenuCategory, setActiveMenuCategory] = useState<string>('all');
 
   // Exibir toast temporário
   const showToast = (msg: string) => {
@@ -592,54 +593,185 @@ export function PlaceDetailView({
                 </div>
               )}
 
-              {/* C. CASO: RESTAURANTE / GASTRONOMIA -> DESTAQUES DO CARDÁPIO & ADEGA */}
-              {place.placeType === 'restaurant' && place.menuHighlights && (
+              {/* C. CARDÁPIO COMPLETO & CATÁLOGO DE SERVIÇOS (SEÇÕES DINÂMICAS OU DESTAQUES) */}
+              {((place.serviceCategories && place.serviceCategories.length > 0) || (place.placeType === 'restaurant' && place.menuHighlights)) && (
                 <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-gray-100 space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100">
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-[#1C1B1B]">
-                        Destaques do Cardápio & Gastronomia
+                      <h2 className="text-xl sm:text-2xl font-bold text-[#1C1B1B] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#FF3B4F]">restaurant_menu</span>
+                        Cardápio & Catálogo de Serviços
                       </h2>
                       <p className="text-xs text-[#916F6E]">
-                        Receitas artesanais clássicas preparadas diariamente
+                        Consulte os itens, opções especiais e valores atualizados deste estabelecimento
                       </p>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 text-[#FF3B4F] text-xs font-bold bg-[#FF3B4F]/10 px-3 py-1 rounded-full self-start sm:self-auto">
-                      <span className="material-symbols-outlined text-[16px]">menu_book</span>
-                      {place.cuisine}
-                    </span>
+                    {place.cuisine && (
+                      <span className="inline-flex items-center gap-1.5 text-[#FF3B4F] text-xs font-bold bg-[#FF3B4F]/10 px-3 py-1 rounded-full self-start sm:self-auto">
+                        <span className="material-symbols-outlined text-[16px]">menu_book</span>
+                        {place.cuisine}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {place.menuHighlights.map((dish) => (
-                      <div
-                        key={dish.id}
-                        className="rounded-2xl overflow-hidden border border-gray-100 bg-[#F6F3F2] flex flex-col justify-between hover:shadow-md transition-shadow"
-                      >
-                        <div className="relative h-44 w-full bg-gray-200">
-                          <img
-                            src={dish.image}
-                            alt={dish.name}
-                            className="w-full h-full object-cover"
-                          />
-                          {dish.badge && (
-                            <span className="absolute top-2.5 left-2.5 bg-[#FF3B4F] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                              {dish.badge}
-                            </span>
-                          )}
-                          <span className="absolute bottom-2.5 right-2.5 bg-black/70 backdrop-blur-xs text-white text-xs font-black px-2.5 py-1 rounded-lg">
-                            {dish.price}
-                          </span>
-                        </div>
-                        <div className="p-4 space-y-1.5">
-                          <h4 className="font-bold text-sm text-[#1C1B1B]">{dish.name}</h4>
-                          <p className="text-xs text-[#5C3F3F] leading-relaxed line-clamp-2">
-                            {dish.description}
-                          </p>
-                        </div>
+                  {/* Se tiver seções dinâmicas cadastradas pelo comerciante */}
+                  {place.serviceCategories && place.serviceCategories.length > 0 ? (
+                    <div className="space-y-6">
+                      {/* Seletor de Categorias / Abas */}
+                      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                        <button
+                          onClick={() => setActiveMenuCategory('all')}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                            activeMenuCategory === 'all'
+                              ? 'bg-[#FF3B4F] text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          Todos os Itens ({place.serviceCategories.reduce((acc, cat) => acc + cat.items.length, 0)})
+                        </button>
+                        {place.serviceCategories.map((cat) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => setActiveMenuCategory(cat.id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
+                              activeMenuCategory === cat.id
+                                ? 'bg-[#FF3B4F] text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {cat.name} ({cat.items.length})
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+
+                      {/* Lista de Seções e Itens */}
+                      <div className="space-y-8">
+                        {place.serviceCategories
+                          .filter((cat) => activeMenuCategory === 'all' || activeMenuCategory === cat.id)
+                          .map((cat) => (
+                            <div key={cat.id} className="space-y-4">
+                              <div className="border-b border-gray-100 pb-2">
+                                <h3 className="text-base sm:text-lg font-bold text-[#1C1B1B] flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-[#FF3B4F]"></span>
+                                  {cat.name}
+                                </h3>
+                                {cat.description && (
+                                  <p className="text-xs text-gray-500 mt-0.5">{cat.description}</p>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {cat.items.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className={`rounded-2xl border transition-all p-4 flex gap-4 ${
+                                      item.isAvailable
+                                        ? 'bg-[#FDFCFB] border-gray-200/80 hover:border-gray-300 shadow-2xs'
+                                        : 'bg-gray-50/60 border-gray-200 opacity-60'
+                                    }`}
+                                  >
+                                    {/* Imagem do Item */}
+                                    <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                                      {item.imageUrl ? (
+                                        <img
+                                          src={item.imageUrl}
+                                          alt={item.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                                          <span className="material-symbols-outlined text-[24px]">restaurant</span>
+                                        </div>
+                                      )}
+                                      {!item.isAvailable && (
+                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-1 text-center">
+                                          <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                                            Esgotado
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Detalhes do Item */}
+                                    <div className="flex-1 flex flex-col justify-between">
+                                      <div>
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                          <h4 className="font-bold text-sm text-[#1C1B1B] leading-snug">
+                                            {item.name}
+                                          </h4>
+                                          <span className="text-sm font-black text-[#FF3B4F] shrink-0">
+                                            {item.price !== null && item.price !== undefined
+                                              ? Number(item.price).toLocaleString('pt-BR', {
+                                                  style: 'currency',
+                                                  currency: 'BRL',
+                                                })
+                                              : 'A consultar'}
+                                          </span>
+                                        </div>
+                                        {item.description && (
+                                          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                                            {item.description}
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      {/* Ação rápida: Pedir / Consultar no WhatsApp */}
+                                      {item.isAvailable && place.whatsapp && (
+                                        <div className="pt-2">
+                                          <a
+                                            href={`https://wa.me/${place.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
+                                              `Olá! Gostaria de informações/pedir o item "${item.name}" que vi no guia Os Melhores da Cidade.`
+                                            )}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 transition-colors"
+                                          >
+                                            <span className="material-symbols-outlined text-[14px]">chat</span>
+                                            Pedir / Consultar
+                                          </a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Fallback: Destaques Clássicos do Menu */
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {place.menuHighlights?.map((dish) => (
+                        <div
+                          key={dish.id}
+                          className="rounded-2xl overflow-hidden border border-gray-100 bg-[#F6F3F2] flex flex-col justify-between hover:shadow-md transition-shadow"
+                        >
+                          <div className="relative h-44 w-full bg-gray-200">
+                            <img
+                              src={dish.image}
+                              alt={dish.name}
+                              className="w-full h-full object-cover"
+                            />
+                            {dish.badge && (
+                              <span className="absolute top-2.5 left-2.5 bg-[#FF3B4F] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                                {dish.badge}
+                              </span>
+                            )}
+                            <span className="absolute bottom-2.5 right-2.5 bg-black/70 backdrop-blur-xs text-white text-xs font-black px-2.5 py-1 rounded-lg">
+                              {dish.price}
+                            </span>
+                          </div>
+                          <div className="p-4 space-y-1.5">
+                            <h4 className="font-bold text-sm text-[#1C1B1B]">{dish.name}</h4>
+                            <p className="text-xs text-[#5C3F3F] leading-relaxed line-clamp-2">
+                              {dish.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {place.wineCellar && (
                     <div className="p-5 rounded-2xl bg-[#FAF5F0] border border-[#E8D9C5] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -661,6 +793,136 @@ export function PlaceDetailView({
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* D. SHOWS, MÚSICA AO VIVO & PROGRAMAÇÃO ESPECIAL NESTA CASA */}
+              {place.upcomingEvents && place.upcomingEvents.length > 0 && (
+                <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xs border border-gray-100 space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-[#1C1B1B] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#FF3B4F]">event_available</span>
+                        Shows & Programação Especial
+                      </h2>
+                      <p className="text-xs text-[#916F6E]">
+                        Música ao vivo, atrações e eventos confirmados em {place.name}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-blue-600 text-xs font-bold bg-blue-50 px-3 py-1 rounded-full self-start sm:self-auto">
+                      <span className="material-symbols-outlined text-[16px]">celebration</span>
+                      {place.upcomingEvents.length} {place.upcomingEvents.length === 1 ? 'evento confirmado' : 'eventos confirmados'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {place.upcomingEvents.map((evt) => {
+                      const eventDate = new Date(evt.startDate);
+                      const formattedDate = eventDate.toLocaleDateString('pt-BR', {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: 'short',
+                      });
+
+                      return (
+                        <div
+                          key={evt.id}
+                          className="rounded-2xl overflow-hidden border border-gray-200/90 bg-[#FDFCFB] flex flex-col justify-between hover:shadow-md transition-shadow group"
+                        >
+                          <div>
+                            {/* Banner do Show */}
+                            <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
+                              {evt.imageUrl ? (
+                                <img
+                                  src={evt.imageUrl}
+                                  alt={evt.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50">
+                                  <span className="material-symbols-outlined text-[36px]">nightlife</span>
+                                  <span className="text-[11px] mt-1 text-gray-400">Atração ao vivo</span>
+                                </div>
+                              )}
+
+                              {/* Badge de Preço / Gratuito */}
+                              <div className="absolute top-2.5 left-2.5">
+                                <span
+                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full shadow-xs ${
+                                    evt.isFree
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-amber-500 text-white'
+                                  }`}
+                                >
+                                  {evt.isFree ? 'Entrada Franca' : evt.priceInfo || 'Couvert Artístico'}
+                                </span>
+                              </div>
+
+                              {/* Categoria */}
+                              {evt.categoryName && (
+                                <div className="absolute top-2.5 right-2.5">
+                                  <span className="bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                    {evt.categoryName}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Informações */}
+                            <div className="p-4 space-y-2">
+                              {/* Data e Hora */}
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF3B4F]">
+                                <span className="material-symbols-outlined text-[15px]">schedule</span>
+                                <span className="capitalize">{formattedDate}</span>
+                                {evt.startTime && <span>às {evt.startTime}</span>}
+                              </div>
+
+                              <h4 className="font-bold text-base text-[#1C1B1B] leading-snug line-clamp-1">
+                                {evt.name}
+                              </h4>
+
+                              {evt.description && (
+                                <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                                  {evt.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Rodapé / Link de Reserva */}
+                          <div className="px-4 py-3 bg-gray-50/80 border-t border-gray-100 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-gray-500">
+                              No local • {place.name}
+                            </span>
+
+                            {evt.ticketUrl ? (
+                              <a
+                                href={evt.ticketUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 bg-[#1C1B1B] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-800 transition-colors"
+                              >
+                                <span>Garantir Ingresso</span>
+                                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                              </a>
+                            ) : place.whatsapp ? (
+                              <a
+                                href={`https://wa.me/${place.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
+                                  `Olá! Gostaria de reservar uma mesa para o show "${evt.name}" que vi no guia Os Melhores da Cidade.`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors"
+                              >
+                                <span>Reservar Mesa</span>
+                                <span className="material-symbols-outlined text-[14px]">chat</span>
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

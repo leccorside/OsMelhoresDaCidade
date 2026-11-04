@@ -145,6 +145,34 @@ export interface PlaceDetailData {
   };
   dietaryOptions?: string[];
   paymentMethods?: string[];
+
+  // Cardápio completo por seções e Eventos cadastrados pelo parceiro
+  serviceCategories?: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    items: Array<{
+      id: string;
+      name: string;
+      description?: string | null;
+      price?: number | string | null;
+      imageUrl?: string | null;
+      isAvailable: boolean;
+    }>;
+  }>;
+  upcomingEvents?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    description?: string | null;
+    startDate: string;
+    startTime?: string | null;
+    isFree: boolean;
+    priceInfo?: string | null;
+    ticketUrl?: string | null;
+    imageUrl?: string | null;
+    categoryName?: string;
+  }>;
 }
 
 export const MOCK_PLACES_DETAILS: Record<string, PlaceDetailData> = {

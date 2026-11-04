@@ -276,6 +276,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Modal interativo completo com upload de banner/cartaz (`uploadImage`), alternador de evento gratuito vs. valor de couvert, seleção de estabelecimento anfitrião e validação.
     - Modal de confirmação de exclusão com segurança.
 
+### M. Exibição Pública de Cardápio/Serviços e Shows/Eventos na Página do Local
+- **Backend NestJS (`apps/api`)**:
+  - Em `ListingsService.findBySlug`:
+    - Inclusão da relação `events` filtrada por status `PUBLISHED` e data futura/atual (`startDate >= hoje`), ordenada cronologicamente com imagens e categoria.
+    - Ordenação aprimorada de `serviceCategories.items` trazendo itens disponíveis primeiro (`isAvailable: 'desc'`) e por ordem numérica (`order: 'asc'`).
+- **Frontend Next.js (`apps/web`)**:
+  - **Mapeamento em `fetchPlaceDetail` ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**:
+    - Extração e formatação estruturada de `serviceCategories` e `upcomingEvents`.
+  - **Interface Pública ([`apps/web/src/components/place/PlaceDetailView.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/place/PlaceDetailView.tsx))**:
+    - **Cardápio & Catálogo de Serviços**: Seletor horizontal de abas por seções ("Todos os Itens", "Pizzas Especiais", etc.), cards de itens com fotos, descrições, preços formatados em R$, badge sutil de itens esgotados e botão de atalho para pedir diretamente via WhatsApp com mensagem personalizada contendo o nome do item.
+    - **Shows & Programação Especial**: Seção temática exibindo os eventos e shows confirmados do estabelecimento, cartaz de divulgação, badges de entrada franca ou valor do couvert, data/horário formatados em português e botões de atalho para "Garantir Ingresso" ou "Reservar Mesa via WhatsApp".
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

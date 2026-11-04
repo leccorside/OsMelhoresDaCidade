@@ -148,9 +148,19 @@ export class ListingsService {
           orderBy: { order: 'asc' },
           include: {
             items: {
-              where: { isAvailable: true },
-              orderBy: { order: 'asc' },
+              orderBy: [{ isAvailable: 'desc' }, { order: 'asc' }],
             },
+          },
+        },
+        events: {
+          where: {
+            status: 'PUBLISHED',
+            startDate: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+          },
+          orderBy: { startDate: 'asc' },
+          include: {
+            category: true,
+            images: { where: { isCover: true }, take: 1 },
           },
         },
         reviews: {
