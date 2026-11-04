@@ -307,7 +307,7 @@ export default function MerchantPlansPage() {
                     <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">
                       O que está incluso:
                     </p>
-                    {plan.features.map((feature, idx) => (
+                    {plan.features.map((feature: string, idx: number) => (
                       <div key={idx} className="flex items-start gap-2.5 text-sm text-neutral-700">
                         <CheckCircle2
                           className={`w-4 h-4 shrink-0 mt-0.5 ${

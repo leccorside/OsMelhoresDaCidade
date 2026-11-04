@@ -434,6 +434,35 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Transcrição do comentário, nome do avaliador, estrelas formatadas e botão de ação (CTA) direto para resposta rápida no painel.
   - Disparo automático integrado no momento da criação de avaliações em [`ReviewsService.create`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/reviews/reviews.service.ts).
 
+### X. Planos de Destaque e Checkout de Pagamento do Comerciante
+- **Modelagem Prisma & Banco de Dados (`apps/api/prisma/schema.prisma`)**:
+  - Enums criados: `SubscriptionPlan` (`BRONZE_DESTAQUE`, `PRATA_REGIONAL`, `OURO_MASTER`), `PaymentStatus` (`PENDING`, `PAID`, `CANCELED`, `REFUNDED`), `PaymentMethod` (`PIX`, `CREDIT_CARD`, `BOLETO`).
+  - Modelos relacionais adicionados e sincronizados no PostgreSQL (porta 4103):
+    - `MerchantSubscription`: armazena plano, ciclo (`MONTHLY` ou `YEARLY`), preço, chave PIX Copia e Cola (`pixQrCode`), URL da fatura, datas de início e vigência (`startDate`, `endDate`), vinculado a `MerchantProfile` e ao anúncio (`Listing`).
+    - `SubscriptionPayment`: histórico financeiro das parcelas/faturas com valor, método e timestamp de liquidação (`paidAt`).
+- **Backend NestJS (`apps/api`)**:
+  - Módulo `BillingModule` registrado em `AppModule`.
+  - Serviço [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts): catálogo de planos, checkout PIX dinâmico, confirmação atômica e ativação de destaque (`Listing.isFeatured = true`).
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) sob `/api/v1/billing` (`/plans`, `/merchant/subscriptions`, `/checkout`, `/confirm/:id`).
+- **Frontend Next.js (`apps/web`)**:
+  - Página de checkout em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) com comparativo de planos, chave PIX Copia e Cola, simulação instantânea e tabela de assinaturas ativas.
+
+### Y. Destaque Visual e Priorização de Planos no Guia Público
+- **Backend NestJS (`apps/api`)**:
+  - Métodos `findAll` e `findBySlug` em [`ListingsService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/listings.service.ts) agora incluem o relacionamento `subscriptions` ativas com status `PAID` e vigência válida (`endDate >= now()`).
+  - Retorno mapeado com campo virtual `featuredPlan` (`OURO_MASTER`, `PRATA_REGIONAL`, `BRONZE_DESTAQUE` ou `null`).
+- **Frontend Next.js (`apps/web`)**:
+  - Interfaces `MapPlaceItem` e `PlaceDetailData` atualizadas com `featuredPlan`.
+  - Mapeador `mapListingToMapPlaceItem` e `fetchPlaceDetail` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) sincronizados com o plano contratado.
+  - **Diretório Público ([`DirectoryPlacesClient.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/directory/DirectoryPlacesClient.tsx))**:
+    - **Algoritmo de Priorização**: estabelecimentos com plano `OURO_MASTER` (peso 3) ranqueados no topo absoluto, seguidos por `PRATA_REGIONAL` (peso 2), `BRONZE_DESTAQUE` (peso 1) e demais (peso 0).
+    - **Badges Visuais Ricos**:
+      - `OURO_MASTER`: badge dourado `👑 Ouro VIP` com borda e glow, além de ring âmbar no card.
+      - `PRATA_REGIONAL`: badge `⭐ Prata Regional` com borda azul e ring sky no card.
+      - `BRONZE_DESTAQUE`: badge `★ Destaque` verificado.
+  - **Página de Detalhes ([`PlaceDetailView.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/place/PlaceDetailView.tsx))**:
+    - Selo oficial destacado no cabeçalho com coroa pulsante dourada para o plano Ouro Master VIP e selo prateado para o plano Prata Regional.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

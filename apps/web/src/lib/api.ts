@@ -265,7 +265,12 @@ export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<
     category: apiItem.category?.name || baseMock?.category || 'Geral',
     categorySlug: apiItem.category?.slug || baseMock?.categorySlug || 'geral',
     subCategory: apiItem.subcategory?.name || baseMock?.subCategory || apiItem.category?.name || 'Geral',
-    badge: baseMock?.badge || (apiItem.isFeatured ? 'DESTAQUE OURO' : 'VERIFICADO'),
+    badge:
+      apiItem.featuredPlan === 'OURO_MASTER'
+        ? 'OURO MASTER VIP'
+        : apiItem.featuredPlan === 'PRATA_REGIONAL'
+        ? 'PRATA REGIONAL'
+        : baseMock?.badge || (apiItem.isFeatured ? 'DESTAQUE OFICIAL' : 'VERIFICADO'),
     statusBadge: apiItem.status === 'PUBLISHED' ? 'Aberto Hoje' : 'Pendente',
     awardBadge: baseMock?.awardBadge || (apiItem.isFeatured ? 'Eleito Escolha dos Viajantes 2025' : undefined),
     priceRange,
@@ -283,6 +288,7 @@ export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<
     lng: apiItem.longitude ? Number(apiItem.longitude) : (baseMock?.lng || -48.62),
     isOpen: apiItem.status === 'PUBLISHED',
     isFeatured: !!apiItem.isFeatured,
+    featuredPlan: apiItem.featuredPlan || (apiItem.isFeatured ? 'BRONZE_DESTAQUE' : null),
     shortDescription: apiItem.shortDescription || baseMock?.shortDescription || `${apiItem.name} em Caldas Novas.`,
     fullDescription,
     guideTip: baseMock?.guideTip || `Aproveite ao máximo sua visita a ${apiItem.name}. Recomendamos reservar com antecedência em fins de semana e feriados.`,
@@ -467,6 +473,8 @@ export function mapListingToMapPlaceItem(item: any) {
     neighborhood: item.neighborhood?.name || 'Centro',
     image: coverImg,
     isOpen: item.status === 'PUBLISHED',
+    isFeatured: item.isFeatured ?? false,
+    featuredPlan: item.featuredPlan || (item.isFeatured ? 'BRONZE_DESTAQUE' : null),
   };
 }
 
@@ -1937,3 +1945,132 @@ export async function broadcastNotificationApi(data: {
 
   return res.json();
 }
+
+// --- FATURAMENTO & PLANOS DE DESTAQUE ---
+
+export interface BillingPlan {
+  id: 'BRONZE_DESTAQUE' | 'PRATA_REGIONAL' | 'OURO_MASTER';
+  name: string;
+  badge: string;
+  priceMonthly: number;
+  priceYearly: number;
+  description: string;
+  features: string[];
+  recommended?: boolean;
+}
+
+export interface MerchantSubscriptionItem {
+  id: string;
+  plan: 'BRONZE_DESTAQUE' | 'PRATA_REGIONAL' | 'OURO_MASTER';
+  status: 'PENDING' | 'PAID' | 'CANCELED' | 'REFUNDED';
+  price: number;
+  billingCycle: string;
+  pixQrCode?: string;
+  gatewayInvoiceUrl?: string;
+  startDate?: string;
+  endDate?: string;
+  createdAt: string;
+  listing?: {
+    id: string;
+    name: string;
+    slug: string;
+    coverUrl?: string | null;
+  };
+  payments?: Array<{
+    id: string;
+    amount: number;
+    method: string;
+    status: string;
+    paidAt?: string;
+  }>;
+}
+
+export async function fetchBillingPlansApi(): Promise<BillingPlan[]> {
+  const url = `${getApiBaseUrl()}/billing/plans`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao carregar planos: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchMerchantSubscriptionsApi(): Promise<MerchantSubscriptionItem[]> {
+  const url = `${getApiBaseUrl()}/billing/merchant/subscriptions`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao carregar assinaturas: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createCheckoutApi(data: {
+  listingId: string;
+  plan: string;
+  billingCycle?: 'MONTHLY' | 'YEARLY';
+  paymentMethod?: string;
+}): Promise<{
+  success: boolean;
+  subscriptionId: string;
+  plan: BillingPlan;
+  price: number;
+  billingCycle: string;
+  pixQrCode: string;
+  gatewayInvoiceUrl: string;
+  listing: { id: string; name: string; slug: string };
+  expiresAt: string;
+}> {
+  const url = `${getApiBaseUrl()}/billing/checkout`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao gerar checkout: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function confirmSubscriptionPaymentApi(subscriptionId: string): Promise<{
+  success: boolean;
+  message: string;
+  subscription: MerchantSubscriptionItem;
+}> {
+  const url = `${getApiBaseUrl()}/billing/confirm/${subscriptionId}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao confirmar pagamento: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+

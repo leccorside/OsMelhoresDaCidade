@@ -365,6 +365,33 @@ export function DirectoryPlacesClient({
     filterOpenNow,
   ]);
 
+  // ORDENAÇÃO COM PRIORIDADE POR PLANO DE DESTAQUE (OURO MASTER > PRATA REGIONAL > BRONZE DESTAQUE > DEMAIS)
+  const sortedPlaces = useMemo(() => {
+    return [...filteredPlaces].sort((a, b) => {
+      const getWeight = (p: MapPlaceItem) => {
+        if (p.featuredPlan === 'OURO_MASTER') return 3;
+        if (p.featuredPlan === 'PRATA_REGIONAL') return 2;
+        if (p.featuredPlan === 'BRONZE_DESTAQUE' || p.isFeatured) return 1;
+        return 0;
+      };
+
+      const weightA = getWeight(a);
+      const weightB = getWeight(b);
+
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+
+      if (sortBy === 'populares') {
+        return (Number(b.reviewsCount) || 0) - (Number(a.reviewsCount) || 0);
+      }
+      if (sortBy === 'menor_preco') {
+        return a.price.localeCompare(b.price);
+      }
+      return b.rating - a.rating;
+    });
+  }, [filteredPlaces, sortBy]);
+
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -424,7 +451,7 @@ export function DirectoryPlacesClient({
           {/* Contagem, Ordenação e Botões de Visualização (Imagem 1) */}
           <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto ml-auto">
             <span className="text-xs text-gray-500 hidden sm:inline">
-              <strong className="text-[#1C1B1B] font-bold">{filteredPlaces.length}</strong> locais
+              <strong className="text-[#1C1B1B] font-bold">{sortedPlaces.length}</strong> locais
             </span>
 
             {/* Select Ordenação */}
@@ -848,7 +875,7 @@ export function DirectoryPlacesClient({
             </div>
 
             {/* CONTAINER DE CARDS: 2 COLUNAS QUANDO GRID, LINHAS QUANDO LIST */}
-            {filteredPlaces.length === 0 ? (
+            {sortedPlaces.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm">
                 <span className="material-symbols-outlined text-[48px] text-gray-300 mb-2">
                   search_off
@@ -874,9 +901,12 @@ export function DirectoryPlacesClient({
                     : 'flex flex-col gap-4' // LINHAS HORIZONTAIS
                 }
               >
-                {filteredPlaces.map((place) => {
+                {sortedPlaces.map((place) => {
                   const isSelected = selectedPlaceId === place.id;
                   const isFavorited = !!favorites[place.id];
+                  const isOuro = place.featuredPlan === 'OURO_MASTER';
+                  const isPrata = place.featuredPlan === 'PRATA_REGIONAL';
+                  const isBronze = place.featuredPlan === 'BRONZE_DESTAQUE' || place.isFeatured;
 
                   if (viewMode === 'list') {
                     // LAYOUT HORIZONTAL (LINHAS)
@@ -887,6 +917,10 @@ export function DirectoryPlacesClient({
                         className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col sm:flex-row hover:shadow-lg ${
                           isSelected
                             ? 'border-[#FF3B4F] ring-2 ring-[#FF3B4F]/20'
+                            : isOuro
+                            ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/10'
+                            : isPrata
+                            ? 'border-sky-400 ring-1 ring-sky-400/30'
                             : 'border-gray-200'
                         }`}
                       >
@@ -901,12 +935,24 @@ export function DirectoryPlacesClient({
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
 
-                          {/* Badge de Destaque */}
-                          <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-bold flex items-center gap-1 shadow-xs">
-                              <span className="material-symbols-outlined text-[12px]">star</span>
-                              Destaque
-                            </span>
+                          {/* Badge de Destaque / Plano Oficial */}
+                          <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
+                            {isOuro ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-white font-black flex items-center gap-1 shadow-md uppercase tracking-wider border border-amber-300/40">
+                                <span>👑</span>
+                                Ouro VIP
+                              </span>
+                            ) : isPrata ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-sky-600 text-white font-bold flex items-center gap-1 shadow-sm uppercase tracking-wide border border-sky-300/30">
+                                <span>⭐</span>
+                                Prata Regional
+                              </span>
+                            ) : isBronze ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-bold flex items-center gap-1 shadow-xs">
+                                <span className="material-symbols-outlined text-[12px]">star</span>
+                                Destaque
+                              </span>
+                            ) : null}
                             {place.isOpen && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-semibold flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -986,6 +1032,10 @@ export function DirectoryPlacesClient({
                       className={`group relative bg-white rounded-2xl overflow-hidden border transition-all duration-300 flex flex-col hover:shadow-lg ${
                         isSelected
                           ? 'border-[#FF3B4F] ring-2 ring-[#FF3B4F]/20'
+                          : isOuro
+                          ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-lg shadow-amber-500/10'
+                          : isPrata
+                          ? 'border-sky-400 ring-1 ring-sky-400/30'
                           : 'border-gray-200'
                       }`}
                     >
@@ -1001,11 +1051,23 @@ export function DirectoryPlacesClient({
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
 
                         {/* Badges superiores */}
-                        <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-bold flex items-center gap-1 shadow-xs">
-                            <span className="material-symbols-outlined text-[12px]">star</span>
-                            Destaque
-                          </span>
+                        <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
+                          {isOuro ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-white font-black flex items-center gap-1 shadow-md uppercase tracking-wider border border-amber-300/40">
+                              <span>👑</span>
+                              Ouro VIP
+                            </span>
+                          ) : isPrata ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-sky-600 text-white font-bold flex items-center gap-1 shadow-sm uppercase tracking-wide border border-sky-300/30">
+                              <span>⭐</span>
+                              Prata Regional
+                            </span>
+                          ) : isBronze ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-bold flex items-center gap-1 shadow-xs">
+                              <span className="material-symbols-outlined text-[12px]">star</span>
+                              Destaque
+                            </span>
+                          ) : null}
                           {place.isOpen && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-semibold flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -1089,7 +1151,7 @@ export function DirectoryPlacesClient({
           <aside className="col-span-1 lg:col-span-12 xl:col-span-4 relative">
             <div className="sticky top-[180px] w-full h-[calc(100vh-200px)] min-h-[580px]">
               <DirectoryPlacesMap
-                places={filteredPlaces}
+                places={sortedPlaces}
                 selectedPlaceId={selectedPlaceId}
                 onSelectPlace={(id) => setSelectedPlaceId(id)}
                 citySlug={citySlug}

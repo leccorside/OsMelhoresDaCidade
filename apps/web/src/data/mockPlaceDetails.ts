@@ -61,6 +61,7 @@ export interface PlaceDetailData {
   lng: number;
   isOpen: boolean;
   isFeatured: boolean;
+  featuredPlan?: 'BRONZE_DESTAQUE' | 'PRATA_REGIONAL' | 'OURO_MASTER' | string | null;
   shortDescription: string;
   fullDescription: string[];
   guideTip: string;

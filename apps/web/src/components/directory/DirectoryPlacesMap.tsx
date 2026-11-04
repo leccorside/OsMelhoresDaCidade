@@ -17,6 +17,8 @@ export interface MapPlaceItem {
   image: string;
   neighborhood: string;
   isOpen?: boolean;
+  isFeatured?: boolean;
+  featuredPlan?: 'BRONZE_DESTAQUE' | 'PRATA_REGIONAL' | 'OURO_MASTER' | string | null;
 }
 
 interface DirectoryPlacesMapProps {

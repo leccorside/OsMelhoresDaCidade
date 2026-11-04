@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ListingStatus, DayOfWeek, Prisma } from '@prisma/client';
+import { ListingStatus, DayOfWeek, Prisma, PaymentStatus } from '@prisma/client';
 import { CreateListingFullDto } from './dto/create-listing-full.dto';
 
 export interface ListingFilterParams {
@@ -109,13 +109,29 @@ export class ListingsService {
             where: { isCover: true },
             take: 1,
           },
+          subscriptions: {
+            where: {
+              status: PaymentStatus.PAID,
+              endDate: { gte: new Date() },
+            },
+            select: {
+              plan: true,
+              status: true,
+            },
+            take: 1,
+          },
         },
       }),
       this.prisma.listing.count({ where }),
     ]);
 
+    const mappedItems = items.map((item: any) => ({
+      ...item,
+      featuredPlan: item.subscriptions?.[0]?.plan || (item.isFeatured ? 'BRONZE_DESTAQUE' : null),
+    }));
+
     return {
-      items,
+      items: mappedItems,
       total,
       page,
       limit,
@@ -183,6 +199,18 @@ export class ListingsService {
           orderBy: { createdAt: 'desc' },
           take: 5,
         },
+        subscriptions: {
+          where: {
+            status: PaymentStatus.PAID,
+            endDate: { gte: new Date() },
+          },
+          select: {
+            plan: true,
+            status: true,
+            endDate: true,
+          },
+          take: 1,
+        },
       },
     });
 
@@ -195,7 +223,12 @@ export class ListingsService {
       data: { viewsCount: { increment: 1 } },
     });
 
-    return listing;
+    const featuredPlan = (listing as any).subscriptions?.[0]?.plan || (listing.isFeatured ? 'BRONZE_DESTAQUE' : null);
+
+    return {
+      ...listing,
+      featuredPlan,
+    };
   }
 
   // --- ÁREA ADMINISTRATIVA MASTER ---

@@ -133,7 +133,17 @@ export function PlaceDetailView({
             {/* Esquerda: Badges, Título e Meta */}
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                {place.badge && (
+                {place.featuredPlan === 'OURO_MASTER' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-white text-[11px] font-black uppercase tracking-wider shadow-md border border-amber-300/40 animate-pulse">
+                    <span>👑</span>
+                    Ouro Master VIP • Oficial
+                  </span>
+                ) : place.featuredPlan === 'PRATA_REGIONAL' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-[11px] font-bold uppercase tracking-wider shadow-xs border border-sky-300/30">
+                    <span>⭐</span>
+                    Prata Regional
+                  </span>
+                ) : place.badge ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFDDB8] text-[#2A1700] text-[11px] font-bold uppercase tracking-wider shadow-xs">
                     <span
                       className="material-symbols-outlined text-[14px]"
@@ -143,7 +153,7 @@ export function PlaceDetailView({
                     </span>
                     {place.badge}
                   </span>
-                )}
+                ) : null}
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAE7E7] text-[#1C1B1B] text-[11px] font-bold">
                   <span className="material-symbols-outlined text-[14px]">
                     {place.placeType === 'attraction'
