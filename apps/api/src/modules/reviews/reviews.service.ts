@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ReviewStatus } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ReviewStatus, NotificationType } from '@prisma/client';
 
 export interface MerchantReviewFilters {
   listingId?: string;
@@ -10,7 +11,10 @@ export interface MerchantReviewFilters {
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(userId: string, listingId: string, rating: number, comment?: string) {
     if (rating < 1 || rating > 5) {
@@ -39,6 +43,28 @@ export class ReviewsService {
 
     // Atualizar média ponderada do estabelecimento
     await this.updateListingRating(listingId);
+
+    // Notificar os donos do estabelecimento em tempo real
+    try {
+      const reviewer = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+      const listing = await this.prisma.listing.findUnique({
+        where: { id: listingId },
+        select: { name: true },
+      });
+
+      await this.notificationsService.notifyListingOwners(listingId, {
+        type: NotificationType.NEW_REVIEW,
+        title: 'Nova Avaliação Recebida!',
+        message: `${reviewer?.name || 'Um cliente'} avaliou "${listing?.name || 'seu estabelecimento'}" com nota ${rating}★.`,
+        linkUrl: '/comerciante/avaliacoes',
+        metadata: { reviewId: review.id, rating, listingId },
+      });
+    } catch (e) {
+      // Ignorar falhas secundárias de notificação
+    }
 
     return review;
   }

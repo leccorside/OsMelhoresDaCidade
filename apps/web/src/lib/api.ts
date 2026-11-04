@@ -1546,3 +1546,93 @@ export async function claimPublicCouponApi(
 
   return res.json();
 }
+
+// ==========================================
+// NOTIFICAÇÕES EM TEMPO REAL
+// ==========================================
+
+export interface MerchantNotificationItem {
+  id: string;
+  userId: string;
+  type: 'NEW_REVIEW' | 'REVIEW_REPLIED' | 'CONTACT_MESSAGE' | 'COUPON_CLAIMED' | 'EVENT_RSVP' | 'SYSTEM_ALERT';
+  title: string;
+  message: string;
+  linkUrl?: string | null;
+  isRead: boolean;
+  readAt?: string | null;
+  metadata?: any;
+  createdAt: string;
+}
+
+export interface MerchantNotificationsData {
+  unreadCount: number;
+  notifications: MerchantNotificationItem[];
+}
+
+export async function fetchMerchantNotifications(limit = 20): Promise<MerchantNotificationsData> {
+  const url = `${getApiBaseUrl()}/notifications/mine?limit=${limit}`;
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    return { unreadCount: 0, notifications: [] };
+  }
+
+  return res.json();
+}
+
+export async function markNotificationAsReadApi(id: string): Promise<MerchantNotificationItem> {
+  const url = `${getApiBaseUrl()}/notifications/${encodeURIComponent(id)}/read`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao marcar notificação: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function markAllNotificationsAsReadApi(): Promise<{ success: boolean }> {
+  const url = `${getApiBaseUrl()}/notifications/read-all`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao marcar todas notificações: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteNotificationApi(id: string): Promise<{ success: boolean }> {
+  const url = `${getApiBaseUrl()}/notifications/${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao excluir notificação: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

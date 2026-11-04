@@ -11,11 +11,15 @@ import {
   CouponFilterDto,
   ClaimCouponDto,
 } from './dto/coupon.dto';
-import { CouponStatus, DiscountType } from '@prisma/client';
+import { CouponStatus, DiscountType, NotificationType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CouponsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private async ensureMerchantProfile(user: any) {
     let merchant = await this.prisma.merchantProfile.findUnique({
@@ -350,6 +354,19 @@ export class CouponsService {
         },
       }),
     ]);
+
+    // Notificar os donos do estabelecimento em tempo real
+    try {
+      await this.notificationsService.notifyListingOwners(coupon.listingId, {
+        type: NotificationType.COUPON_CLAIMED,
+        title: 'Novo Voucher Resgatado!',
+        message: `${dto.customerName || 'Um visitante'} resgatou o cupom "${coupon.code}" (${coupon.title}).`,
+        linkUrl: '/comerciante/cupons',
+        metadata: { couponId: coupon.id, claimCode: claim.claimCode },
+      });
+    } catch (e) {
+      // Ignorar falhas secundárias
+    }
 
     return {
       success: true,

@@ -12,6 +12,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
       load: [configuration],
     }),
     PrismaModule,
+    NotificationsModule,
     GeographyModule,
     AuthModule,
     ListingsModule,

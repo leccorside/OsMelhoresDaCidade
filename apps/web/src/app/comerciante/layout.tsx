@@ -19,9 +19,12 @@ import {
   ExternalLink,
   ShieldAlert,
   Loader2,
+  Ticket,
+  Bell,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { clearAuthCookies } from '@/services/auth';
+import { MerchantNotificationsBell } from '@/components/merchant/MerchantNotificationsBell';
 
 export default function MerchantLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -52,6 +55,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   const menuItems = [
     { label: 'Dashboard', href: '/comerciante', icon: LayoutDashboard },
     { label: 'Meus Estabelecimentos', href: '/comerciante/estabelecimentos', icon: Store },
+    { label: 'Promoções & Cupons', href: '/comerciante/cupons', icon: Ticket },
     { label: 'Eventos & Shows', href: '/comerciante/eventos', icon: Calendar },
     { label: 'Cardápio & Serviços', href: '/comerciante/servicos', icon: UtensilsCrossed },
     { label: 'Galeria de Fotos', href: '/comerciante/galeria', icon: ImageIcon },
@@ -84,12 +88,15 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
             className="h-8 w-auto brightness-0 invert"
           />
         </Link>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1.5 rounded-lg bg-white/10"
-        >
-          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <MerchantNotificationsBell />
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1.5 rounded-lg bg-white/10"
+          >
+            {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </header>
 
       {/* Sidebar Desktop */}
@@ -171,9 +178,35 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto max-w-7xl w-full mx-auto">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Desktop Topbar */}
+        <header className="hidden md:flex bg-white border-b border-gray-200/80 px-8 py-3.5 items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+            <span>Painel do Comerciante Parceiro</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              target="_blank"
+              className="text-xs font-semibold text-gray-600 hover:text-[#FF3B4F] flex items-center gap-1.5 transition"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Ver Guia da Cidade</span>
+            </Link>
+
+            <div className="h-4 w-px bg-gray-200" />
+
+            <div className="bg-[#1C1B1B] rounded-xl p-0.5">
+              <MerchantNotificationsBell />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6 md:p-10 overflow-y-auto max-w-7xl w-full mx-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

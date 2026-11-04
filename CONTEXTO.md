@@ -352,6 +352,20 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Painel [`/comerciante/cupons`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/cupons/page.tsx) com 4 cards de métricas (Total, Ativas, Resgates, Economia Gerada), filtros, alternador de status com 1 clique, modais de criação/edição e visualizador de clientes que resgataram vouchers.
   - Exibição de cupons ativos com cópia de código em 1 clique na página pública do local [`PlaceDetailView.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/place/PlaceDetailView.tsx).
 
+### Q. Módulo de Notificações em Tempo Real do Comerciante
+- **Modelagem Prisma & PostgreSQL ([`apps/api/prisma/schema.prisma`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/prisma/schema.prisma))**:
+  - Modelo `Notification` com enum `NotificationType` (`NEW_REVIEW`, `REVIEW_REPLIED`, `CONTACT_MESSAGE`, `COUPON_CLAIMED`, `EVENT_RSVP`, `SYSTEM_ALERT`), flags de leitura (`isRead`, `readAt`) e metadados JSON flexíveis.
+  - Relação em cascata com `User.notifications` e índices compostos por usuário e status de leitura.
+- **Backend NestJS (`apps/api`)**:
+  - Módulo global `NotificationsModule` e serviço [`NotificationsService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/notifications.service.ts) com método de envio em lote `notifyListingOwners`.
+  - Disparos automáticos integrados:
+    - Ao submeter uma nova avaliação em estabelecimento (`ReviewsService`), os proprietários são alertados com nota e nome do cliente.
+    - Ao resgatar voucher/cupom promocional (`CouponsService`), os parceiros são notificados com o código do resgate.
+  - Endpoints sob `/api/v1/notifications`: `GET /mine`, `PATCH /:id/read`, `PATCH /read-all` e `DELETE /:id`.
+- **Frontend Next.js (`apps/web`)**:
+  - Componente interativo [`MerchantNotificationsBell.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/merchant/MerchantNotificationsBell.tsx) com polling automático em segundo plano a cada 30 segundos, badge animado de não lidas (`animate-ping`), popover com lista de alertas categorizados por ícones e marcação rápida como lida.
+  - Integração no topo da interface mobile e barra superior do layout do comerciante ([`apps/web/src/app/comerciante/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/layout.tsx)), além de novo link direto no menu lateral para "Promoções & Cupons".
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

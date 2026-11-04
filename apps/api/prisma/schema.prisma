@@ -133,6 +133,7 @@ model User {
   favorites              Favorite[]
   eventFavorites         EventFavorite[]
   couponClaims          CouponClaim[]
+  notifications          Notification[]
 
   @@index([email])
   @@map("users")
@@ -776,4 +777,35 @@ model CouponClaim {
   @@index([couponId])
   @@index([claimCode])
   @@map("coupon_claims")
+}
+
+// -----------------------------------------------------------------------------
+// NOTIFICAÇÕES EM TEMPO REAL
+// -----------------------------------------------------------------------------
+
+enum NotificationType {
+  NEW_REVIEW
+  REVIEW_REPLIED
+  CONTACT_MESSAGE
+  COUPON_CLAIMED
+  EVENT_RSVP
+  SYSTEM_ALERT
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType @default(SYSTEM_ALERT)
+  title       String
+  message     String           @db.Text
+  linkUrl     String?
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
 }
