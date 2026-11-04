@@ -1,0 +1,630 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import {
+  Crown,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  Store,
+  QrCode,
+  Copy,
+  Check,
+  AlertCircle,
+  Loader2,
+  X,
+  CreditCard,
+  ChevronRight,
+  Star,
+  Flame,
+  Award,
+} from 'lucide-react';
+import {
+  fetchBillingPlansApi,
+  fetchMerchantSubscriptionsApi,
+  createCheckoutApi,
+  confirmSubscriptionPaymentApi,
+  fetchMerchantListings,
+  BillingPlan,
+  MerchantSubscriptionItem,
+  MerchantListing,
+} from '@/lib/api';
+
+export default function MerchantPlansPage() {
+  const [plans, setPlans] = useState<BillingPlan[]>([]);
+  const [subscriptions, setSubscriptions] = useState<MerchantSubscriptionItem[]>([]);
+  const [listings, setListings] = useState<MerchantListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+
+  // Checkout Modal State
+  const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
+  const [selectedListingId, setSelectedListingId] = useState<string>('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutResult, setCheckoutResult] = useState<{
+    subscriptionId: string;
+    pixQrCode: string;
+    price: number;
+    billingCycle: string;
+  } | null>(null);
+
+  // Confirmação State
+  const [confirming, setConfirming] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [plansData, subsData, listingsData] = await Promise.all([
+        fetchBillingPlansApi(),
+        fetchMerchantSubscriptionsApi(),
+        fetchMerchantListings(),
+      ]);
+      setPlans(plansData);
+      setSubscriptions(subsData);
+      setListings(listingsData);
+      if (listingsData.length > 0) {
+        setSelectedListingId(listingsData[0].id);
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Erro ao carregar dados de planos.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleOpenCheckout = (plan: BillingPlan) => {
+    setSelectedPlan(plan);
+    setCheckoutResult(null);
+    setCopied(false);
+    setFeedback(null);
+    setModalOpen(true);
+  };
+
+  const handleGenerateCheckout = async () => {
+    if (!selectedPlan || !selectedListingId) return;
+
+    try {
+      setCheckoutLoading(true);
+      setFeedback(null);
+      const res = await createCheckoutApi({
+        listingId: selectedListingId,
+        plan: selectedPlan.id,
+        billingCycle,
+        paymentMethod: 'PIX',
+      });
+
+      setCheckoutResult({
+        subscriptionId: res.subscriptionId,
+        pixQrCode: res.pixQrCode,
+        price: res.price,
+        billingCycle: res.billingCycle,
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Erro ao gerar cobrança PIX.' });
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async (subscriptionId: string) => {
+    try {
+      setConfirming(true);
+      setFeedback(null);
+      const res = await confirmSubscriptionPaymentApi(subscriptionId);
+      setFeedback({
+        type: 'success',
+        message: '🎉 Pagamento confirmado com sucesso! O selo de destaque já está ativo.',
+      });
+      setModalOpen(false);
+      setCheckoutResult(null);
+      await loadData();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Erro ao confirmar pagamento.' });
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const copyPixCode = () => {
+    if (checkoutResult?.pixQrCode) {
+      navigator.clipboard.writeText(checkoutResult.pixQrCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
+  return (
+    <div className="space-y-8 pb-16">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-neutral-500">
+        <Link href="/comerciante" className="hover:text-neutral-900 transition-colors">
+          Painel do Comerciante
+        </Link>
+        <ChevronRight className="w-4 h-4" />
+        <span className="text-neutral-900 font-medium">Planos de Destaque</span>
+      </nav>
+
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-neutral-900 via-neutral-800 to-amber-950 p-8 sm:p-10 text-white shadow-xl">
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-semibold uppercase tracking-wider mb-4 border border-amber-500/30">
+            <Crown className="w-4 h-4 text-amber-400" />
+            Visibilidade Máxima no Guia
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            Multiplique seus clientes com os Planos de Destaque
+          </h1>
+          <p className="mt-3 text-neutral-300 text-sm sm:text-base leading-relaxed">
+            Coloque o seu comércio no topo das buscas, conquiste o selo oficial verificado e atraia dezenas de clientes qualificados todos os dias direto pelo WhatsApp.
+          </p>
+        </div>
+
+        {/* Fundo decorativo */}
+        <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20 pointer-events-none flex items-center justify-end pr-10">
+          <Crown className="w-72 h-72 text-amber-400" />
+        </div>
+      </div>
+
+      {/* Feedback Alert */}
+      {feedback && (
+        <div
+          className={`p-4 rounded-2xl flex items-start gap-3 text-sm animate-in fade-in duration-200 ${
+            feedback.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
+        >
+          {feedback.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 font-medium">{feedback.message}</div>
+          <button
+            onClick={() => setFeedback(null)}
+            className="text-neutral-400 hover:text-neutral-700"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Ciclo de Cobrança Toggle */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+        <div className="inline-flex p-1.5 bg-neutral-100 rounded-2xl border border-neutral-200">
+          <button
+            onClick={() => setBillingCycle('MONTHLY')}
+            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+              billingCycle === 'MONTHLY'
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+          >
+            Faturamento Mensal
+          </button>
+          <button
+            onClick={() => setBillingCycle('YEARLY')}
+            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+              billingCycle === 'YEARLY'
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+          >
+            <span>Faturamento Anual</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+              2 meses grátis
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Cards de Planos */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-96 rounded-3xl bg-neutral-100 animate-pulse border border-neutral-200" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {plans.map((plan) => {
+            const price = billingCycle === 'YEARLY' ? plan.priceYearly : plan.priceMonthly;
+            const monthlyEquivalent = billingCycle === 'YEARLY' ? plan.priceYearly / 12 : plan.priceMonthly;
+            const isOuro = plan.id === 'OURO_MASTER';
+            const isPrata = plan.id === 'PRATA_REGIONAL';
+
+            return (
+              <div
+                key={plan.id}
+                className={`relative flex flex-col justify-between rounded-3xl p-8 transition-all duration-300 hover:shadow-2xl ${
+                  isOuro
+                    ? 'bg-gradient-to-b from-amber-500/10 via-white to-amber-50/40 border-2 border-amber-500 shadow-xl shadow-amber-500/10'
+                    : isPrata
+                    ? 'bg-white border-2 border-sky-400 shadow-lg shadow-sky-400/5'
+                    : 'bg-white border border-neutral-200 shadow-sm hover:border-neutral-300'
+                }`}
+              >
+                {/* Badge de recomendação */}
+                {plan.recommended && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5" />
+                    Mais Escolhido
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span
+                      className={`text-xs font-bold uppercase px-3 py-1 rounded-full tracking-wider ${
+                        isOuro
+                          ? 'bg-amber-100 text-amber-800'
+                          : isPrata
+                          ? 'bg-sky-100 text-sky-800'
+                          : 'bg-amber-900/10 text-amber-900'
+                      }`}
+                    >
+                      {plan.badge}
+                    </span>
+                    {isOuro && <Crown className="w-6 h-6 text-amber-500" />}
+                    {isPrata && <Award className="w-6 h-6 text-sky-500" />}
+                    {!isOuro && !isPrata && <Star className="w-6 h-6 text-amber-700" />}
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-neutral-900">{plan.name}</h3>
+                  <p className="mt-2 text-sm text-neutral-600 leading-relaxed min-h-[40px]">
+                    {plan.description}
+                  </p>
+
+                  {/* Preço */}
+                  <div className="mt-6 pb-6 border-b border-neutral-100">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-semibold text-neutral-500">R$</span>
+                      <span className="text-4xl font-extrabold text-neutral-900 tracking-tight">
+                        {monthlyEquivalent.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-sm text-neutral-500 font-medium">/mês</span>
+                    </div>
+                    {billingCycle === 'YEARLY' && (
+                      <p className="text-xs text-neutral-400 mt-1">
+                        Cobrado anualmente (R$ {price.toFixed(2)})
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Recursos */}
+                  <div className="mt-6 space-y-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                      O que está incluso:
+                    </p>
+                    {plan.features.map((feature, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 text-sm text-neutral-700">
+                        <CheckCircle2
+                          className={`w-4 h-4 shrink-0 mt-0.5 ${
+                            isOuro ? 'text-amber-500' : isPrata ? 'text-sky-500' : 'text-emerald-500'
+                          }`}
+                        />
+                        <span className="leading-snug">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botão de Assinar */}
+                <div className="mt-8 pt-4">
+                  <button
+                    onClick={() => handleOpenCheckout(plan)}
+                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-sm ${
+                      isOuro
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25 hover:shadow-amber-500/35 hover:-translate-y-0.5'
+                        : isPrata
+                        ? 'bg-neutral-900 hover:bg-neutral-800 text-white hover:-translate-y-0.5'
+                        : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900'
+                    }`}
+                  >
+                    <span>Quero este plano</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Histórico de Assinaturas e Destaques Ativos */}
+      <div className="mt-12 bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              Seus Estabelecimentos & Destaques Contratados
+            </h2>
+            <p className="text-sm text-neutral-500 mt-1">
+              Acompanhe os status dos seus planos ativos e prazos de renovação.
+            </p>
+          </div>
+        </div>
+
+        {subscriptions.length === 0 ? (
+          <div className="text-center py-12 border-2 border-dashed border-neutral-200 rounded-2xl">
+            <Store className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-neutral-700">Nenhum plano ativo no momento</h3>
+            <p className="text-sm text-neutral-500 max-w-md mx-auto mt-1">
+              Escolha um dos planos acima para ativar o selo de destaque no seu anúncio e começar a receber mais clientes.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-neutral-50 text-neutral-500 uppercase text-xs font-semibold">
+                <tr>
+                  <th className="px-4 py-3 rounded-l-xl">Estabelecimento</th>
+                  <th className="px-4 py-3">Plano</th>
+                  <th className="px-4 py-3">Valor</th>
+                  <th className="px-4 py-3">Ciclo</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Vigência Até</th>
+                  <th className="px-4 py-3 rounded-r-xl text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {subscriptions.map((sub) => {
+                  const isPaid = sub.status === 'PAID';
+                  const isPending = sub.status === 'PENDING';
+
+                  return (
+                    <tr key={sub.id} className="hover:bg-neutral-50/50 transition-colors">
+                      <td className="px-4 py-4 font-semibold text-neutral-900">
+                        {sub.listing?.name || 'Estabelecimento Principal'}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="font-medium text-neutral-800">
+                          {sub.plan.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-neutral-700 font-semibold">
+                        R$ {Number(sub.price).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-4 text-neutral-500 capitalize">
+                        {sub.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'}
+                      </td>
+                      <td className="px-4 py-4">
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Ativo
+                          </span>
+                        ) : isPending ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            Aguardando PIX
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-100 text-neutral-600">
+                            {sub.status}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-neutral-500">
+                        {sub.endDate
+                          ? new Date(sub.endDate).toLocaleDateString('pt-BR')
+                          : 'Aguardando pagamento'}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        {isPending ? (
+                          <button
+                            onClick={() => handleConfirmPayment(sub.id)}
+                            disabled={confirming}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 ml-auto"
+                          >
+                            {confirming ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Zap className="w-3.5 h-3.5" />
+                            )}
+                            Confirmar PIX
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/comerciante/estabelecimentos`}
+                            className="text-xs font-semibold text-neutral-600 hover:text-neutral-900"
+                          >
+                            Ver anúncio →
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL DE CHECKOUT PIX */}
+      {modalOpen && selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-neutral-100 max-h-[90vh] overflow-y-auto">
+            {/* Fechar */}
+            <button
+              onClick={() => {
+                setModalOpen(false);
+                setCheckoutResult(null);
+              }}
+              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-700 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-600">
+                <Crown className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">
+                  Assinar {selectedPlan.name}
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  Ciclo {billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'} • Pagamento Instantâneo via PIX
+                </p>
+              </div>
+            </div>
+
+            {!checkoutResult ? (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-neutral-800 mb-2">
+                    Selecione o estabelecimento para aplicar o Destaque:
+                  </label>
+                  {listings.length === 0 ? (
+                    <p className="text-sm text-rose-600">
+                      Você ainda não tem nenhum comércio cadastrado. Cadastre um estabelecimento primeiro.
+                    </p>
+                  ) : (
+                    <select
+                      value={selectedListingId}
+                      onChange={(e) => setSelectedListingId(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                    >
+                      {listings.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({item.category?.name || 'Comércio'})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Resumo de Valores */}
+                <div className="bg-neutral-50 rounded-2xl p-4 space-y-2 border border-neutral-200/70 text-sm">
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Plano escolhido:</span>
+                    <span className="font-semibold text-neutral-800">{selectedPlan.name}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-600">
+                    <span>Frequência:</span>
+                    <span className="font-semibold text-neutral-800">
+                      {billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-neutral-900 font-bold pt-2 border-t border-neutral-200">
+                    <span>Valor a pagar:</span>
+                    <span className="text-lg text-emerald-600">
+                      R$ {(billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGenerateCheckout}
+                  disabled={checkoutLoading || listings.length === 0}
+                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Gerando QR Code PIX...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="w-5 h-5" />
+                      Gerar Pagamento PIX
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              /* QR Code PIX Renderizado */
+              <div className="space-y-6 text-center">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 text-sm">
+                  <p className="font-bold">Chave PIX Dinâmica gerada com sucesso!</p>
+                  <p className="text-xs mt-0.5 text-emerald-700">
+                    Abra o app do seu banco, escolha <strong>PIX Copia e Cola</strong> ou aponte a câmera.
+                  </p>
+                </div>
+
+                {/* QR Code Simulado com padrão SVG */}
+                <div className="p-6 bg-white border-2 border-dashed border-neutral-300 rounded-3xl inline-block shadow-sm">
+                  <div className="w-48 h-48 bg-neutral-900 rounded-2xl flex flex-col items-center justify-center text-white p-4 mx-auto">
+                    <QrCode className="w-28 h-28 text-white mb-2" />
+                    <span className="text-[10px] tracking-widest font-mono text-neutral-300 uppercase">
+                      PIX OFICIAL BCB
+                    </span>
+                  </div>
+                </div>
+
+                {/* Código Copia e Cola */}
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                    Código PIX Copia e Cola:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={checkoutResult.pixQrCode}
+                      className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 text-xs font-mono bg-neutral-50 text-neutral-700 truncate"
+                    />
+                    <button
+                      onClick={copyPixCode}
+                      className="px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Copiar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botão de Simulação Instantânea de Pagamento */}
+                <div className="pt-2 border-t border-neutral-100">
+                  <p className="text-xs text-neutral-400 mb-3">
+                    Ambiente de Produção / Demonstração: Confirme o pagamento para ativar o selo imediatamente.
+                  </p>
+                  <button
+                    onClick={() => handleConfirmPayment(checkoutResult.subscriptionId)}
+                    disabled={confirming}
+                    className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/25"
+                  >
+                    {confirming ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Validando recebimento...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        Simular Confirmação do Pagamento PIX
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

@@ -162,6 +162,7 @@ model MerchantProfile {
   reviewReplies ReviewReply[]
   events       Event[]
   coupons      Coupon[]
+  subscriptions MerchantSubscription[]
 
   @@map("merchant_profiles")
 }
@@ -299,6 +300,7 @@ model Listing {
   favorites        Favorite[]
   dailyMetrics     ListingDailyMetric[]
   coupons          Coupon[]
+  subscriptions    MerchantSubscription[]
 
   @@unique([cityId, slug])
   @@index([cityId, status])
@@ -815,4 +817,70 @@ model Notification {
   @@index([userId, isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// -----------------------------------------------------------------------------
+// PLANOS DE DESTAQUE & FATURAMENTO (BILLING)
+// -----------------------------------------------------------------------------
+
+enum SubscriptionPlan {
+  FREE
+  BRONZE_DESTAQUE
+  PRATA_REGIONAL
+  OURO_MASTER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  BOLETO
+}
+
+model MerchantSubscription {
+  id                String           @id @default(uuid())
+  merchantProfileId String
+  merchantProfile   MerchantProfile  @relation(fields: [merchantProfileId], references: [id], onDelete: Cascade)
+  listingId         String?
+  listing           Listing?         @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  plan              SubscriptionPlan @default(FREE)
+  status            PaymentStatus    @default(PENDING)
+  price             Decimal          @db.Decimal(10, 2)
+  billingCycle      String           @default("MONTHLY")
+  startDate         DateTime         @default(now())
+  endDate           DateTime?
+  gatewayPaymentId  String?
+  gatewayInvoiceUrl String?
+  pixQrCode         String?          @db.Text
+  pixQrCodeUrl      String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  payments          SubscriptionPayment[]
+
+  @@index([merchantProfileId])
+  @@index([status])
+  @@map("merchant_subscriptions")
+}
+
+model SubscriptionPayment {
+  id              String               @id @default(uuid())
+  subscriptionId  String
+  subscription    MerchantSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount          Decimal              @db.Decimal(10, 2)
+  method          PaymentMethod        @default(PIX)
+  status          PaymentStatus        @default(PENDING)
+  paidAt          DateTime?
+  gatewayResponse Json?
+  createdAt       DateTime             @default(now())
+
+  @@index([subscriptionId])
+  @@map("subscription_payments")
 }

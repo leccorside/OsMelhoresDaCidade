@@ -434,6 +434,35 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Transcrição do comentário, nome do avaliador, estrelas formatadas e botão de ação (CTA) direto para resposta rápida no painel.
   - Disparo automático integrado no momento da criação de avaliações em [`ReviewsService.create`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/reviews/reviews.service.ts).
 
+### X. Planos de Destaque e Checkout de Pagamento do Comerciante
+- **Modelagem Prisma & Banco de Dados (`apps/api/prisma/schema.prisma`)**:
+  - Enums criados: `SubscriptionPlan` (`BRONZE_DESTAQUE`, `PRATA_REGIONAL`, `OURO_MASTER`), `PaymentStatus` (`PENDING`, `PAID`, `CANCELED`, `REFUNDED`), `PaymentMethod` (`PIX`, `CREDIT_CARD`, `BOLETO`).
+  - Modelos relacionais adicionados e sincronizados no PostgreSQL (porta 4103):
+    - `MerchantSubscription`: armazena plano, ciclo (`MONTHLY` ou `YEARLY`), preço, chave PIX Copia e Cola (`pixQrCode`), URL da fatura, datas de início e vigência (`startDate`, `endDate`), vinculado a `MerchantProfile` e ao anúncio (`Listing`).
+    - `SubscriptionPayment`: histórico financeiro das parcelas/faturas com valor, método e timestamp de liquidação (`paidAt`).
+- **Backend NestJS (`apps/api`)**:
+  - Módulo `BillingModule` registrado em `AppModule`.
+  - Serviço [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - `getAvailablePlans`: retorna o catálogo dos 3 planos com diferenciais, valores mensais/anuais e selos oficiais.
+    - `createCheckout`: valida titularidade do comércio, gera código EMV PIX Copia e Cola dinâmico e cria os registros da assinatura e cobrança pendente.
+    - `confirmPayment`: efetua a liquidação financeira atômica via transação Prisma, calcula a nova vigência (`endDate`), ativa o selo de destaque no estabelecimento (`Listing.isFeatured = true`) e dispara notificação em tempo real ao comerciante informando a aprovação do plano.
+    - `getMerchantSubscriptions`: histórico completo de assinaturas e status de destaque do parceiro.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) sob `/api/v1/billing`:
+    - `GET /plans`: catálogo público de planos.
+    - `GET /merchant/subscriptions`: consulta autenticada das assinaturas do lojista.
+    - `POST /checkout`: geração de nova cobrança e QR Code PIX.
+    - `POST /confirm/:id`: liquidação instantânea/webhook de pagamento.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens e chamadas de API em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) (`fetchBillingPlansApi`, `fetchMerchantSubscriptionsApi`, `createCheckoutApi`, `confirmSubscriptionPaymentApi`).
+  - Nova página de planos e checkout em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx):
+    - Header com banner promocional e estatísticas de impacto em visibilidade.
+    - Alternador de ciclo Mensal vs Anual (com desconto e 2 meses grátis).
+    - Grid comparativo de cards para os planos Bronze Destaque (R$ 89,90), Prata Regional (R$ 179,90) e Ouro Master VIP (R$ 299,90) com diferenciais visuais e selo de recomendação.
+    - Modal interativo de checkout: seleção do estabelecimento a promover, geração de chave PIX Copia e Cola com botão de cópia rápida e QR Code.
+    - Botão de simulação e confirmação de pagamento instantâneo com atualização do status em tempo real.
+    - Tabela de estabelecimentos e planos contratados com status ("Ativo", "Aguardando PIX"), vigência e atalhos rápidos.
+  - Link "Planos & Destaque" com ícone de coroa (`Crown`) integrado ao menu lateral de navegação ([`layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/layout.tsx)).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
