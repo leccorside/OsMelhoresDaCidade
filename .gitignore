@@ -43,3 +43,7 @@ public/uploads/
 .DS_Store
 Thumbs.db
 
+# TypeScript cache
+*.tsbuildinfo
+
+

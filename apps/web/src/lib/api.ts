@@ -369,3 +369,57 @@ export function mapListingToMapPlaceItem(item: any) {
     isOpen: item.status === 'PUBLISHED',
   };
 }
+
+export function resolveImageUrl(url: string | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  if (url.startsWith('/uploads')) {
+    const apiBase =
+      typeof window !== 'undefined'
+        ? process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:4102'
+        : 'http://localhost:4102';
+    return `${apiBase}${url}`;
+  }
+  return url;
+}
+
+export async function uploadImage(file: File, folder = 'places'): Promise<{ url: string; size: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const url = `${getApiBaseUrl()}/upload/image?folder=${encodeURIComponent(folder)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao fazer upload da imagem: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function uploadMultipleImages(
+  files: File[],
+  folder = 'places'
+): Promise<{ files: Array<{ url: string; size: number }> }> {
+  const formData = new FormData();
+  files.forEach((f) => formData.append('files', f));
+
+  const url = `${getApiBaseUrl()}/upload/images?folder=${encodeURIComponent(folder)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao enviar imagens em lote: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

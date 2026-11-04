@@ -97,6 +97,32 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - **Filtros Dinâmicos de Categorias e Bairros**: As contagens dos checkboxes de filtros laterais são calculadas dinamicamente via `useMemo` com base nos estabelecimentos reais cadastrados.
   - **Mapa Interativo Leaflet**: O mapa consome diretamente os marcadores atualizados com as coordenadas reais dos estabelecimentos persistidos (`lat`, `lng`), exibindo o pin com o ícone temático da categoria correspondente e popover ao vivo com fotos, faixa de preço e avaliações.
 
+### D. Mapa Interativo com OpenStreetMap Real & Marcadores SVG por Categoria (Airbnb/Google Style)
+- **Eliminação de Marcas D'água ("API KEY REQUIRED")**:
+  - Migração de provedor de tiles para o **OpenStreetMap Standard** oficial de alta performance (`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`) com subdomínios rotativos `['a', 'b', 'c']`.
+  - Integração com camadas alternativas gratuitas sem API key: **Satélite Real** (Esri World Imagery) e **Cartográfico Limpo** (Esri World Street Map).
+- **Design dos Marcadores (Identidade Visual Fiel à Referência)**:
+  - Formato clássico de gota ("drop pin") desenhado em SVG vetorial de alta definição com filtro de sombra (`drop-shadow`).
+  - Remoção completa do rótulo de texto do nome do estabelecimento de dentro do marcador para eliminar poluição visual sobre as vias.
+  - Círculo interno branco com ícone temático da categoria do estabelecimento (restaurante, piscina/parque aquático, hotel/pousada, bar/chopp, atrações, comércio, etc.).
+  - Cores: Verde esmeralda/turquesa (`#008779` / `#0D9488`) por padrão; vermelho vibrante (`#FF3B4F`) com anel ao ser selecionado na lista ou no clique.
+  - **Badge de Agrupamento / Proximidade (Cluster)**: Quando dois ou mais estabelecimentos estão localizados na mesma coordenada ou a menos de ~350m de proximidade, é exibido um badge circular verde-limão translúcido com o número de estabelecimentos agrupados (ex: `2`, `5`), exatamente como na referência visual.
+
+### E. Módulo de Upload de Imagens com Sharp e Armazenamento Local no NestJS
+- **Backend NestJS (`apps/api/src/modules/upload`)**:
+  - `UploadModule`, `UploadController` e `UploadService` integrados ao NestJS.
+  - `POST /api/v1/upload/image`: Recebe um arquivo (`file`) e pasta de destino (`places`, `events`, `blog`).
+  - `POST /api/v1/upload/images`: Recebe até 10 arquivos (`files`) em lote com processamento concorrente assíncrono via `Promise.all`.
+  - Otimização com **Sharp**: Redimensionamento inteligente proporcional com limite máx de 1920x1440 sem distorção (`fit: 'inside', withoutEnlargement: true`) e conversão automática para formato moderno **WebP** com 85% de qualidade.
+  - Armazenamento em disco estruturado em subpastas (`uploads/{folder}/{uuid}.webp`), persistido no volume Docker `uploads_data`.
+  - Servido estaticamente pelo Express/NestJS em `/uploads` e com rota de proxy reverso no Nginx (`http://localhost:4100/uploads/` e `http://localhost:4102/uploads/`).
+- **Frontend Next.js (`apps/web`)**:
+  - Utilitários `uploadImage()`, `uploadMultipleImages()` e `resolveImageUrl()` em `lib/api.ts`.
+  - **Formulário de Cadastro/Edição de Estabelecimentos (`/admin/estabelecimentos/novo`)**:
+    - Botão de upload em lote: "Upload em Lote (Até 5 Fotos)" que distribui os arquivos diretamente entre a Hero Principal e as 4 Fotos Secundárias.
+    - Botão de upload individual por slot de foto com miniaturas de pré-visualização (thumbnails).
+    - Preservação da possibilidade de preencher URLs externas manualmente.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -10,6 +10,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BlogModule } from './modules/blog/blog.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { BlogModule } from './modules/blog/blog.module';
     FavoritesModule,
     AdminModule,
     BlogModule,
+    UploadModule,
   ],
   controllers: [],
   providers: [],

@@ -30,12 +30,13 @@ export type MapTileStyle = 'osm' | 'satellite' | 'clean';
 
 const TILE_PROVIDERS: Record<
   MapTileStyle,
-  { url: string; attribution: string; label: string; icon: string }
+  { url: string; attribution: string; label: string; icon: string; subdomains?: string[] }
 > = {
   osm: {
     label: 'Ruas (OpenStreetMap)',
     icon: 'map',
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c'],
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
   satellite: {
@@ -54,7 +55,7 @@ const TILE_PROVIDERS: Record<
 
 // Mapeia cada categoria para o ícone correspondente do Material Symbols
 function getCategoryIcon(category: string): string {
-  const cat = category.toLowerCase();
+  const cat = (category || '').toLowerCase();
   if (
     cat.includes('restaurante') ||
     cat.includes('gastronomia') ||
@@ -112,35 +113,56 @@ function getCategoryIcon(category: string): string {
   return 'place';
 }
 
-// Cria o ícone em formato de pino com círculo interno branco e ícone da categoria (SEM O NOME DO LUGAR)
-function createCategoryMarkerIcon(L: any, place: MapPlaceItem, isSelected: boolean) {
+// Cria o ícone em formato de gota/pin clássico com círculo interno branco e ícone da categoria (SEM NOME DO LUGAR)
+// Inclui suporte ao badge verde-limão translúcido com contador de agrupamento conforme protótipo de referência
+function createCategoryMarkerIcon(
+  L: any,
+  place: MapPlaceItem,
+  isSelected: boolean,
+  clusterCount?: number
+) {
   const iconName = getCategoryIcon(place.category);
-  const bgColor = isSelected ? '#FF3B4F' : '#0D9488';
-  const iconColor = isSelected ? '#FF3B4F' : '#0D9488';
-  const scaleClass = isSelected ? 'scale-115 ring-4 ring-[#FF3B4F]/30' : 'hover:scale-110';
+  const pinColor = isSelected ? '#FF3B4F' : '#008779';
+  const iconColor = isSelected ? '#FF3B4F' : '#008779';
+  const scaleClass = isSelected ? 'scale-110 z-50' : 'hover:scale-105 transition-transform duration-200';
+
+  const clusterBadgeHtml =
+    clusterCount && clusterCount > 1
+      ? `
+        <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 min-w-[26px] h-[26px] px-1 rounded-full bg-[#84cc16]/70 border-2 border-white flex items-center justify-center shadow-md pointer-events-none z-10">
+          <span class="text-[11px] font-extrabold text-[#14532d] leading-none">${clusterCount}</span>
+        </div>
+      `
+      : '';
 
   return L.divIcon({
     className: 'custom-map-category-marker',
     html: `
-      <div class="relative cursor-pointer transition-transform duration-200 transform ${scaleClass}" data-id="${place.id}">
-        <div class="flex flex-col items-center">
-          <!-- Círculo externo colorido do pino -->
-          <div style="background-color: ${bgColor};" class="w-10 h-10 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.28)] transition-all">
-            <!-- Círculo interno branco -->
-            <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-xs">
-              <!-- Ícone da Categoria (Sem o nome do lugar) -->
-              <span class="material-symbols-outlined text-[17px]" style="color: ${iconColor}; font-variation-settings: 'FILL' 1;">
-                ${iconName}
-              </span>
-            </div>
-          </div>
-          <!-- Ponta triangular do pino apontando para o local exato -->
-          <div style="border-top-color: ${bgColor};" class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] -mt-[1px]"></div>
+      <div class="relative cursor-pointer select-none ${scaleClass}" style="width: 44px; height: 56px;" data-id="${place.id}">
+        <!-- Pin SVG em formato de gota elegante com sombra -->
+        <svg width="44" height="52" viewBox="0 0 44 52" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-md">
+          <!-- Gota externa do pino com borda branca fina -->
+          <path d="M22 1.5C10.68 1.5 1.5 10.68 1.5 22C1.5 35.8 20.8 50.4 21.4 50.8C21.75 51.05 22.25 51.05 22.6 50.8C23.2 50.4 42.5 35.8 42.5 22C42.5 10.68 33.32 1.5 22 1.5Z" 
+                fill="${pinColor}" 
+                stroke="#FFFFFF" 
+                stroke-width="2"/>
+          <!-- Círculo interno branco -->
+          <circle cx="22" cy="21.5" r="13.5" fill="#FFFFFF"/>
+        </svg>
+
+        <!-- Ícone da categoria perfeitamente centralizado no círculo branco -->
+        <div class="absolute top-[8px] left-[7.5px] w-[29px] h-[27px] flex items-center justify-center pointer-events-none">
+          <span class="material-symbols-outlined text-[18px]" style="color: ${iconColor}; font-variation-settings: 'FILL' 1;">
+            ${iconName}
+          </span>
         </div>
+
+        <!-- Badge translúcido verde-limão com contagem de agrupamento (quando há mais de 1 local próximo) -->
+        ${clusterBadgeHtml}
       </div>
     `,
-    iconSize: [40, 48],
-    iconAnchor: [20, 48],
+    iconSize: [44, 56],
+    iconAnchor: [22, 52],
   });
 }
 
@@ -161,6 +183,26 @@ export function DirectoryPlacesMap({
 
   // Coordenadas centrais de Caldas Novas, GO
   const defaultCenter = { lat: -17.7444, lng: -48.6253 };
+
+  // Calcula aglomeração de pontos próximos (~350 metros) para exibir badge numérico idêntico à referência
+  const clusterCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    const THRESHOLD = 0.0035;
+
+    places.forEach((p1) => {
+      let count = 0;
+      places.forEach((p2) => {
+        const dLat = Math.abs(p1.lat - p2.lat);
+        const dLng = Math.abs(p1.lng - p2.lng);
+        if (dLat < THRESHOLD && dLng < THRESHOLD) {
+          count++;
+        }
+      });
+      counts[p1.id] = count;
+    });
+
+    return counts;
+  }, [places]);
 
   // Atualizar o popup se o card selecionado vier de fora (ex: hover no card da lista)
   useEffect(() => {
@@ -184,7 +226,8 @@ export function DirectoryPlacesMap({
         const marker = markersRef.current[place.id];
         if (marker) {
           const isSelected = place.id === selectedPlaceId;
-          marker.setIcon(createCategoryMarkerIcon(L.default, place, isSelected));
+          const count = clusterCounts[place.id];
+          marker.setIcon(createCategoryMarkerIcon(L.default, place, isSelected, count));
           if (isSelected) {
             marker.setZIndexOffset(1000);
           } else {
@@ -193,7 +236,7 @@ export function DirectoryPlacesMap({
         }
       });
     });
-  }, [selectedPlaceId, places]);
+  }, [selectedPlaceId, places, clusterCounts]);
 
   // Trocar o tile layer quando o estilo mudar
   useEffect(() => {
@@ -207,6 +250,7 @@ export function DirectoryPlacesMap({
       const provider = TILE_PROVIDERS[currentStyle];
       const newLayer = L.default.tileLayer(provider.url, {
         attribution: provider.attribution,
+        subdomains: provider.subdomains || 'abc',
         maxZoom: 19,
       });
 
@@ -244,6 +288,7 @@ export function DirectoryPlacesMap({
         const provider = TILE_PROVIDERS[currentStyle];
         const tileLayer = L.tileLayer(provider.url, {
           attribution: provider.attribution,
+          subdomains: provider.subdomains || 'abc',
           maxZoom: 19,
         }).addTo(map);
 
@@ -254,7 +299,8 @@ export function DirectoryPlacesMap({
         markersRef.current = {};
         places.forEach((place) => {
           const isSelected = place.id === selectedPlaceId;
-          const customIcon = createCategoryMarkerIcon(L, place, isSelected);
+          const count = clusterCounts[place.id];
+          const customIcon = createCategoryMarkerIcon(L, place, isSelected, count);
 
           const marker = L.marker([place.lat, place.lng], { icon: customIcon }).addTo(map);
 
