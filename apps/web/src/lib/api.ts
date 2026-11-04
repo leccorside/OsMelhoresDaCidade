@@ -2074,3 +2074,62 @@ export async function confirmSubscriptionPaymentApi(subscriptionId: string): Pro
   return res.json();
 }
 
+export interface FinancialOverviewData {
+  metrics: {
+    totalRevenue: number;
+    currentMonthRevenue: number;
+    activeSubscriptionsCount: number;
+    pendingInvoicesCount: number;
+    planDistribution: {
+      BRONZE_DESTAQUE: number;
+      PRATA_REGIONAL: number;
+      OURO_MASTER: number;
+    };
+  };
+  timeline: Array<{
+    label: string;
+    revenue: number;
+  }>;
+  transactions: Array<{
+    id: string;
+    plan: string;
+    status: string;
+    price: number;
+    billingCycle: string;
+    createdAt: string;
+    startDate?: string;
+    endDate?: string;
+    listing?: { id: string; name: string; slug: string };
+    merchantProfile?: {
+      id: string;
+      companyName: string;
+      user?: { id: string; name: string; email: string };
+    };
+    payments?: Array<{
+      id: string;
+      amount: number;
+      method: string;
+      status: string;
+      paidAt?: string;
+    }>;
+  }>;
+}
+
+export async function fetchAdminFinancialOverviewApi(): Promise<FinancialOverviewData> {
+  const url = `${getApiBaseUrl()}/billing/admin/financial-overview`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao carregar dados financeiros: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+

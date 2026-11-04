@@ -65,5 +65,14 @@ export class BillingController {
   processExpirations() {
     return this.subscriptionCronService.runVerification();
   }
+
+  @Get('admin/financial-overview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Visão geral financeira de faturamento e assinaturas do guia' })
+  getFinancialOverview() {
+    return this.billingService.getAdminFinancialOverview();
+  }
 }
 

@@ -258,5 +258,91 @@ export class BillingService {
 
     return subscriptions;
   }
+
+  async getAdminFinancialOverview() {
+    const now = new Date();
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // 1. Pagamentos Pagos
+    const paidPayments = await this.prisma.subscriptionPayment.findMany({
+      where: { status: PaymentStatus.PAID },
+      select: { amount: true, paidAt: true, createdAt: true },
+    });
+
+    const totalRevenue = paidPayments.reduce((acc, p) => acc + Number(p.amount), 0);
+    const currentMonthRevenue = paidPayments
+      .filter((p) => (p.paidAt || p.createdAt) >= startOfCurrentMonth)
+      .reduce((acc, p) => acc + Number(p.amount), 0);
+
+    // 2. Faturas Pendentes
+    const pendingCount = await this.prisma.subscriptionPayment.count({
+      where: { status: PaymentStatus.PENDING },
+    });
+
+    // 3. Assinaturas Ativas
+    const activeSubs = await this.prisma.merchantSubscription.findMany({
+      where: {
+        status: PaymentStatus.PAID,
+        endDate: { gte: now },
+      },
+      select: { plan: true },
+    });
+
+    const planCounts = {
+      BRONZE_DESTAQUE: activeSubs.filter((s) => s.plan === SubscriptionPlan.BRONZE_DESTAQUE).length,
+      PRATA_REGIONAL: activeSubs.filter((s) => s.plan === SubscriptionPlan.PRATA_REGIONAL).length,
+      OURO_MASTER: activeSubs.filter((s) => s.plan === SubscriptionPlan.OURO_MASTER).length,
+    };
+
+    // 4. Timeline dos últimos 6 meses
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const timeline = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextD = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const label = `${months[d.getMonth()]}/${d.getFullYear().toString().substring(2)}`;
+
+      const rev = paidPayments
+        .filter((p) => {
+          const date = p.paidAt || p.createdAt;
+          return date >= d && date < nextD;
+        })
+        .reduce((acc, p) => acc + Number(p.amount), 0);
+
+      timeline.push({ label, revenue: rev });
+    }
+
+    // 5. Histórico recente de transações (últimas 50)
+    const recentTransactions = await this.prisma.merchantSubscription.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        listing: { select: { id: true, name: true, slug: true } },
+        merchantProfile: {
+          select: {
+            id: true,
+            companyName: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    return {
+      metrics: {
+        totalRevenue,
+        currentMonthRevenue,
+        activeSubscriptionsCount: activeSubs.length,
+        pendingInvoicesCount: pendingCount,
+        planDistribution: planCounts,
+      },
+      timeline,
+      transactions: recentTransactions,
+    };
+  }
 }
 

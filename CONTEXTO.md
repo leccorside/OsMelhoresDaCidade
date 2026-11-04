@@ -481,6 +481,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts):
     - `POST /api/v1/billing/admin/process-expirations` protegido por `JwtAuthGuard` e `Roles(Role.ADMIN)` para acionamento sob demanda ou via webhook/cron externo.
 
+### AA. Painel Financeiro e Gestão de Receitas de Assinaturas (/admin/financeiro)
+- **Backend NestJS (`apps/api`)**:
+  - Método `getAdminFinancialOverview` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Agregação consolidada de receitas: faturamento total liquidado, faturamento do mês vigente, volume de faturas pendentes e total de assinaturas ativas distribuídas por categoria de plano (`OURO_MASTER`, `PRATA_REGIONAL`, `BRONZE_DESTAQUE`).
+    - Série histórica de receita mensal dos últimos 6 meses.
+    - Log de auditoria das últimas 50 transações contendo estabelecimento, razão social do lojista, ciclo de vigência e formas de pagamento.
+  - Endpoint `GET /api/v1/billing/admin/financial-overview` protegido por `JwtAuthGuard` e `Roles(Role.ADMIN)`.
+- **Frontend Next.js (`apps/web`)**:
+  - Funções de integração e tipagens `fetchAdminFinancialOverviewApi` e `FinancialOverviewData` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Nova tela de gestão em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx):
+    - 4 Cards de métricas financeiras (Receita Total, Faturamento Mês, Assinaturas Ativas e Pendências).
+    - Gráfico interativo com barras verticais e tooltips dinâmicos da série temporal dos últimos 6 meses.
+    - Tabela de transações com filtros por status (`PAID`, `PENDING`, `EXPIRED`) e busca textual em tempo real.
+    - Exportador de relatórios em CSV para conciliação contábil e fiscal.
+  - Atalho "Financeiro & Planos" com ícone `DollarSign` adicionado à navegação principal do painel master ([`layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx)).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
