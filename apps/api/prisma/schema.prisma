@@ -1,0 +1,704 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  MERCHANT
+  ADMIN
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+  SUSPENDED
+}
+
+enum EventStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+  CANCELLED
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  HIDDEN
+  REJECTED
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// -----------------------------------------------------------------------------
+// GEOGRAFIA
+// -----------------------------------------------------------------------------
+
+model State {
+  id        String   @id @default(uuid())
+  name      String
+  uf        String   @unique @db.VarChar(2)
+  ibgeCode  Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cities    City[]
+
+  @@map("states")
+}
+
+model City {
+  id              String         @id @default(uuid())
+  name            String
+  slug            String         @unique
+  stateId         String
+  state           State          @relation(fields: [stateId], references: [id])
+  ibgeCode        Int            @unique
+  isPublished     Boolean        @default(false)
+  isFeatured      Boolean        @default(false)
+  heroImage       String?
+  coverImage      String?
+  introText       String?        @db.Text
+  metaTitle       String?
+  metaDescription String?        @db.Text
+  keywords        String[]
+  ogImage         String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  neighborhoods   Neighborhood[]
+  listings        Listing[]
+  events          Event[]
+  blogPosts       BlogPost[]
+  banners         Banner[]
+  citySettings    CitySetting[]
+
+  @@index([slug])
+  @@index([isPublished])
+  @@map("cities")
+}
+
+model Neighborhood {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String
+  cityId    String
+  city      City      @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  listings  Listing[]
+
+  @@unique([cityId, slug])
+  @@map("neighborhoods")
+}
+
+// -----------------------------------------------------------------------------
+// AUTENTICAÇÃO E PERFIS
+// -----------------------------------------------------------------------------
+
+model User {
+  id                     String                   @id @default(uuid())
+  name                   String
+  email                  String                   @unique
+  passwordHash           String
+  phone                  String?
+  avatarUrl              String?
+  preferredCityId        String?
+  preferredLocale        String                   @default("pt-BR")
+  role                   Role                     @default(USER)
+  isEmailVerified        Boolean                  @default(false)
+  isActive               Boolean                  @default(true)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  merchantProfile        MerchantProfile?
+  refreshTokens          RefreshToken[]
+  emailVerificationToken EmailVerificationToken[]
+  passwordResetTokens    PasswordResetToken[]
+  reviews                Review[]
+  reviewReports          ReviewReport[]
+  favorites              Favorite[]
+  eventFavorites         EventFavorite[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model MerchantProfile {
+  id           String         @id @default(uuid())
+  userId       String         @unique
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName  String
+  cnpj         String?
+  phone        String?
+  whatsapp     String?
+  isApproved   Boolean        @default(false)
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  listings     ListingOwner[]
+  reviewReplies ReviewReply[]
+
+  @@map("merchant_profiles")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// -----------------------------------------------------------------------------
+// ESTABELECIMENTOS
+// -----------------------------------------------------------------------------
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  slug          String        @unique
+  description   String?       @db.Text
+  icon          String?
+  image         String?
+  order         Int           @default(0)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  subcategories Subcategory[]
+  listings      Listing[]
+  banners       Banner[]
+
+  @@index([slug])
+  @@map("categories")
+}
+
+model Subcategory {
+  id         String    @id @default(uuid())
+  categoryId String
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  slug       String
+  icon       String?
+  order      Int       @default(0)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  listings   Listing[]
+
+  @@unique([categoryId, slug])
+  @@map("subcategories")
+}
+
+model Listing {
+  id               String                   @id @default(uuid())
+  name             String
+  slug             String
+  shortDescription String?                  @db.VarChar(255)
+  fullDescription  String?                  @db.Text
+  categoryId       String
+  category         Category                 @relation(fields: [categoryId], references: [id])
+  subcategoryId    String?
+  subcategory      Subcategory?             @relation(fields: [subcategoryId], references: [id])
+  cityId           String
+  city             City                     @relation(fields: [cityId], references: [id])
+  neighborhoodId   String?
+  neighborhood     Neighborhood?            @relation(fields: [neighborhoodId], references: [id])
+  zipCode          String?
+  street           String?
+  number           String?
+  complement       String?
+  latitude         Float?
+  longitude        Float?
+  phone            String?
+  whatsapp         String?
+  email            String?
+  website          String?
+  priceTier        String?                  @default("$$")
+  logoUrl          String?
+  coverUrl         String?
+  status           ListingStatus            @default(PENDING)
+  isFeatured       Boolean                  @default(false)
+  featuredOrder    Int                      @default(0)
+  ratingAverage    Float                    @default(0)
+  ratingCount      Int                      @default(0)
+  metaTitle        String?
+  metaDescription  String?                  @db.Text
+  ogImage          String?
+  canonicalUrl     String?
+  viewsCount       Int                      @default(0)
+  whatsappClicks   Int                      @default(0)
+  phoneClicks      Int                      @default(0)
+  directionsClicks Int                      @default(0)
+  websiteClicks    Int                      @default(0)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  owners           ListingOwner[]
+  images           ListingImage[]
+  openingHours     ListingOpeningHour[]
+  specialHours     ListingSpecialHour[]
+  amenities        ListingAmenity[]
+  socialLinks      ListingSocialLink[]
+  serviceCategories ListingServiceCategory[]
+  revisions        ListingRevision[]
+  reviews          Review[]
+  favorites        Favorite[]
+  dailyMetrics     ListingDailyMetric[]
+
+  @@unique([cityId, slug])
+  @@index([cityId, status])
+  @@index([categoryId, status])
+  @@index([isFeatured, status])
+  @@map("listings")
+}
+
+model ListingOwner {
+  id                String          @id @default(uuid())
+  listingId         String
+  listing           Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  merchantProfileId String
+  merchantProfile   MerchantProfile @relation(fields: [merchantProfileId], references: [id], onDelete: Cascade)
+  role              String          @default("OWNER")
+  createdAt         DateTime        @default(now())
+
+  @@unique([listingId, merchantProfileId])
+  @@map("listing_owners")
+}
+
+model ListingImage {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  order     Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("listing_images")
+}
+
+model ListingOpeningHour {
+  id        String    @id @default(uuid())
+  listingId String
+  listing   Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  dayOfWeek DayOfWeek
+  openTime  String?
+  closeTime String?
+  isClosed  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@unique([listingId, dayOfWeek])
+  @@map("listing_opening_hours")
+}
+
+model ListingSpecialHour {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  date      DateTime
+  openTime  String?
+  closeTime String?
+  isClosed  Boolean  @default(false)
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("listing_special_hours")
+}
+
+model Amenity {
+  id        String           @id @default(uuid())
+  name      String           @unique
+  slug      String           @unique
+  icon      String?
+  createdAt DateTime         @default(now())
+  listings  ListingAmenity[]
+
+  @@map("amenities")
+}
+
+model ListingAmenity {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  amenityId String
+  amenity   Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, amenityId])
+  @@map("listing_amenities")
+}
+
+model ListingSocialLink {
+  id        String  @id @default(uuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  platform  String
+  url       String
+
+  @@map("listing_social_links")
+}
+
+model ListingServiceCategory {
+  id        String               @id @default(uuid())
+  listingId String
+  listing   Listing              @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int                  @default(0)
+  createdAt DateTime             @default(now())
+  items     ListingServiceItem[]
+
+  @@map("listing_service_categories")
+}
+
+model ListingServiceItem {
+  id                String                 @id @default(uuid())
+  serviceCategoryId String
+  serviceCategory   ListingServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?                @db.Text
+  price             Decimal?               @db.Decimal(10, 2)
+  imageUrl          String?
+  isAvailable       Boolean                @default(true)
+  order             Int                    @default(0)
+  createdAt         DateTime               @default(now())
+
+  @@map("listing_service_items")
+}
+
+model ListingRevision {
+  id           String        @id @default(uuid())
+  listingId    String
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  proposedData Json
+  status       ListingStatus @default(PENDING)
+  reviewNotes  String?       @db.Text
+  createdAt    DateTime      @default(now())
+  reviewedAt   DateTime?
+
+  @@map("listing_revisions")
+}
+
+// -----------------------------------------------------------------------------
+// EVENTOS
+// -----------------------------------------------------------------------------
+
+model EventCategory {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  createdAt DateTime @default(now())
+  events    Event[]
+
+  @@map("event_categories")
+}
+
+model Event {
+  id             String             @id @default(uuid())
+  name           String
+  slug           String
+  description    String?            @db.Text
+  programDetails String?            @db.Text
+  categoryId     String
+  category       EventCategory      @relation(fields: [categoryId], references: [id])
+  cityId         String
+  city           City               @relation(fields: [cityId], references: [id])
+  neighborhoodId String?
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  startDate      DateTime
+  endDate        DateTime?
+  startTime      String?
+  endTime        String?
+  isFree         Boolean            @default(true)
+  priceInfo      String?
+  ticketUrl      String?
+  status         EventStatus        @default(PENDING)
+  isFeatured     Boolean            @default(false)
+  metaTitle      String?
+  metaDescription String?           @db.Text
+  ogImage        String?
+  viewsCount     Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  images         EventImage[]
+  favorites      EventFavorite[]
+  dailyMetrics   EventDailyMetric[]
+
+  @@unique([cityId, slug])
+  @@index([cityId, status, startDate])
+  @@map("events")
+}
+
+model EventImage {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  order     Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("event_images")
+}
+
+// -----------------------------------------------------------------------------
+// INTERAÇÕES: AVALIAÇÕES E FAVORITOS
+// -----------------------------------------------------------------------------
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@map("favorites")
+}
+
+model EventFavorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@map("event_favorites")
+}
+
+model Review {
+  id        String         @id @default(uuid())
+  listingId String
+  listing   Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?        @db.Text
+  status    ReviewStatus   @default(PUBLISHED)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  reply     ReviewReply?
+  reports   ReviewReport[]
+
+  @@unique([userId, listingId])
+  @@index([listingId, status])
+  @@map("reviews")
+}
+
+model ReviewReply {
+  id                String          @id @default(uuid())
+  reviewId          String          @unique
+  review            Review          @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  merchantProfileId String
+  merchantProfile   MerchantProfile @relation(fields: [merchantProfileId], references: [id], onDelete: Cascade)
+  reply             String          @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("review_replies")
+}
+
+model ReviewReport {
+  id         String    @id @default(uuid())
+  reviewId   String
+  review     Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason     String    @db.Text
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@map("review_reports")
+}
+
+// -----------------------------------------------------------------------------
+// CMS: BLOG, BANNERS, CONTATOS
+// -----------------------------------------------------------------------------
+
+model BlogCategory {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  createdAt DateTime   @default(now())
+  posts     BlogPost[]
+
+  @@map("blog_categories")
+}
+
+model BlogTag {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  slug      String     @unique
+  createdAt DateTime   @default(now())
+  posts     BlogPost[]
+
+  @@map("blog_tags")
+}
+
+model BlogPost {
+  id              String       @id @default(uuid())
+  title           String
+  slug            String       @unique
+  excerpt         String?      @db.Text
+  content         String       @db.Text
+  coverImage      String?
+  authorName      String?
+  authorAvatar    String?
+  categoryId      String?
+  category        BlogCategory? @relation(fields: [categoryId], references: [id])
+  cityId          String?
+  city            City?        @relation(fields: [cityId], references: [id])
+  isPublished     Boolean      @default(false)
+  publishedAt     DateTime?
+  metaTitle       String?
+  metaDescription String?      @db.Text
+  ogImage         String?
+  viewsCount      Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  tags            BlogTag[]
+
+  @@index([cityId, isPublished])
+  @@map("blog_posts")
+}
+
+model Banner {
+  id              String    @id @default(uuid())
+  title           String
+  linkUrl         String?
+  desktopImageUrl String
+  mobileImageUrl  String?
+  position        String    @default("HOME_TOP")
+  cityId          String?
+  city            City?     @relation(fields: [cityId], references: [id])
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  isActive        Boolean   @default(true)
+  startDate       DateTime?
+  endDate         DateTime?
+  clicksCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([cityId, isActive])
+  @@map("banners")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  city      String?
+  subject   String?
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("contact_messages")
+}
+
+// -----------------------------------------------------------------------------
+// CONFIGURAÇÕES E MÉTRICAS
+// -----------------------------------------------------------------------------
+
+model AppSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model CitySetting {
+  id        String   @id @default(uuid())
+  cityId    String
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  key       String
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@unique([cityId, key])
+  @@map("city_settings")
+}
+
+model ListingDailyMetric {
+  id               String   @id @default(uuid())
+  listingId        String
+  listing          Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  date             DateTime @db.Date
+  views            Int      @default(0)
+  whatsappClicks   Int      @default(0)
+  phoneClicks      Int      @default(0)
+  directionsClicks Int      @default(0)
+  websiteClicks    Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@unique([listingId, date])
+  @@map("listing_daily_metrics")
+}
+
+model EventDailyMetric {
+  id           String   @id @default(uuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  views        Int      @default(0)
+  ticketClicks Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([eventId, date])
+  @@map("event_daily_metrics")
+}
+

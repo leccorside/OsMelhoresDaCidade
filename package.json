@@ -1,0 +1,31 @@
+{
+  "name": "os-melhores-da-cidade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma Multicidades + PWA + SEO Avançado + Painéis Administrativos",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@os-melhores-da-cidade/web",
+    "dev:api": "npm run start:dev --workspace=@os-melhores-da-cidade/api",
+    "build:shared": "npm run build --workspace=@os-melhores-da-cidade/shared",
+    "build:api": "npm run build --workspace=@os-melhores-da-cidade/api",
+    "build:web": "npm run build --workspace=@os-melhores-da-cidade/web",
+    "build": "npm run build:shared && npm run build:api && npm run build:web",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "keywords": [
+    "guia-comercial",
+    "multicidades",
+    "nextjs",
+    "nestjs",
+    "pwa",
+    "seo"
+  ],
+  "author": "Os Melhores da Cidade",
+  "license": "UNLICENSED"
+}
+
