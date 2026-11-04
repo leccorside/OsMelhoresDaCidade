@@ -26,3 +26,19 @@ Este documento registra o progresso sistemático de cada uma das 17 etapas defin
 | **PASSO 16** | Internacionalização (i18n) | **CONCLUÍDO** | Dicionários de internacionalização criados em `apps/web/src/i18n/` para Português (padrão), Inglês e Espanhol, com rotas canônicas e hreflang preparados para expansão. |
 | **PASSO 17** | Finalização, Testes & Deploy | **CONCLUÍDO** | Testes automatizados com Jest cobrindo criptografia Argon2 e regras de negócio, builds de produção do Next.js e NestJS validados com sucesso, containers Docker Compose prontos e documentação completa. |
 
+---
+
+## 🐳 Infraestrutura Docker & Portas Dedicadas
+
+Para garantir isolamento total e evitar conflitos com outros projetos locais em execução no ambiente de desenvolvimento, todas as portas foram mapeadas em uma faixa reservada:
+
+| Serviço | Porta Externa (Host) | Porta Interna (Container) | URL de Acesso Local |
+|---|---|---|---|
+| **Nginx (Gateway Unificado)** | `4100` | `80` | `http://localhost:4100` |
+| **Next.js (Frontend Standalone)** | `4101` | `3000` | `http://localhost:4101` |
+| **NestJS (API REST Backend)** | `4102` | `3333` | `http://localhost:4102/api/v1` |
+| **PostgreSQL (Banco Relacional)** | `4103` | `5432` | `localhost:4103` |
+
+Todas as portas são customizáveis diretamente via variáveis de ambiente no arquivo `.env` (`GATEWAY_PORT`, `WEB_PORT`, `API_PORT`, `POSTGRES_PORT`).
+
+
