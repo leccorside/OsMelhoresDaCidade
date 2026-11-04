@@ -250,6 +250,32 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Grade responsiva de itens com foto, nome, descrição, preço em Real (R$), badge de status e alternador de disponibilidade com 1 clique (Toggle rápido).
     - Modais interativos com upload de fotos via `/upload/image` e validação amigável de campos.
 
+### L. Gestão de Eventos, Shows & Atrações do Comerciante
+- **Modelagem Prisma & PostgreSQL ([`apps/api/prisma/schema.prisma`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/prisma/schema.prisma))**:
+  - Adicionadas relações opcionais em `Event`: `listingId` (relação com `Listing`, cascade set null) e `merchantProfileId` (relação com `MerchantProfile`, cascade set null).
+  - Relações inversas em `Listing.events` e `MerchantProfile.events`.
+  - Migrações sincronizadas automaticamente via `prisma db push` no container.
+- **Backend NestJS (`apps/api`)**:
+  - **DTOs com Validação Estrita ([`apps/api/src/modules/events/dto/event.dto.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/events/dto/event.dto.ts))**:
+    - `CreateMerchantEventDto` e `UpdateMerchantEventDto` com tipagens e validações para nome, descrição, programação detalhada, categoria, vínculo a estabelecimento, endereço, datas de início/fim, horários, flag de gratuidade (`isFree`), preço/couvert (`priceInfo`), URL de ingresso/reservas e foto de cartaz.
+  - **Serviço de Eventos ([`apps/api/src/modules/events/events.service.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/events/events.service.ts))**:
+    - `getCategories`: listagem de categorias com auto-seed inteligente das 7 categorias principais da cidade (Música & Shows, Gastronomia & Festivais, Happy Hour & Vida Noturna, Stand-up & Comédia, Infantil & Família, Esportes & Lazer, Inauguração & Promoção).
+    - `findMerchantEvents`: busca isolada de eventos pertencentes aos estabelecimentos do comerciante logado com ordenação por data.
+    - `createMerchantEvent`: validação de posse do estabelecimento, herança automática da cidade e endereço, geração de slug sem acentos único por cidade e inserção da imagem de cartaz na tabela `EventImage`.
+    - `updateMerchantEvent` e `deleteMerchantEvent`: atualização e exclusão com validação rigorosa de permissão do comerciante (`verifyEventOwnership`) ou Administrador Master.
+  - **Controlador REST ([`apps/api/src/modules/events/events.controller.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/events/events.controller.ts))**:
+    - Endpoints sob `/api/v1/events` e `/api/v1/events/merchant` protegidos com `JwtAuthGuard` e `RolesGuard` (`MERCHANT` e `ADMIN`).
+- **Frontend Next.js (`apps/web`)**:
+  - **Integração de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**:
+    - Adicionadas interfaces `EventCategoryItem`, `MerchantEventItem` e `CreateMerchantEventPayload`.
+    - Funções: `fetchEventCategories`, `fetchMerchantEvents`, `createMerchantEventApi`, `updateMerchantEventApi` e `deleteMerchantEventApi`.
+  - **Interface do Painel do Comerciante ([`apps/web/src/app/comerciante/eventos/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/eventos/page.tsx))**:
+    - Painel com 4 métricas em tempo real: Total de Eventos, Próximos / Ativos, Entrada Gratuita e Com Ingresso / Couvert.
+    - Barra de filtros com busca textual reativa por nome/descrição/local, seletor de estabelecimentos e abas de período (Todos, Próximos, Passados).
+    - Cards visuais com foto de cartaz, badges de preço/gratuito, badges de status, formatação de datas em português, contador de visualizações e link externo para ingressos.
+    - Modal interativo completo com upload de banner/cartaz (`uploadImage`), alternador de evento gratuito vs. valor de couvert, seleção de estabelecimento anfitrião e validação.
+    - Modal de confirmação de exclusão com segurança.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

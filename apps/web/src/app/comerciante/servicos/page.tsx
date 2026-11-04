@@ -464,7 +464,7 @@ export default function MerchantServicesPage() {
             <div className="text-sm text-gray-600">
               Gerenciando serviços de:{' '}
               <strong className="text-gray-900">
-                {servicesData?.listing.title || servicesData?.listing.name || 'Estabelecimento selecionado'}
+                {servicesData?.listing.title || 'Estabelecimento selecionado'}
               </strong>
             </div>
 

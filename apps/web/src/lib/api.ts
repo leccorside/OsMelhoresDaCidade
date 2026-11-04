@@ -695,12 +695,11 @@ export interface MerchantListingServicesData {
   listing: {
     id: string;
     title: string;
-    name?: string;
     slug: string;
-    primaryCity?: {
+    primaryCity: {
       name: string;
       state: string;
-    } | null;
+    };
   };
   categories: MerchantServiceCategory[];
 }
@@ -879,6 +878,157 @@ export async function deleteServiceItemApi(itemId: string): Promise<{ success: b
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `Erro ao excluir item: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+
+// --- GESTÃO DE EVENTOS & SHOWS DO COMERCIANTE ---
+
+export interface EventCategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+}
+
+export interface MerchantEventItem {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  programDetails?: string | null;
+  categoryId: string;
+  category?: EventCategoryItem;
+  cityId: string;
+  city?: { id: string; name: string; slug: string };
+  listingId?: string | null;
+  listing?: { id: string; name: string; slug: string } | null;
+  address?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  isFree: boolean;
+  priceInfo?: string | null;
+  ticketUrl?: string | null;
+  status: 'PENDING' | 'PUBLISHED' | 'CANCELLED' | 'REJECTED';
+  isFeatured: boolean;
+  viewsCount: number;
+  createdAt: string;
+  updatedAt: string;
+  images: Array<{ id: string; url: string; isCover: boolean; caption?: string }>;
+}
+
+export interface CreateMerchantEventPayload {
+  name: string;
+  description?: string;
+  programDetails?: string;
+  categoryId: string;
+  listingId?: string;
+  cityId?: string;
+  address?: string;
+  startDate: string;
+  endDate?: string;
+  startTime?: string;
+  endTime?: string;
+  isFree?: boolean;
+  priceInfo?: string;
+  ticketUrl?: string;
+  imageUrl?: string;
+}
+
+export async function fetchEventCategories(): Promise<EventCategoryItem[]> {
+  const url = `${getApiBaseUrl()}/events/categories`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao carregar categorias de eventos');
+  }
+
+  return res.json();
+}
+
+export async function fetchMerchantEvents(): Promise<MerchantEventItem[]> {
+  const url = `${getApiBaseUrl()}/events/merchant/mine`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao carregar eventos: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createMerchantEventApi(payload: CreateMerchantEventPayload): Promise<MerchantEventItem> {
+  const url = `${getApiBaseUrl()}/events/merchant`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao cadastrar evento: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateMerchantEventApi(
+  id: string,
+  payload: Partial<CreateMerchantEventPayload>
+): Promise<MerchantEventItem> {
+  const url = `${getApiBaseUrl()}/events/merchant/${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao atualizar evento: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteMerchantEventApi(id: string): Promise<{ success: boolean }> {
+  const url = `${getApiBaseUrl()}/events/merchant/${encodeURIComponent(id)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao excluir evento: HTTP ${res.status}`);
   }
 
   return res.json();

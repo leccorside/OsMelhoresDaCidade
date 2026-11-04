@@ -151,6 +151,7 @@ model MerchantProfile {
   updatedAt    DateTime       @updatedAt
   listings     ListingOwner[]
   reviewReplies ReviewReply[]
+  events       Event[]
 
   @@map("merchant_profiles")
 }
@@ -282,6 +283,7 @@ model Listing {
   amenities        ListingAmenity[]
   socialLinks      ListingSocialLink[]
   serviceCategories ListingServiceCategory[]
+  events           Event[]
   revisions        ListingRevision[]
   reviews          Review[]
   favorites        Favorite[]
@@ -443,6 +445,10 @@ model Event {
   programDetails String?            @db.Text
   categoryId     String
   category       EventCategory      @relation(fields: [categoryId], references: [id])
+  listingId      String?
+  listing        Listing?           @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  merchantProfileId String?
+  merchantProfile MerchantProfile?  @relation(fields: [merchantProfileId], references: [id], onDelete: SetNull)
   cityId         String
   city           City               @relation(fields: [cityId], references: [id])
   neighborhoodId String?

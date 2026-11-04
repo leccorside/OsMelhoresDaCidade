@@ -162,6 +162,25 @@ async function main() {
     });
   }
 
+  // 6. Categorias de Eventos
+  const eventCategories = [
+    { name: 'Música & Shows', slug: 'musica-e-shows', icon: 'Music' },
+    { name: 'Gastronomia & Festivais', slug: 'gastronomia-e-festivais', icon: 'Utensils' },
+    { name: 'Happy Hour & Vida Noturna', slug: 'happy-hour-e-vida-noturna', icon: 'Wine' },
+    { name: 'Stand-up & Comédia', slug: 'stand-up-e-comedia', icon: 'Smile' },
+    { name: 'Infantil & Família', slug: 'infantil-e-familia', icon: 'Baby' },
+    { name: 'Esportes & Lazer', slug: 'esportes-e-lazer', icon: 'Activity' },
+    { name: 'Inauguração & Promoção', slug: 'inauguracao-e-promocao', icon: 'Sparkles' },
+  ];
+
+  for (const ec of eventCategories) {
+    await prisma.eventCategory.upsert({
+      where: { slug: ec.slug },
+      update: {},
+      create: ec,
+    });
+  }
+
   console.log('✅ Seed finalizado com sucesso!');
 }
 
