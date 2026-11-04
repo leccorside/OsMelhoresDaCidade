@@ -288,6 +288,28 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - **Cardápio & Catálogo de Serviços**: Seletor horizontal de abas por seções ("Todos os Itens", "Pizzas Especiais", etc.), cards de itens com fotos, descrições, preços formatados em R$, badge sutil de itens esgotados e botão de atalho para pedir diretamente via WhatsApp com mensagem personalizada contendo o nome do item.
     - **Shows & Programação Especial**: Seção temática exibindo os eventos e shows confirmados do estabelecimento, cartaz de divulgação, badges de entrada franca ou valor do couvert, data/horário formatados em português e botões de atalho para "Garantir Ingresso" ou "Reservar Mesa via WhatsApp".
 
+### N. Gestão da Galeria de Fotos do Comerciante
+- **Backend NestJS (`apps/api`)**:
+  - **DTOs com Validação ([`apps/api/src/modules/listings/dto/gallery.dto.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/dto/gallery.dto.ts))**:
+    - `AddGalleryImagesDto`, `ReorderGalleryImagesDto` e `UpdateGalleryImageDto` com decorators `class-validator` e `class-transformer`.
+  - **Serviço de Estabelecimentos ([`apps/api/src/modules/listings/listings.service.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/listings.service.ts))**:
+    - `getMerchantGallery`: listagem isolada das fotos do estabelecimento com ordenação por capa, ordem e data.
+    - `addMerchantGalleryImages`: inserção em lote com cálculo de ordenação incremental e auto-definição da primeira imagem como capa caso não haja capa existente.
+    - `setMerchantGalleryCover`: definição atômica de foto de capa (Hero), desmarcando capas anteriores, fixando ordem #1 e sincronizando automaticamente a coluna `Listing.coverUrl`.
+    - `reorderMerchantGalleryImages`: atualização de ordem das fotos em lote via transação/promessas paralelas.
+    - `deleteMerchantGalleryImage`: exclusão com validação de posse e promoção automática da próxima foto como capa caso a foto deletada fosse a capa ativa.
+  - **Controlador REST ([`apps/api/src/modules/listings/listings.controller.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/listings.controller.ts))**:
+    - Endpoints sob `/api/v1/listings/merchant/gallery` protegidos com `JwtAuthGuard` e `RolesGuard` (`MERCHANT` e `ADMIN`).
+- **Frontend Next.js (`apps/web`)**:
+  - **Integração de API ([`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts))**:
+    - Adicionadas interfaces `MerchantGalleryImage` e `MerchantGalleryData`.
+    - Funções: `fetchMerchantGallery`, `addMerchantGalleryImagesApi`, `setMerchantGalleryCoverApi`, `reorderMerchantGalleryImagesApi` e `deleteMerchantGalleryImageApi`.
+  - **Interface do Painel do Comerciante ([`apps/web/src/app/comerciante/galeria/page.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/galeria/page.tsx))**:
+    - Painel com 4 métricas: Total de Fotos, Foto de Capa (Hero) Ativa, Fotos no Mosaico do Topo (até 5) e Indicador de Qualidade Visual.
+    - Banner explicativo sobre o impacto do mosaico principal (as 5 primeiras fotos formam a vitrine de topo da página pública).
+    - Zona de upload com drag-and-drop e suporte a seleção de múltiplos arquivos simultâneos integrado com `/upload/images`.
+    - Grade visual de fotos com badges de Capa Oficial e posição ordinal (#1 a #N), botões para definir como capa com 1 clique, setas de reordenação instantânea para a esquerda/direita e botão de exclusão com modal de confirmação.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

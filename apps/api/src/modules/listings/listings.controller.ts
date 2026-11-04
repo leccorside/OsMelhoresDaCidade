@@ -20,6 +20,10 @@ import {
   CreateServiceItemDto,
   UpdateServiceItemDto,
 } from './dto/service-menu.dto';
+import {
+  AddGalleryImagesDto,
+  ReorderGalleryImagesDto,
+} from './dto/gallery.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -260,6 +264,70 @@ export class ListingsController {
     @Param('itemId') itemId: string,
   ) {
     return this.listingsService.deleteServiceItem(user, itemId);
+  }
+
+  // --- GESTÃO DA GALERIA DE FOTOS DO COMERCIANTE ---
+
+  @Get('merchant/gallery/:listingIdOrSlug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar fotos da galeria do estabelecimento' })
+  async getMerchantGallery(
+    @CurrentUser() user: any,
+    @Param('listingIdOrSlug') listingIdOrSlug: string,
+  ) {
+    return this.listingsService.getMerchantGallery(user, listingIdOrSlug);
+  }
+
+  @Post('merchant/gallery/:listingIdOrSlug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Adicionar uma ou mais fotos na galeria' })
+  async addMerchantGalleryImages(
+    @CurrentUser() user: any,
+    @Param('listingIdOrSlug') listingIdOrSlug: string,
+    @Body() dto: AddGalleryImagesDto,
+  ) {
+    return this.listingsService.addMerchantGalleryImages(user, listingIdOrSlug, dto.images);
+  }
+
+  @Patch('merchant/gallery/:imageId/cover')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Definir foto como capa oficial (Hero) do estabelecimento' })
+  async setMerchantGalleryCover(
+    @CurrentUser() user: any,
+    @Param('imageId') imageId: string,
+  ) {
+    return this.listingsService.setMerchantGalleryCover(user, imageId);
+  }
+
+  @Put('merchant/gallery/:listingIdOrSlug/reorder')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reordenar fotos da galeria do estabelecimento' })
+  async reorderMerchantGalleryImages(
+    @CurrentUser() user: any,
+    @Param('listingIdOrSlug') listingIdOrSlug: string,
+    @Body() dto: ReorderGalleryImagesDto,
+  ) {
+    return this.listingsService.reorderMerchantGalleryImages(user, listingIdOrSlug, dto.imageIds);
+  }
+
+  @Delete('merchant/gallery/:imageId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remover foto da galeria do estabelecimento' })
+  async deleteMerchantGalleryImage(
+    @CurrentUser() user: any,
+    @Param('imageId') imageId: string,
+  ) {
+    return this.listingsService.deleteMerchantGalleryImage(user, imageId);
   }
 
   // --- ROTA PÚBLICA DE DETALHES ---

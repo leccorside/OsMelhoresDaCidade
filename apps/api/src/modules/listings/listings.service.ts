@@ -913,4 +913,169 @@ export class ListingsService {
       where: { id: itemId },
     });
   }
+
+  // --- GESTÃO DA GALERIA DE FOTOS DO COMERCIANTE ---
+
+  async getMerchantGallery(user: any, listingIdOrSlug: string) {
+    const listing = await this.verifyMerchantOwnership(user, listingIdOrSlug);
+
+    const images = await this.prisma.listingImage.findMany({
+      where: { listingId: listing.id },
+      orderBy: [{ isCover: 'desc' }, { order: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return {
+      listing: {
+        id: listing.id,
+        name: listing.name,
+        slug: listing.slug,
+        coverUrl: listing.coverUrl,
+      },
+      images,
+    };
+  }
+
+  async addMerchantGalleryImages(
+    user: any,
+    listingIdOrSlug: string,
+    images: Array<{ url: string; caption?: string; isCover?: boolean; order?: number }>,
+  ) {
+    const listing = await this.verifyMerchantOwnership(user, listingIdOrSlug);
+
+    const currentCount = await this.prisma.listingImage.count({
+      where: { listingId: listing.id },
+    });
+
+    const hasExistingCover = await this.prisma.listingImage.findFirst({
+      where: { listingId: listing.id, isCover: true },
+    });
+
+    const createdImages = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      const isFirst = currentCount === 0 && i === 0;
+      const shouldBeCover = img.isCover || (!hasExistingCover && isFirst);
+
+      if (shouldBeCover) {
+        await this.prisma.listingImage.updateMany({
+          where: { listingId: listing.id },
+          data: { isCover: false },
+        });
+        await this.prisma.listing.update({
+          where: { id: listing.id },
+          data: { coverUrl: img.url },
+        });
+      }
+
+      const newImg = await this.prisma.listingImage.create({
+        data: {
+          listingId: listing.id,
+          url: img.url,
+          caption: img.caption?.trim() || null,
+          isCover: !!shouldBeCover,
+          order: img.order !== undefined ? img.order : currentCount + i,
+        },
+      });
+
+      createdImages.push(newImg);
+    }
+
+    return createdImages;
+  }
+
+  async setMerchantGalleryCover(user: any, imageId: string) {
+    const image = await this.prisma.listingImage.findUnique({
+      where: { id: imageId },
+    });
+
+    if (!image) {
+      throw new NotFoundException('Imagem não encontrada na galeria.');
+    }
+
+    await this.verifyMerchantOwnership(user, image.listingId);
+
+    // Desmarca capas anteriores
+    await this.prisma.listingImage.updateMany({
+      where: { listingId: image.listingId },
+      data: { isCover: false },
+    });
+
+    // Define esta imagem como capa e move para order 0
+    const updated = await this.prisma.listingImage.update({
+      where: { id: imageId },
+      data: {
+        isCover: true,
+        order: 0,
+      },
+    });
+
+    // Atualiza a coverUrl do estabelecimento
+    await this.prisma.listing.update({
+      where: { id: image.listingId },
+      data: { coverUrl: image.url },
+    });
+
+    return updated;
+  }
+
+  async reorderMerchantGalleryImages(user: any, listingIdOrSlug: string, imageIds: string[]) {
+    const listing = await this.verifyMerchantOwnership(user, listingIdOrSlug);
+
+    await Promise.all(
+      imageIds.map((id, index) =>
+        this.prisma.listingImage.updateMany({
+          where: { id, listingId: listing.id },
+          data: { order: index },
+        }),
+      ),
+    );
+
+    return this.prisma.listingImage.findMany({
+      where: { listingId: listing.id },
+      orderBy: [{ isCover: 'desc' }, { order: 'asc' }],
+    });
+  }
+
+  async deleteMerchantGalleryImage(user: any, imageId: string) {
+    const image = await this.prisma.listingImage.findUnique({
+      where: { id: imageId },
+    });
+
+    if (!image) {
+      throw new NotFoundException('Imagem não encontrada na galeria.');
+    }
+
+    await this.verifyMerchantOwnership(user, image.listingId);
+
+    await this.prisma.listingImage.delete({
+      where: { id: imageId },
+    });
+
+    // Se a imagem deletada era a capa, promove a próxima imagem como capa se houver
+    if (image.isCover) {
+      const nextCover = await this.prisma.listingImage.findFirst({
+        where: { listingId: image.listingId },
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      });
+
+      if (nextCover) {
+        await this.prisma.listingImage.update({
+          where: { id: nextCover.id },
+          data: { isCover: true, order: 0 },
+        });
+        await this.prisma.listing.update({
+          where: { id: image.listingId },
+          data: { coverUrl: nextCover.url },
+        });
+      } else {
+        await this.prisma.listing.update({
+          where: { id: image.listingId },
+          data: { coverUrl: null },
+        });
+      }
+    }
+
+    return { success: true, deletedId: imageId };
+  }
 }

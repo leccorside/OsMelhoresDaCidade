@@ -1063,3 +1063,125 @@ export async function deleteMerchantEventApi(id: string): Promise<{ success: boo
 
   return res.json();
 }
+
+
+// --- GESTÃO DA GALERIA DE FOTOS DO COMERCIANTE ---
+
+export interface MerchantGalleryImage {
+  id: string;
+  listingId: string;
+  url: string;
+  caption?: string | null;
+  order: number;
+  isCover: boolean;
+  createdAt: string;
+}
+
+export interface MerchantGalleryData {
+  listing: {
+    id: string;
+    name: string;
+    slug: string;
+    coverUrl?: string | null;
+  };
+  images: MerchantGalleryImage[];
+}
+
+export async function fetchMerchantGallery(listingIdOrSlug: string): Promise<MerchantGalleryData> {
+  const url = `${getApiBaseUrl()}/listings/merchant/gallery/${encodeURIComponent(listingIdOrSlug)}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao obter fotos da galeria: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function addMerchantGalleryImagesApi(
+  listingIdOrSlug: string,
+  images: Array<{ url: string; caption?: string; isCover?: boolean; order?: number }>
+): Promise<MerchantGalleryImage[]> {
+  const url = `${getApiBaseUrl()}/listings/merchant/gallery/${encodeURIComponent(listingIdOrSlug)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ images }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao adicionar fotos: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function setMerchantGalleryCoverApi(imageId: string): Promise<MerchantGalleryImage> {
+  const url = `${getApiBaseUrl()}/listings/merchant/gallery/${encodeURIComponent(imageId)}/cover`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao definir foto de capa: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function reorderMerchantGalleryImagesApi(
+  listingIdOrSlug: string,
+  imageIds: string[]
+): Promise<MerchantGalleryImage[]> {
+  const url = `${getApiBaseUrl()}/listings/merchant/gallery/${encodeURIComponent(listingIdOrSlug)}/reorder`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ imageIds }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao reordenar galeria: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteMerchantGalleryImageApi(imageId: string): Promise<{ success: boolean; deletedId: string }> {
+  const url = `${getApiBaseUrl()}/listings/merchant/gallery/${encodeURIComponent(imageId)}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao remover foto: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
