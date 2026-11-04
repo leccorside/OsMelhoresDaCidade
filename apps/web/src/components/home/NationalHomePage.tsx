@@ -124,29 +124,30 @@ export function NationalHomePage() {
       <main className="w-full bg-[#FCF9F8] min-h-screen flex-1">
         <div className="flex flex-col w-full">
           {/* HERO SECTION COM BACKDROP CINEMATOGRÁFICO URBANO BRASILEIRO */}
-          <section className="relative w-full overflow-hidden bg-[#313030] pt-12 pb-24 lg:pb-32">
+          <section className="relative w-full overflow-hidden bg-[#1C1B1B] pt-12 pb-24 lg:pb-32">
             <div
-              className="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-35 scale-105 transition-transform duration-1000 ease-out"
+              className="absolute inset-0 bg-cover bg-center scale-105 transition-transform duration-1000 ease-out"
               style={{
                 backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCMqp9uuFmXDiaf0kNgie2AUSCT5J839SUsdO7BBQZ_xGCP5XQe5UmMSZJOoiXTprkzfKTvsYloZOiBqv-11DIsz_A0dPZ9otZtdlnon1F_lyFBXELMJwoMeCaqt1wFzd-jhphDczL6zO0p29Vzs76MJJ-gVi5yMcO0NWiH6r8ILK_DNNrkSnjQc-TZ-y3Py6_0X4FHpNwSrJZeQWxnKHJSIp4p2BSm7XB9Vsf8zV8N')"
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#313030]/80 via-[#313030]/90 to-[#FCF9F8] pointer-events-none" />
+            {/* Filtro luminoso: mantém a foto urbana e turística brasileira visível */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1C1B1B]/40 via-[#1C1B1B]/30 to-[#FCF9F8] pointer-events-none" />
             <div className="absolute -top-32 right-1/4 w-96 h-96 bg-[#FF3B4F]/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute top-1/2 -left-20 w-80 h-80 bg-[#FFB95F]/15 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative max-w-7xl mx-auto px-6 lg:px-12 z-10 flex flex-col items-center text-center">
               {/* Badge de Destaque */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md shadow-sm mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md shadow-sm mb-6 border border-white/20">
                 <span className="text-sm leading-none">🇧🇷</span>
                 <span className="text-[12px] font-bold uppercase tracking-wider text-white">O Guia Definitivo dos Municípios Brasileiros</span>
               </div>
 
               {/* Título Principal */}
-              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold max-w-4xl text-white tracking-tight mb-4 leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold max-w-4xl text-white tracking-tight mb-4 leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
                 Descubra os melhores lugares da <span className="text-[#FFDAD8]">sua cidade</span>
               </h1>
-              <p className="text-base sm:text-[18px] text-[#E5E2E1] max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
+              <p className="text-base sm:text-[18px] text-white max-w-2xl mx-auto mb-10 leading-relaxed font-medium drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)]">
                 Encontre restaurantes premiados, bares autênticos, eventos imperdíveis, comércios locais e atrações turísticas avaliadas por moradores reais.
               </p>
 

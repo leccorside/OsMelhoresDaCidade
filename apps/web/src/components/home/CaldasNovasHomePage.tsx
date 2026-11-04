@@ -200,27 +200,28 @@ export function CaldasNovasHomePage() {
       <main className="w-full bg-[#FCF9F8] min-h-screen flex-1">
         <div className="flex flex-col w-full">
           {/* 6.1 HERO PRINCIPAL */}
-          <section className="relative w-full bg-[#313030] overflow-hidden">
+          <section className="relative w-full bg-[#1C1B1B] overflow-hidden">
             <div
-              className="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-40 scale-105 transition-transform duration-1000 ease-out"
+              className="absolute inset-0 bg-cover bg-center scale-105 transition-transform duration-1000 ease-out"
               style={{
                 backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuADE04srticTD_ZxLyD0d-nEbmNW1dBdw9UHj2txNRPez-hVnJJBt4VC1emiSom7qXmz5U3Yw74VXpNMnaqA-0SnAyPv-TL_OEZ4wkyQ9JZJk5OZzoOjc5LCY0Q73d2VaCO_iL4HKKtOtCvhYNEtBRUUSjr6EgCpBytamb_rVczkjJMDgYA6dmUIbmY0YqBx46Tp0HkiMp67Y_xjBT4u2p-79kjsiBxoDV_AEYU7l77')"
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#313030]/85 via-[#313030]/70 to-[#313030]/95" />
+            {/* Filtro luminoso: protege a legibilidade mantendo as águas termais e o resort visíveis e nítidos */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#1C1B1B]/40 via-[#1C1B1B]/25 to-[#1C1B1B]/55 pointer-events-none" />
 
             <div className="relative max-w-7xl mx-auto px-6 lg:px-12 pt-16 pb-28 md:pt-20 md:pb-36 flex flex-col items-center text-center">
               {/* Badge de Cidade */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-[#F3F0EF] text-[12px] font-semibold shadow-sm mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md text-white text-[12px] font-semibold shadow-sm mb-6 border border-white/20">
                 <span className="text-lg">🌴</span>
                 <span className="tracking-wide uppercase text-[11px] font-bold">O GUIA DEFINITIVO DA MAIOR ESTÂNCIA HIDROTERMAL DO MUNDO</span>
               </div>
 
               {/* Título & Subtítulo */}
-              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-[#F3F0EF] max-w-4xl tracking-tight mb-4 leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-white max-w-4xl tracking-tight mb-4 leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
                 Descubra Caldas Novas
               </h1>
-              <p className="text-base sm:text-[18px] text-[#E5E2E1] max-w-2xl mb-10 leading-relaxed font-normal">
+              <p className="text-base sm:text-[18px] text-white max-w-2xl mb-10 leading-relaxed font-medium drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)]">
                 Os melhores lugares, eventos imperdíveis e experiências gastronômicas da capital das águas termais estão reunidos aqui.
               </p>
 
