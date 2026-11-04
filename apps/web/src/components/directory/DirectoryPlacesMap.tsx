@@ -52,6 +52,98 @@ const TILE_PROVIDERS: Record<
   },
 };
 
+// Mapeia cada categoria para o ícone correspondente do Material Symbols
+function getCategoryIcon(category: string): string {
+  const cat = category.toLowerCase();
+  if (
+    cat.includes('restaurante') ||
+    cat.includes('gastronomia') ||
+    cat.includes('alimentação') ||
+    cat.includes('típica') ||
+    cat.includes('comida')
+  ) {
+    return 'restaurant';
+  }
+  if (
+    cat.includes('parque') ||
+    cat.includes('termas') ||
+    cat.includes('água') ||
+    cat.includes('lazer') ||
+    cat.includes('piscinas')
+  ) {
+    return 'pool';
+  }
+  if (
+    cat.includes('bar') ||
+    cat.includes('chopp') ||
+    cat.includes('pub') ||
+    cat.includes('cervejaria')
+  ) {
+    return 'sports_bar';
+  }
+  if (
+    cat.includes('hotel') ||
+    cat.includes('pousada') ||
+    cat.includes('resort') ||
+    cat.includes('hospedagem')
+  ) {
+    return 'hotel';
+  }
+  if (cat.includes('turismo') || cat.includes('atração') || cat.includes('atracao')) {
+    return 'attractions';
+  }
+  if (
+    cat.includes('médico') ||
+    cat.includes('medico') ||
+    cat.includes('saúde') ||
+    cat.includes('hospital')
+  ) {
+    return 'medical_services';
+  }
+  if (cat.includes('evento') || cat.includes('show') || cat.includes('festival')) {
+    return 'confirmation_number';
+  }
+  if (cat.includes('comércio') || cat.includes('comercio') || cat.includes('loja')) {
+    return 'storefront';
+  }
+  if (cat.includes('museu') || cat.includes('arte') || cat.includes('cultura')) {
+    return 'museum';
+  }
+  return 'place';
+}
+
+// Cria o ícone em formato de pino com círculo interno branco e ícone da categoria (SEM O NOME DO LUGAR)
+function createCategoryMarkerIcon(L: any, place: MapPlaceItem, isSelected: boolean) {
+  const iconName = getCategoryIcon(place.category);
+  const bgColor = isSelected ? '#FF3B4F' : '#0D9488';
+  const iconColor = isSelected ? '#FF3B4F' : '#0D9488';
+  const scaleClass = isSelected ? 'scale-115 ring-4 ring-[#FF3B4F]/30' : 'hover:scale-110';
+
+  return L.divIcon({
+    className: 'custom-map-category-marker',
+    html: `
+      <div class="relative cursor-pointer transition-transform duration-200 transform ${scaleClass}" data-id="${place.id}">
+        <div class="flex flex-col items-center">
+          <!-- Círculo externo colorido do pino -->
+          <div style="background-color: ${bgColor};" class="w-10 h-10 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.28)] transition-all">
+            <!-- Círculo interno branco -->
+            <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-xs">
+              <!-- Ícone da Categoria (Sem o nome do lugar) -->
+              <span class="material-symbols-outlined text-[17px]" style="color: ${iconColor}; font-variation-settings: 'FILL' 1;">
+                ${iconName}
+              </span>
+            </div>
+          </div>
+          <!-- Ponta triangular do pino apontando para o local exato -->
+          <div style="border-top-color: ${bgColor};" class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] -mt-[1px]"></div>
+        </div>
+      </div>
+    `,
+    iconSize: [40, 48],
+    iconAnchor: [20, 48],
+  });
+}
+
 export function DirectoryPlacesMap({
   places,
   selectedPlaceId,
@@ -81,6 +173,26 @@ export function DirectoryPlacesMap({
         }
       }
     }
+  }, [selectedPlaceId, places]);
+
+  // Atualizar visual do marcador (destaque vermelho/anel) quando selectedPlaceId mudar
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    import('leaflet').then((L) => {
+      places.forEach((place) => {
+        const marker = markersRef.current[place.id];
+        if (marker) {
+          const isSelected = place.id === selectedPlaceId;
+          marker.setIcon(createCategoryMarkerIcon(L.default, place, isSelected));
+          if (isSelected) {
+            marker.setZIndexOffset(1000);
+          } else {
+            marker.setZIndexOffset(0);
+          }
+        }
+      });
+    });
   }, [selectedPlaceId, places]);
 
   // Trocar o tile layer quando o estilo mudar
@@ -128,7 +240,7 @@ export function DirectoryPlacesMap({
         // Controles de zoom
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Tile layer padrão: OpenStreetMap Standard (100% público e gratuito, sem exigência de API Key)
+        // Tile layer padrão: OpenStreetMap Standard
         const provider = TILE_PROVIDERS[currentStyle];
         const tileLayer = L.tileLayer(provider.url, {
           attribution: provider.attribution,
@@ -138,29 +250,11 @@ export function DirectoryPlacesMap({
         currentTileLayerRef.current = tileLayer;
         leafletMapRef.current = map;
 
-        // Adicionar marcadores com pinos customizados
+        // Adicionar marcadores com pino da categoria (Sem o nome do lugar)
         markersRef.current = {};
         places.forEach((place) => {
-          const customIcon = L.divIcon({
-            className: 'custom-map-marker',
-            html: `
-              <div class="relative group cursor-pointer" data-id="${place.id}">
-                <div class="flex items-center gap-1 px-2.5 py-1 rounded-full shadow-lg text-[11px] font-bold text-white transition-transform duration-200 transform hover:scale-110 ${
-                  place.id === selectedPlaceId
-                    ? 'bg-[#FF3B4F] ring-4 ring-[#FF3B4F]/30 scale-110'
-                    : 'bg-[#0D9488] hover:bg-[#0F766E]'
-                }">
-                  <span class="material-symbols-outlined text-[13px]">location_on</span>
-                  <span class="whitespace-nowrap">${place.name.split(' ')[0]}</span>
-                </div>
-                <div class="w-0 h-0 mx-auto border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] ${
-                  place.id === selectedPlaceId ? 'border-t-[#FF3B4F]' : 'border-t-[#0D9488]'
-                }"></div>
-              </div>
-            `,
-            iconSize: [60, 36],
-            iconAnchor: [30, 36],
-          });
+          const isSelected = place.id === selectedPlaceId;
+          const customIcon = createCategoryMarkerIcon(L, place, isSelected);
 
           const marker = L.marker([place.lat, place.lng], { icon: customIcon }).addTo(map);
 
@@ -195,7 +289,7 @@ export function DirectoryPlacesMap({
 
   return (
     <div className="w-full h-full min-h-[580px] rounded-3xl overflow-hidden shadow-md border border-gray-200 relative bg-[#EBF0EE]">
-      {/* Container Leaflet Real com Mapa Real no Fundo */}
+      {/* Container Leaflet com Mapa Real */}
       <div ref={mapContainerRef} className="w-full h-full min-h-[580px] z-10" />
 
       {/* Floating Controls no Topo do Mapa */}
@@ -213,7 +307,7 @@ export function DirectoryPlacesMap({
 
         {/* Grupo de Ações à Direita: Seletor de Camada + Botão Centralizar */}
         <div className="flex items-center gap-2 relative">
-          {/* Seletor de Camada (Ruas / Satélite / Cartográfico) */}
+          {/* Seletor de Camada */}
           <div className="relative">
             <button
               onClick={() => setStyleMenuOpen(!styleMenuOpen)}
