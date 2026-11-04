@@ -10,32 +10,65 @@ O projeto é estruturado em um monorepo modular e desacoplado:
 - **`packages/shared`**: Biblioteca compartilhada de tipos TypeScript, contratos de dados, enums e utilitários de SEO.
 - **`docker/`**: Configurações de containerização para PostgreSQL 16, backend NestJS, frontend Next.js e Nginx como proxy reverso integrado.
 
-## 3. Stack Tecnológica
+## 3. Portas e Serviços em Execução
+Para evitar conflito com outros serviços e bancos de dados locais, foram padronizadas portas exclusivas:
+- **Nginx (Proxy Reverso)**: `http://localhost:4100`
+- **Frontend Next.js**: `http://localhost:4101`
+- **API Backend NestJS**: `http://localhost:4102` (Swagger em `/docs`)
+- **PostgreSQL 16**: `localhost:4103` (database: `os_melhores_db`)
+
+## 4. Stack Tecnológica
 - **Linguagem Principal**: TypeScript 5+
 - **Frontend**: Next.js 15 (App Router), React 19, Tailwind CSS, TanStack Query, Zustand, React Hook Form, Zod, Lucide React, Framer Motion, Recharts, Leaflet / OpenStreetMap.
 - **Backend**: NestJS 11, Prisma ORM 6, PostgreSQL 16, Passport JWT, Argon2, Helmet, Sharp.
 - **Infraestrutura**: Docker & Docker Compose, Nginx Alpine.
 
-## 4. Decisões Técnicas
-- **Abordagem Monorepo**: Compartilhamento centralizado de modelos de dados e tipagens entre API e Web via NPM Workspaces.
-- **Simplicidade Operacional Sem Filas Pesadas**: Conforme especificação restrita do projeto, não são utilizadas filas ou serviços complexos adicionais como Redis, BullMQ ou microsserviços. Métricas e agendamentos são tratados com persistência relacional otimizada no PostgreSQL.
-- **Multi-tenant Geográfico**: O contexto municipal é definido no roteamento (`/[city]`), garantindo escopo geográfico isolado em consultas SQL com índices compostos `[cityId, slug]`.
+## 5. Diretório de Protótipos de Referência (UX/UI Stitch)
+A identidade visual e a arquitetura de telas baseiam-se nos protótipos de alta fidelidade contidos na pasta `uxui/prototipos`:
+1. `p_gina_inicial_nacional_os_melhores_da_cidade`: Raiz nacional (`/`) para seleção de estados e cidades com mapa do Brasil e busca.
+2. `p_gina_inicial_de_caldas_novas_os_melhores_da_cidade`: Página inicial da cidade (`/[city]`), com hero, atalhos de categorias, destaques e rodapé escuro unificado.
+3. `diret_rio_geral_de_lugares_caldas_novas`: Diretório geral de busca (`/[city]/lugares`), filtros laterais, alternador de colunas/linhas e mapa interativo Leaflet com pinos temáticos sem poluição de texto.
+4. **Páginas de Detalhes dos Lugares**:
+   - `diroma_acqua_park_caldas_novas_os_melhores_da_cidade`: Modelo para Parques Aquáticos, Termas & Atrações Radicais.
+   - `pousada_termal_do_lago_caldas_novas_os_melhores_da_cidade`: Modelo para Resorts, Hotéis & Pousadas (Hospedagem).
+   - `restaurante_nonna_mia_caldas_novas_os_melhores_da_cidade`: Modelo para Restaurantes, Bares & Gastronomia Tradicional.
 
-## 5. Estratégia de SEO e Renderização
-- **SSR (Server-Side Rendering)**: Para páginas com conteúdo dinâmico que mudam frequentemente.
-- **SSG / ISR (Incremental Static Regeneration)**: Páginas de cidades e estabelecimentos possuem revalidação incremental periódica (`revalidate = 3600`), entregando velocidade instantânea de CDN com HTML completo pré-renderizado para o Googlebot e Bingbot.
-- **Metadados Dinâmicos (Metadata API)**: Geração automatizada de `title`, `description`, `canonical`, `openGraph`, `twitter` e `alternates`.
-- **JSON-LD Schema.org**: Implementação estruturada de `WebPage`, `LocalBusiness`, `Restaurant`, `Event` e `BreadcrumbList`.
+## 6. Funcionalidades Recentes Implementadas
 
-## 6. PWA (Progressive Web App)
-- Suporte nativo via `manifest.webmanifest`, ícones adaptativos (maskable) 192x192 e 512x512, service worker para cache inteligente e visual mobile imersivo simulando aplicativo nativo com barra de navegação inferior.
+### A. Páginas de Detalhes dos Lugares (`/[city]/lugar/[slug]`)
+Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.tsx`) e página dinâmica SSR com ISR (`revalidate = 3600`):
+- **Barra Superior & Header**: Unificado com o padrão institucional escuro da cidade, modal de troca de cidade, menu de categorias e botão "Anuncie seu Negócio".
+- **Mosaico Cinematográfico de 5 Fotos (Airbnb Style)**: Hero principal panorâmico na esquerda e grade 2x2 com fotos secundárias na direita, com modal de galeria em tela cheia (lightbox com navegação e miniaturas).
+- **Faixa de Destaques Rápidos**: Ícones temáticos de acordo com o segmento (Temperatura da água, piscinas, rodízio, adega, pet-friendly, check-in/out).
+- **Conteúdo Editorial & Dica do Guia**: Box exclusivo destacado com a "Dica dos Melhores da Cidade".
+- **Campos Específicos por Categoria**:
+  - *Parques / Atrações*: Tabela de Ingressos & Tarifas Oficiais com descontos ativos, regras de meia-entrada e aviso de hotel parceiro com ingresso incluso.
+  - *Hospedagem / Pousadas*: Opções de Acomodação & Diárias com fotos, m², camas, capacidade de hóspedes, políticas de check-in/out e cancelamento.
+  - *Restaurantes / Gastronomia*: Destaques do Cardápio com pratos principais ilustrados e preços, Adega Climatizada (+120 rótulos e taxa de rolha isenta), e opções vegetarianas/sem glúten.
+- **Comodidades & Estrutura**: Grid completo com ícones de checagem verde.
+- **Localização com Mapa & Direções**: Mini-mapa interativo com coordenadas reais e orientações de trajeto.
+- **Horários Detalhados**: Turnos de almoço, jantar ou bilheteria.
+- **Avaliações com Notas por Quesito**: Pontuação detalhada por quesito (Limpeza, Atendimento, Comida/Atrações, Custo-benefício) e depoimentos reais verificados.
+- **FAQ Accordion**: Dúvidas frequentes do estabelecimento expansíveis.
+- **Sticky Sidebar Especializada**:
+  - *Parque*: Calculadora de ingressos (adultos e crianças), subtotal em tempo real, botão de compra e WhatsApp da bilheteria.
+  - *Hospedagem*: Calculadora de diárias com seletor de quarto, seletor de noites, total da estada e WhatsApp da recepção.
+  - *Restaurante*: Reserva de mesa online sem fila, pedido delivery via WhatsApp e visualizador do cardápio em PDF.
 
-## 7. Perfis e Funcionalidades
-1. **Público**: Descoberta de locais, busca preditiva, filtros por categorias, visualização de mapa interativo e agenda de eventos.
-2. **Usuário Autenticado (`USER`)**: Gestão de favoritos, avaliações com notas de 1 a 5, respostas e eventos salvos (`/app`).
-3. **Comerciante (`MERCHANT`)**: Gestão de seus estabelecimentos, cardápios, serviços, horários de funcionamento, respostas a avaliações e métricas de conversão (`/comerciante`).
-4. **Administrador (`ADMIN`)**: Gestão master de cidades, aprovação e moderação de estabelecimentos, eventos, avaliações, blog CMS, banners e painel dedicado de SEO (`/admin`).
+### B. Gestão de Estabelecimentos no Painel Administrativo
+- **Lista de Estabelecimentos (`/admin/estabelecimentos`)**:
+  - Tabela com filtros por busca textual, categoria/tipo (Atrações, Hospedagem, Gastronomia, Serviços) e status (Ativos, Pendentes, Destaques Ouro).
+  - Ações diretas: Visualizar ao vivo no portal, Editar formulário adaptado e Excluir anúncio.
+- **Cadastro Dinâmico Adaptável (`/admin/estabelecimentos/novo`)**:
+  - Seletor de Categoria Dinâmica que reconfigura instantaneamente os campos do formulário para o tipo de anúncio selecionado:
+    - *Atrações*: Temperatura da água, tabela de ingressos (adulto, infantil, sênior) e regras.
+    - *Hospedagem*: Diária base, horários de check-in/out, café da manhã, pet-friendly e construtor de chalés/suítes.
+    - *Gastronomia*: Tipo de cozinha, regime de serviço (rodízio/à la carte), construtor de pratos do cardápio, adega e formas de pagamento.
+    - *Comércio & Serviços*: Especialidades, modelo de atendimento e garantias.
+  - Construtor do mosaico de fotos (Hero + 4 secundárias com legendas).
+  - Construtor de Comodidades e FAQ.
+  - Suporte à edição pré-carregada via parâmetro `?edit=[slug]`.
 
-## 8. Pendências e Próximos Passos
-- Execução sequencial dos passos de desenvolvimento (Design System, Módulo Geográfico, Autenticação, Telas Públicas, Painéis e Otimizações Finais).
-
+## 7. Diretrizes Persistidas de Memória
+Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
+- Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
