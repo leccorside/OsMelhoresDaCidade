@@ -298,3 +298,74 @@ export async function fetchPlaceDetail(citySlug: string, slug: string): Promise<
 
   return result;
 }
+
+export interface PublicListingsParams {
+  citySlug?: string;
+  categorySlug?: string;
+  neighborhoodSlug?: string;
+  search?: string;
+  priceTier?: string;
+  sortBy?: 'melhores' | 'populares' | 'menor_preco' | 'recentes';
+  page?: number;
+  limit?: number;
+}
+
+export async function fetchPublicListings(params: PublicListingsParams = {}) {
+  const query = new URLSearchParams();
+  if (params.citySlug) query.append('citySlug', params.citySlug);
+  if (params.categorySlug && params.categorySlug !== 'todos') {
+    query.append('categorySlug', params.categorySlug);
+  }
+  if (params.neighborhoodSlug) query.append('neighborhoodSlug', params.neighborhoodSlug);
+  if (params.search) query.append('search', params.search);
+  if (params.priceTier) query.append('priceTier', params.priceTier);
+  if (params.sortBy) query.append('sortBy', params.sortBy);
+  if (params.page) query.append('page', String(params.page));
+  if (params.limit) query.append('limit', String(params.limit));
+
+  const url = `${getApiBaseUrl()}/listings?${query.toString()}`;
+
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: 60 },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn(`[fetchPublicListings] Erro ao consultar API (${url}):`, err);
+  }
+
+  return { items: [], total: 0, page: 1, limit: 12, totalPages: 1 };
+}
+
+export function mapListingToMapPlaceItem(item: any) {
+  let priceStr = 'R$ 60 - R$ 120';
+  if (item.priceTier === '$') priceStr = 'Até R$ 50';
+  else if (item.priceTier === '$$$') priceStr = 'R$ 110 - R$ 160';
+  else if (item.priceTier === '$$$$') priceStr = 'R$ 200+';
+
+  const defaultImg =
+    'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=600&q=80';
+  const coverImg =
+    item.images?.find((img: any) => img.isCover)?.url || item.images?.[0]?.url || defaultImg;
+
+  const lat = item.latitude ? Number(item.latitude) : -17.7315;
+  const lng = item.longitude ? Number(item.longitude) : -48.632;
+
+  return {
+    id: item.id,
+    name: item.name,
+    slug: item.slug,
+    category: item.category?.name || 'Geral',
+    price: priceStr,
+    rating: item.ratingAverage > 0 ? Number(item.ratingAverage) : 4.9,
+    reviewsCount: item.ratingCount > 0 ? Number(item.ratingCount) : 120,
+    lat,
+    lng,
+    neighborhood: item.neighborhood?.name || 'Centro',
+    image: coverImg,
+    isOpen: item.status === 'PUBLISHED',
+  };
+}

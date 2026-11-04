@@ -3,6 +3,7 @@ import { constructMetadata } from '@/lib/seo';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { DirectoryPlacesClient } from '@/components/directory/DirectoryPlacesClient';
+import { fetchPublicListings, mapListingToMapPlaceItem } from '@/lib/api';
 
 interface CategoryPageProps {
   params: Promise<{
@@ -34,12 +35,21 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   });
 }
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export default async function CategoryListingPage({ params }: CategoryPageProps) {
   const { city, category } = await params;
   const cityName = city === 'caldas-novas' ? 'Caldas Novas' : city;
   const cityUf = city === 'caldas-novas' ? 'GO' : 'BR';
+
+  // Busca inicial SSR dos estabelecimentos cadastrados no PostgreSQL
+  const listingsRes = await fetchPublicListings({
+    citySlug: city,
+    categorySlug: category,
+    limit: 50,
+  });
+
+  const serverPlaces = listingsRes.items.map(mapListingToMapPlaceItem);
 
   return (
     <>
@@ -54,6 +64,7 @@ export default async function CategoryListingPage({ params }: CategoryPageProps)
         citySlug={city}
         cityName={cityName}
         initialCategory={category}
+        serverPlaces={serverPlaces}
       />
 
       <Footer currentCitySlug={city} />

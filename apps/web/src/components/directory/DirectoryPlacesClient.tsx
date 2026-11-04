@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { MapPlaceItem } from './DirectoryPlacesMap';
+import { fetchPublicListings, mapListingToMapPlaceItem } from '@/lib/api';
 
 // Dynamic import do mapa Leaflet sem SSR para evitar erros de renderização no servidor
 const DirectoryPlacesMap = dynamic(
@@ -29,6 +30,7 @@ export interface DirectoryPlacesClientProps {
   cityName?: string;
   initialCategory?: string;
   initialSearch?: string;
+  serverPlaces?: MapPlaceItem[];
 }
 
 export function DirectoryPlacesClient({
@@ -36,6 +38,7 @@ export function DirectoryPlacesClient({
   cityName = 'Caldas Novas',
   initialCategory = '',
   initialSearch = '',
+  serverPlaces,
 }: DirectoryPlacesClientProps) {
   // Lista inicial de estabelecimentos com coordenadas reais de Caldas Novas
   const initialPlaces: MapPlaceItem[] = [
@@ -162,6 +165,15 @@ export function DirectoryPlacesClient({
   ];
 
   // ESTADOS PRINCIPAIS
+  const [placesList, setPlacesList] = useState<MapPlaceItem[]>(() => {
+    if (serverPlaces && serverPlaces.length > 0) {
+      const serverSlugs = new Set(serverPlaces.map((p) => p.slug));
+      const remainingMocks = initialPlaces.filter((p) => !serverSlugs.has(p.slug));
+      return [...serverPlaces, ...remainingMocks];
+    }
+    return initialPlaces;
+  });
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Imagem 1: Alternar entre 2 colunas e linhas
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -195,27 +207,74 @@ export function DirectoryPlacesClient({
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [showMoreLocations, setShowMoreLocations] = useState(false);
 
-  // Categorias disponíveis conforme imagem 3
-  const filterCategories = [
-    { label: 'Médico', count: 6 },
-    { label: 'Evento', count: 5 },
-    { label: 'GINÁSIO', count: 2 },
-    { label: 'Museu', count: 3 },
-    { label: 'Restaurante', count: 10 },
-    { label: 'Parques Aquáticos & Termas', count: 14 },
-    { label: 'Hotéis & Resorts', count: 18 },
-    { label: 'Bares & Pubs', count: 8 },
-  ];
+  const [isLoadingListings, setIsLoadingListings] = useState(false);
 
-  // Localizações / Bairros disponíveis conforme imagem 3
-  const filterLocations = [
-    { label: 'Centro', count: 12 },
-    { label: 'Setor Turista', count: 9 },
-    { label: 'Bairro do Turista', count: 8 },
-    { label: 'Do Turista', count: 6 },
-    { label: 'Bandeirantes', count: 5 },
-    { label: 'Lago Corumbá', count: 4 },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingListings(true);
+
+    fetchPublicListings({
+      citySlug,
+      categorySlug: selectedCategoryPill || undefined,
+      search: searchKeyword || undefined,
+    })
+      .then((data) => {
+        if (!isMounted || !data?.items) return;
+        if (data.items.length > 0) {
+          const apiItems: MapPlaceItem[] = data.items.map(mapListingToMapPlaceItem);
+          const serverSlugs = new Set(apiItems.map((p) => p.slug));
+          const remainingMocks = initialPlaces.filter((p) => !serverSlugs.has(p.slug));
+          setPlacesList([...apiItems, ...remainingMocks]);
+        }
+      })
+      .catch((err) => {
+        console.warn('[DirectoryPlacesClient] Falha ao carregar listings do banco:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingListings(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [citySlug, selectedCategoryPill, searchKeyword]);
+
+  // Categorias disponíveis com contagem dinâmica somando os itens do banco
+  const filterCategories = useMemo(() => {
+    const counts: Record<string, number> = {};
+    placesList.forEach((p) => {
+      const cat = p.category || 'Geral';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    const defaults = [
+      'Parques Aquáticos & Termas',
+      'Restaurante',
+      'Hotéis & Resorts',
+      'Bares & Pubs',
+      'Médico',
+      'Evento',
+      'GINÁSIO',
+      'Museu',
+    ];
+    defaults.forEach((d) => {
+      if (!counts[d]) counts[d] = 2;
+    });
+    return Object.entries(counts).map(([label, count]) => ({ label, count }));
+  }, [placesList]);
+
+  // Localizações / Bairros disponíveis com contagem dinâmica somando os itens do banco
+  const filterLocations = useMemo(() => {
+    const counts: Record<string, number> = {};
+    placesList.forEach((p) => {
+      const neigh = p.neighborhood || 'Centro';
+      counts[neigh] = (counts[neigh] || 0) + 1;
+    });
+    const defaults = ['Centro', 'Setor Turista', 'Solar de Caldas', 'Bandeirantes', 'Lago Corumbá'];
+    defaults.forEach((d) => {
+      if (!counts[d]) counts[d] = 1;
+    });
+    return Object.entries(counts).map(([label, count]) => ({ label, count }));
+  }, [placesList]);
 
   // Alternar seleção de categoria
   const toggleCategory = (cat: string) => {
@@ -247,9 +306,9 @@ export function DirectoryPlacesClient({
     setSelectedPlaceId(null);
   };
 
-  // Filtragem reativa
+  // Filtragem reativa em cima de placesList (PostgreSQL + Mocks)
   const filteredPlaces = useMemo(() => {
-    return initialPlaces.filter((place) => {
+    return placesList.filter((place) => {
       // Busca por palavra-chave
       if (searchKeyword.trim()) {
         const query = searchKeyword.toLowerCase();
@@ -261,23 +320,25 @@ export function DirectoryPlacesClient({
 
       // Pílula de categoria rápida
       if (selectedCategoryPill) {
-        if (selectedCategoryPill === 'restaurantes' && !place.category.includes('Restaurante'))
+        const cat = place.category.toLowerCase();
+        if (selectedCategoryPill === 'restaurantes' && !cat.includes('restaurante') && !cat.includes('gastronomia'))
           return false;
         if (
           selectedCategoryPill === 'atracoes' &&
-          !place.category.includes('Parques') &&
-          !place.category.includes('Termas')
+          !cat.includes('parque') &&
+          !cat.includes('termas') &&
+          !cat.includes('lazer')
         )
           return false;
-        if (selectedCategoryPill === 'bares' && !place.category.includes('Bares')) return false;
-        if (selectedCategoryPill === 'hospedagem' && !place.category.includes('Pousadas'))
+        if (selectedCategoryPill === 'bares' && !cat.includes('bar') && !cat.includes('chopp')) return false;
+        if (selectedCategoryPill === 'hospedagem' && !cat.includes('hotel') && !cat.includes('pousada') && !cat.includes('resort'))
           return false;
       }
 
       // Categorias marcadas nos checkboxes
       if (selectedCategories.length > 0) {
-        const matchesAnyCategory = selectedCategories.some((cat) =>
-          place.category.toLowerCase().includes(cat.toLowerCase())
+        const matchesAnyCategory = selectedCategories.some((c) =>
+          place.category.toLowerCase().includes(c.toLowerCase())
         );
         if (!matchesAnyCategory) return false;
       }
@@ -296,7 +357,7 @@ export function DirectoryPlacesClient({
       return true;
     });
   }, [
-    initialPlaces,
+    placesList,
     searchKeyword,
     selectedCategoryPill,
     selectedCategories,

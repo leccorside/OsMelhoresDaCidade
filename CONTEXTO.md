@@ -89,6 +89,14 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Construtor do mosaico de fotos (Hero + 4 secundárias com legendas).
     - Construtor de Comodidades e FAQ.
 
+### C. Conexão do Diretório Público de Lugares (`/[city]/lugares` e `/[city]/lugares/[category]`) com a API e PostgreSQL
+- **Integração Híbrida SSR + Reatividade Client-Side**:
+  - Implementada função `fetchPublicListings()` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) conectada ao endpoint `GET /api/v1/listings`.
+  - Páginas públicas realizam busca inicial via Server-Side Rendering (`revalidate = 60`), repassando `serverPlaces` diretamente para o componente [`DirectoryPlacesClient.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/directory/DirectoryPlacesClient.tsx).
+  - O cliente unifica os registros persistidos no PostgreSQL com a base de protótipos de demonstração e atualiza dinamicamente as listagens via `useEffect` caso haja nova busca por texto ou troca de categorias.
+  - **Filtros Dinâmicos de Categorias e Bairros**: As contagens dos checkboxes de filtros laterais são calculadas dinamicamente via `useMemo` com base nos estabelecimentos reais cadastrados.
+  - **Mapa Interativo Leaflet**: O mapa consome diretamente os marcadores atualizados com as coordenadas reais dos estabelecimentos persistidos (`lat`, `lng`), exibindo o pin com o ícone temático da categoria correspondente e popover ao vivo com fotos, faixa de preço e avaliações.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
