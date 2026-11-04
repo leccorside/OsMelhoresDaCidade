@@ -26,6 +26,32 @@ interface DirectoryPlacesMapProps {
   citySlug?: string;
 }
 
+export type MapTileStyle = 'osm' | 'satellite' | 'clean';
+
+const TILE_PROVIDERS: Record<
+  MapTileStyle,
+  { url: string; attribution: string; label: string; icon: string }
+> = {
+  osm: {
+    label: 'Ruas (OpenStreetMap)',
+    icon: 'map',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  satellite: {
+    label: 'Satélite Real',
+    icon: 'satellite_alt',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  },
+  clean: {
+    label: 'Cartográfico',
+    icon: 'layers',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+  },
+};
+
 export function DirectoryPlacesMap({
   places,
   selectedPlaceId,
@@ -34,12 +60,14 @@ export function DirectoryPlacesMap({
 }: DirectoryPlacesMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
+  const currentTileLayerRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
   const [activePopupPlace, setActivePopupPlace] = useState<MapPlaceItem | null>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const [currentStyle, setCurrentStyle] = useState<MapTileStyle>('osm');
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false);
   const [searchAsIMove, setSearchAsIMove] = useState(true);
 
-  // Caldas Novas center
+  // Coordenadas centrais de Caldas Novas, GO
   const defaultCenter = { lat: -17.7444, lng: -48.6253 };
 
   // Atualizar o popup se o card selecionado vier de fora (ex: hover no card da lista)
@@ -55,6 +83,26 @@ export function DirectoryPlacesMap({
     }
   }, [selectedPlaceId, places]);
 
+  // Trocar o tile layer quando o estilo mudar
+  useEffect(() => {
+    if (!leafletMapRef.current) return;
+
+    import('leaflet').then((L) => {
+      if (currentTileLayerRef.current) {
+        leafletMapRef.current.removeLayer(currentTileLayerRef.current);
+      }
+
+      const provider = TILE_PROVIDERS[currentStyle];
+      const newLayer = L.default.tileLayer(provider.url, {
+        attribution: provider.attribution,
+        maxZoom: 19,
+      });
+
+      newLayer.addTo(leafletMapRef.current);
+      currentTileLayerRef.current = newLayer;
+    });
+  }, [currentStyle]);
+
   // Inicializar Leaflet no cliente
   useEffect(() => {
     let isMounted = true;
@@ -65,7 +113,7 @@ export function DirectoryPlacesMap({
       try {
         const L = (await import('leaflet')).default;
 
-        // Se já existe um mapa nessa div, limpamos
+        // Limpeza prévia
         if (leafletMapRef.current) {
           leafletMapRef.current.remove();
           leafletMapRef.current = null;
@@ -77,21 +125,22 @@ export function DirectoryPlacesMap({
           zoomControl: false,
         });
 
-        // Adicionar zoom no canto inferior direito
+        // Controles de zoom
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Tile layer elegante e moderno (CartoDB Positron / OSM)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+        // Tile layer padrão: OpenStreetMap Standard (100% público e gratuito, sem exigência de API Key)
+        const provider = TILE_PROVIDERS[currentStyle];
+        const tileLayer = L.tileLayer(provider.url, {
+          attribution: provider.attribution,
           maxZoom: 19,
         }).addTo(map);
 
+        currentTileLayerRef.current = tileLayer;
         leafletMapRef.current = map;
 
-        // Adicionar marcadores
+        // Adicionar marcadores com pinos customizados
         markersRef.current = {};
         places.forEach((place) => {
-          // Marcador personalizado estilo pino com ícone (igual à imagem de referência)
           const customIcon = L.divIcon({
             className: 'custom-map-marker',
             html: `
@@ -123,8 +172,6 @@ export function DirectoryPlacesMap({
 
           markersRef.current[place.id] = marker;
         });
-
-        if (isMounted) setMapLoaded(true);
       } catch (err) {
         console.warn('Leaflet initialization fallback:', err);
       }
@@ -148,11 +195,12 @@ export function DirectoryPlacesMap({
 
   return (
     <div className="w-full h-full min-h-[580px] rounded-3xl overflow-hidden shadow-md border border-gray-200 relative bg-[#EBF0EE]">
-      {/* Container Leaflet Real */}
+      {/* Container Leaflet Real com Mapa Real no Fundo */}
       <div ref={mapContainerRef} className="w-full h-full min-h-[580px] z-10" />
 
       {/* Floating Controls no Topo do Mapa */}
       <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between gap-2 pointer-events-auto">
+        {/* Toggle Buscar ao Mover */}
         <label className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-full shadow-md text-xs font-semibold text-[#1C1B1B] cursor-pointer hover:bg-white transition-all border border-gray-100">
           <input
             type="checkbox"
@@ -163,20 +211,69 @@ export function DirectoryPlacesMap({
           <span>Buscar ao mover o mapa</span>
         </label>
 
-        <button
-          onClick={() => {
-            if (leafletMapRef.current) {
-              leafletMapRef.current.setView([defaultCenter.lat, defaultCenter.lng], 14);
-            }
-          }}
-          className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md text-[#1C1B1B] hover:text-[#FF3B4F] flex items-center justify-center shadow-md transition-all border border-gray-100"
-          title="Centralizar em Caldas Novas"
-        >
-          <span className="material-symbols-outlined text-[18px]">my_location</span>
-        </button>
+        {/* Grupo de Ações à Direita: Seletor de Camada + Botão Centralizar */}
+        <div className="flex items-center gap-2 relative">
+          {/* Seletor de Camada (Ruas / Satélite / Cartográfico) */}
+          <div className="relative">
+            <button
+              onClick={() => setStyleMenuOpen(!styleMenuOpen)}
+              className="px-3 py-2 rounded-full bg-white/95 backdrop-blur-md text-[#1C1B1B] hover:text-[#FF3B4F] flex items-center gap-1.5 shadow-md text-xs font-bold border border-gray-100 transition-all"
+              title="Trocar estilo do mapa"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {TILE_PROVIDERS[currentStyle].icon}
+              </span>
+              <span className="hidden sm:inline">Camada</span>
+              <span className="material-symbols-outlined text-[14px]">expand_more</span>
+            </button>
+
+            {styleMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 z-50 space-y-1">
+                {(Object.keys(TILE_PROVIDERS) as MapTileStyle[]).map((key) => {
+                  const prov = TILE_PROVIDERS[key];
+                  const active = currentStyle === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setCurrentStyle(key);
+                        setStyleMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-semibold transition-colors ${
+                        active
+                          ? 'bg-red-50 text-[#FF3B4F]'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        {prov.icon}
+                      </span>
+                      <span>{prov.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Botão Centralizar */}
+          <button
+            onClick={() => {
+              if (leafletMapRef.current) {
+                leafletMapRef.current.setView([defaultCenter.lat, defaultCenter.lng], 14, {
+                  animate: true,
+                });
+              }
+            }}
+            className="w-9 h-9 rounded-full bg-white/95 backdrop-blur-md text-[#1C1B1B] hover:text-[#FF3B4F] flex items-center justify-center shadow-md transition-all border border-gray-100"
+            title="Centralizar em Caldas Novas"
+          >
+            <span className="material-symbols-outlined text-[18px]">my_location</span>
+          </button>
+        </div>
       </div>
 
-      {/* POPUP CARD FLUTUANTE - Exatamente como na imagem de referência do usuário */}
+      {/* POPUP CARD FLUTUANTE - Idêntico à imagem 2 de referência */}
       {activePopupPlace && (
         <div className="absolute top-16 left-6 z-30 animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-white rounded-2xl shadow-2xl p-2.5 w-64 border border-gray-100 relative">
@@ -232,4 +329,3 @@ export function DirectoryPlacesMap({
     </div>
   );
 }
-
