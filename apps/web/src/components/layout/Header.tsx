@@ -21,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cityModalOpen, setCityModalOpen] = useState(false);
+  const [lugaresMenuOpen, setLugaresMenuOpen] = useState(false);
 
   const cityPrefix = currentCitySlug ? `/${currentCitySlug}` : '/caldas-novas';
 
@@ -115,28 +116,73 @@ export const Header: React.FC<HeaderProps> = ({
                 />
               </Link>
               <nav className="hidden xl:flex items-center gap-2">
-                {/* Dropdown de Lugares */}
-                <div className="relative group">
-                  <button className="flex items-center gap-1 text-[13px] font-semibold text-[#5C3F3F] hover:text-[#1C1B1B] transition-colors px-2 py-1" type="button">
+                {/* Dropdown de Lugares com ponte contígua e suporte a hover e clique */}
+                <div
+                  className="relative group"
+                  onMouseEnter={() => setLugaresMenuOpen(true)}
+                  onMouseLeave={() => setLugaresMenuOpen(false)}
+                >
+                  <button
+                    onClick={() => setLugaresMenuOpen(!lugaresMenuOpen)}
+                    className="flex items-center gap-1 text-[13px] font-semibold text-[#5C3F3F] hover:text-[#1C1B1B] transition-colors px-2 py-1"
+                    type="button"
+                    aria-expanded={lugaresMenuOpen}
+                  >
                     <span>Lugares</span>
-                    <span className="material-symbols-outlined text-[16px]">expand_more</span>
+                    <span
+                      className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${
+                        lugaresMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    >
+                      expand_more
+                    </span>
                   </button>
-                  <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-xl shadow-[0_12px_24px_-4px_rgba(23,23,23,0.08)] py-2 hidden group-hover:block border border-[#EAE7E7] z-50">
-                    <Link className="block px-4 py-2 text-[13px] text-[#5C3F3F] hover:bg-[#F0EDED] hover:text-[#1C1B1B]" href={`${cityPrefix}/lugares`}>
-                      Todos os Lugares
-                    </Link>
-                    <Link className="block px-4 py-2 text-[13px] text-[#5C3F3F] hover:bg-[#F0EDED] hover:text-[#1C1B1B]" href={`${cityPrefix}/lugares?cat=restaurantes`}>
-                      Restaurantes & Bares
-                    </Link>
-                    <Link className="block px-4 py-2 text-[13px] text-[#5C3F3F] hover:bg-[#F0EDED] hover:text-[#1C1B1B]" href={`${cityPrefix}/lugares?cat=hoteis`}>
-                      Hotéis & Pousadas
-                    </Link>
-                    <Link className="block px-4 py-2 text-[13px] text-[#5C3F3F] hover:bg-[#F0EDED] hover:text-[#1C1B1B]" href={`${cityPrefix}/lugares?cat=servicos`}>
-                      Serviços
-                    </Link>
-                    <Link className="block px-4 py-2 text-[13px] text-[#5C3F3F] hover:bg-[#F0EDED] hover:text-[#1C1B1B]" href={`${cityPrefix}/lugares?cat=comercio`}>
-                      Comércio
-                    </Link>
+
+                  {/* Wrapper contíguo: o padding superior (pt-2) garante que o mouse nunca saia da área de hover */}
+                  <div
+                    className={`absolute left-0 top-full pt-1.5 w-56 z-50 transition-all duration-150 ${
+                      lugaresMenuOpen
+                        ? 'opacity-100 visible translate-y-0 pointer-events-auto'
+                        : 'opacity-0 invisible -translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto group-hover:translate-y-0'
+                    }`}
+                  >
+                    <div className="bg-white rounded-2xl shadow-[0_12px_28px_-4px_rgba(23,23,23,0.12)] py-2 border border-[#EAE7E7] overflow-hidden">
+                      <Link
+                        onClick={() => setLugaresMenuOpen(false)}
+                        className="block px-4 py-2 text-[13px] font-medium text-[#5C3F3F] hover:bg-[#F6F3F2] hover:text-[#1C1B1B] transition-colors"
+                        href={`${cityPrefix}/lugares`}
+                      >
+                        Todos os Lugares
+                      </Link>
+                      <Link
+                        onClick={() => setLugaresMenuOpen(false)}
+                        className="block px-4 py-2 text-[13px] font-medium text-[#5C3F3F] hover:bg-[#F6F3F2] hover:text-[#1C1B1B] transition-colors"
+                        href={`${cityPrefix}/lugares?cat=restaurantes`}
+                      >
+                        Restaurantes & Bares
+                      </Link>
+                      <Link
+                        onClick={() => setLugaresMenuOpen(false)}
+                        className="block px-4 py-2 text-[13px] font-medium text-[#5C3F3F] hover:bg-[#F6F3F2] hover:text-[#1C1B1B] transition-colors"
+                        href={`${cityPrefix}/lugares?cat=hoteis`}
+                      >
+                        Hotéis & Pousadas
+                      </Link>
+                      <Link
+                        onClick={() => setLugaresMenuOpen(false)}
+                        className="block px-4 py-2 text-[13px] font-medium text-[#5C3F3F] hover:bg-[#F6F3F2] hover:text-[#1C1B1B] transition-colors"
+                        href={`${cityPrefix}/lugares?cat=servicos`}
+                      >
+                        Serviços
+                      </Link>
+                      <Link
+                        onClick={() => setLugaresMenuOpen(false)}
+                        className="block px-4 py-2 text-[13px] font-medium text-[#5C3F3F] hover:bg-[#F6F3F2] hover:text-[#1C1B1B] transition-colors"
+                        href={`${cityPrefix}/lugares?cat=comercio`}
+                      >
+                        Comércio
+                      </Link>
+                    </div>
                   </div>
                 </div>
 
