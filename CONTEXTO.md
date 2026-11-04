@@ -413,6 +413,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Tabela de desempenho ranqueado por estabelecimento com atalhos diretos para as páginas públicas correspondentes.
     - Seção editorial com 3 dicas estratégicas para maximizar conversões de visitantes em clientes.
 
+### V. Painel de Moderação Master de Cupons e Comunicados em Massa
+- **Backend NestJS (`apps/api`)**:
+  - Métodos `findAllCoupons`, `updateCouponStatusAdmin` e `broadcastNotification` em [`AdminService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/admin/admin.service.ts).
+  - Endpoints sob `/api/v1/admin`:
+    - `GET /admin/coupons`: listagem global com métricas e filtros.
+    - `PATCH /admin/coupons/:id/status`: pausa ou ativação forçada de cupons.
+    - `POST /admin/notifications/broadcast`: disparo em massa de comunicados oficiais por perfil (`MERCHANT`, `USER` ou `ALL`).
+- **Frontend Next.js (`apps/web`)**:
+  - Tela de moderação global em [`/admin/cupons`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/cupons/page.tsx) com métricas da cidade, filtros por status e alternador rápido.
+  - Tela de comunicados e avisos em massa em [`/admin/comunicados`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/comunicados/page.tsx) com seletor de público alvo, preview do alerta e histórico de envios.
+  - Links adicionados na navegação lateral do painel master ([`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx)).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

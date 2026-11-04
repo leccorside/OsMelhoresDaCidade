@@ -1859,3 +1859,81 @@ export async function changeMerchantPasswordApi(data: {
 
   return res.json();
 }
+
+// ==========================================
+// ADMIN: MODERAÇÃO DE CUPONS E COMUNICADOS
+// ==========================================
+
+export async function fetchAdminCoupons(params?: {
+  status?: string;
+  search?: string;
+}): Promise<{
+  metrics: {
+    totalCoupons: number;
+    activeCoupons: number;
+    totalClaims: number;
+  };
+  coupons: any[];
+}> {
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== 'ALL') query.append('status', params.status);
+  if (params?.search) query.append('search', params.search);
+
+  const url = `${getApiBaseUrl()}/admin/coupons${query.toString() ? `?${query.toString()}` : ''}`;
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Erro ao buscar cupons de admin: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateAdminCouponStatusApi(id: string, status: string): Promise<any> {
+  const url = `${getApiBaseUrl()}/admin/coupons/${encodeURIComponent(id)}/status`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ status }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao atualizar status: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function broadcastNotificationApi(data: {
+  title: string;
+  message: string;
+  linkUrl?: string;
+  targetRole?: string;
+}): Promise<{ success: boolean; count: number; message: string }> {
+  const url = `${getApiBaseUrl()}/admin/notifications/broadcast`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Erro ao disparar comunicado: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

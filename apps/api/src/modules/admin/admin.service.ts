@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ListingStatus } from '@prisma/client';
+import { ListingStatus, CouponStatus, NotificationType, Role } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -87,6 +87,113 @@ export class AdminService {
         neighborhood: true,
       },
     });
+  }
+
+  // --- MODERAÇÃO GLOBAL DE CUPONS & PROMOÇÕES ---
+
+  async findAllCoupons(query?: { status?: string; search?: string }) {
+    const where: any = {};
+
+    if (query?.status && query.status !== 'ALL') {
+      where.status = query.status as CouponStatus;
+    }
+
+    if (query?.search) {
+      const s = query.search.trim();
+      where.OR = [
+        { code: { contains: s, mode: 'insensitive' } },
+        { title: { contains: s, mode: 'insensitive' } },
+        { listing: { name: { contains: s, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [allCoupons, filteredCoupons] = await Promise.all([
+      this.prisma.coupon.findMany({
+        include: { claims: { select: { id: true } } },
+      }),
+      this.prisma.coupon.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          listing: {
+            select: { id: true, name: true, slug: true, city: { select: { name: true } } },
+          },
+          claims: {
+            take: 3,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, claimCode: true, customerName: true, createdAt: true, usedAt: true },
+          },
+        },
+      }),
+    ]);
+
+    const totalCoupons = allCoupons.length;
+    const activeCoupons = allCoupons.filter((c) => c.status === CouponStatus.ACTIVE).length;
+    const totalClaims = allCoupons.reduce((acc, c) => acc + (c.usedCount || c.claims.length), 0);
+
+    return {
+      metrics: {
+        totalCoupons,
+        activeCoupons,
+        totalClaims,
+      },
+      coupons: filteredCoupons,
+    };
+  }
+
+  async updateCouponStatusAdmin(id: string, status: CouponStatus) {
+    const coupon = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!coupon) throw new NotFoundException('Cupom não encontrado.');
+
+    return this.prisma.coupon.update({
+      where: { id },
+      data: { status },
+      include: {
+        listing: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  // --- COMUNICADOS E AVISOS DO SISTEMA EM MASSA ---
+
+  async broadcastNotification(dto: {
+    title: string;
+    message: string;
+    linkUrl?: string;
+    targetRole?: string;
+  }) {
+    const where: any = { isActive: true };
+
+    if (dto.targetRole === 'MERCHANT') {
+      where.role = Role.MERCHANT;
+    } else if (dto.targetRole === 'USER') {
+      where.role = Role.USER;
+    }
+
+    const recipients = await this.prisma.user.findMany({
+      where,
+      select: { id: true },
+    });
+
+    if (recipients.length === 0) {
+      return { success: true, count: 0, message: 'Nenhum usuário encontrado para o perfil selecionado.' };
+    }
+
+    await this.prisma.notification.createMany({
+      data: recipients.map((u) => ({
+        userId: u.id,
+        type: NotificationType.SYSTEM_ALERT,
+        title: dto.title.trim(),
+        message: dto.message.trim(),
+        linkUrl: dto.linkUrl ? dto.linkUrl.trim() : null,
+      })),
+    });
+
+    return {
+      success: true,
+      count: recipients.length,
+      message: `Comunicado enviado com sucesso para ${recipients.length} usuário(s)!`,
+    };
   }
 }
 
