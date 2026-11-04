@@ -136,5 +136,109 @@ export class MailService {
       return { success: false, error: err.message };
     }
   }
+
+  async sendSubscriptionExpiringEmail(data: {
+    merchantName: string;
+    merchantEmail: string;
+    listingName: string;
+    planName: string;
+    daysLeft: number;
+    renewUrl: string;
+  }) {
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F9FAFB; margin: 0; padding: 24px; color: #1F2937; }
+    .card { max-width: 580px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #E5E7EB; }
+    .header { background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: #FFFFFF; padding: 28px; text-align: center; }
+    .content { padding: 28px; font-size: 14px; line-height: 1.6; }
+    .btn { background-color: #D97706; color: #FFFFFF; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 800; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h2 style="margin: 0; font-size: 20px;">⏰ Seu Destaque Expira em Breve!</h2>
+    </div>
+    <div class="content">
+      <p>Olá, <strong>${data.merchantName}</strong>,</p>
+      <p>O plano <strong>${data.planName}</strong> do seu estabelecimento <strong>${data.listingName}</strong> expira em <strong>${data.daysLeft} dias</strong>.</p>
+      <p>Para não perder o selo de verificação VIP, topo das buscas e os leads direto no WhatsApp, garanta sua renovação agora mesmo.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${data.renewUrl}" class="btn">Renovar Plano de Destaque</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: '"Os Melhores da Cidade" <faturamento@osmelhoresdacidade.com.br>',
+        to: data.merchantEmail,
+        subject: `⏰ Seu plano de destaque expira em ${data.daysLeft} dias - ${data.listingName}`,
+        html,
+      });
+      return { success: true, info };
+    } catch (err: any) {
+      this.logger.error(`Erro ao enviar alerta de vencimento para ${data.merchantEmail}: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
+
+  async sendSubscriptionExpiredEmail(data: {
+    merchantName: string;
+    merchantEmail: string;
+    listingName: string;
+    planName: string;
+    renewUrl: string;
+  }) {
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F9FAFB; margin: 0; padding: 24px; color: #1F2937; }
+    .card { max-width: 580px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #E5E7EB; }
+    .header { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); color: #FFFFFF; padding: 28px; text-align: center; }
+    .content { padding: 28px; font-size: 14px; line-height: 1.6; }
+    .btn { background-color: #EF4444; color: #FFFFFF; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 800; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h2 style="margin: 0; font-size: 20px;">⚠️ Seu Plano de Destaque Expirou</h2>
+    </div>
+    <div class="content">
+      <p>Olá, <strong>${data.merchantName}</strong>,</p>
+      <p>Informamos que a vigência do plano <strong>${data.planName}</strong> para <strong>${data.listingName}</strong> chegou ao fim.</p>
+      <p>O selo de destaque no guia foi temporariamente pausado. Reative hoje mesmo para voltar ao topo e continuar recebendo clientes qualificados!</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${data.renewUrl}" class="btn">Reativar Meu Destaque</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: '"Os Melhores da Cidade" <faturamento@osmelhoresdacidade.com.br>',
+        to: data.merchantEmail,
+        subject: `⚠️ Seu plano de destaque expirou - ${data.listingName}`,
+        html,
+      });
+      return { success: true, info };
+    } catch (err: any) {
+      this.logger.error(`Erro ao enviar aviso de expiração para ${data.merchantEmail}: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
 }
+
 

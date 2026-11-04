@@ -463,6 +463,24 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - **Página de Detalhes ([`PlaceDetailView.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/place/PlaceDetailView.tsx))**:
     - Selo oficial destacado no cabeçalho com coroa pulsante dourada para o plano Ouro Master VIP e selo prateado para o plano Prata Regional.
 
+### Z. Rotina Cron e Notificações de Vencimento de Assinatura
+- **Modelagem Prisma (`apps/api/prisma/schema.prisma`)**:
+  - Adicionado valor `EXPIRED` ao enum `PaymentStatus` e sincronizado com o banco de dados PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Serviço [`SubscriptionCronService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/subscription-cron.service.ts):
+    - Ciclo de vida com `OnApplicationBootstrap` (inicia checagem inicial e timer periódico a cada 12 horas) e `OnModuleDestroy` para limpeza de timers.
+    - **Varredura de Assinaturas Expiradas**:
+      - Atualiza status para `EXPIRED`.
+      - Verifica se o anúncio possui outra assinatura ativa; caso não possua, reverte o destaque do anúncio (`Listing.isFeatured = false`).
+      - Dispara notificação in-app ao comerciante alertando sobre a expiração.
+      - Dispara e-mail via `MailService.sendSubscriptionExpiredEmail` com link direto para reativação.
+    - **Aviso Preventivo de Vencimento (≤ 3 dias)**:
+      - Identifica planos prestes a expirar.
+      - Dispara notificação in-app preventiva.
+      - Dispara e-mail via `MailService.sendSubscriptionExpiringEmail` informando os dias restantes e link para renovação.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts):
+    - `POST /api/v1/billing/admin/process-expirations` protegido por `JwtAuthGuard` e `Roles(Role.ADMIN)` para acionamento sob demanda ou via webhook/cron externo.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
