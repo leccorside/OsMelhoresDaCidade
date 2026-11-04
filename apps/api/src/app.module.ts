@@ -6,6 +6,8 @@ import { GeographyModule } from './modules/geography/geography.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ListingsModule } from './modules/listings/listings.module';
 import { EventsModule } from './modules/events/events.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { EventsModule } from './modules/events/events.module';
     AuthModule,
     ListingsModule,
     EventsModule,
+    ReviewsModule,
+    FavoritesModule,
   ],
   controllers: [],
   providers: [],
