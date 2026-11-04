@@ -776,3 +776,4 @@ export function getPlaceDetailData(slug: string): PlaceDetailData | null {
 
   return null;
 }
+
