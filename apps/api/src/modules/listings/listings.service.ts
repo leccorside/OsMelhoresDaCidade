@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { ListingStatus } from '@prisma/client';
+import { ListingStatus, DayOfWeek } from '@prisma/client';
 
 export interface ListingFilterParams {
   citySlug?: string;
@@ -12,6 +12,26 @@ export interface ListingFilterParams {
   sortBy?: 'melhores' | 'populares' | 'menor_preco' | 'recentes';
   page?: number;
   limit?: number;
+}
+
+export interface CreateListingDto {
+  name: string;
+  slug: string;
+  shortDescription?: string;
+  fullDescription?: string;
+  categoryId: string;
+  cityId: string;
+  neighborhoodId?: string;
+  street?: string;
+  number?: string;
+  phone?: string;
+  whatsapp?: string;
+  website?: string;
+  priceTier?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  amenities?: string[];
+  hours?: Array<{ dayOfWeek: DayOfWeek; openTime: string; closeTime: string; isClosed?: boolean }>;
 }
 
 @Injectable()
@@ -148,7 +168,6 @@ export class ListingsService {
       throw new NotFoundException(`Estabelecimento "${slug}" não encontrado em ${citySlug}.`);
     }
 
-    // Incrementar contador de visualizações
     await this.prisma.listing.update({
       where: { id: listing.id },
       data: { viewsCount: { increment: 1 } },
@@ -156,5 +175,113 @@ export class ListingsService {
 
     return listing;
   }
-}
 
+  // --- ÁREA DO COMERCIANTE ---
+
+  async findMerchantListings(merchantProfileId: string) {
+    return this.prisma.listing.findMany({
+      where: {
+        owners: {
+          some: { merchantProfileId },
+        },
+      },
+      include: {
+        category: true,
+        city: true,
+        neighborhood: true,
+        _count: {
+          select: {
+            reviews: true,
+            favorites: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getMerchantStats(merchantProfileId: string) {
+    const listings = await this.prisma.listing.findMany({
+      where: {
+        owners: {
+          some: { merchantProfileId },
+        },
+      },
+      select: {
+        id: true,
+        viewsCount: true,
+        whatsappClicks: true,
+        phoneClicks: true,
+        directionsClicks: true,
+        ratingAverage: true,
+        ratingCount: true,
+        status: true,
+      },
+    });
+
+    const totalListings = listings.length;
+    const totalViews = listings.reduce((acc, l) => acc + l.viewsCount, 0);
+    const totalWhatsappClicks = listings.reduce((acc, l) => acc + l.whatsappClicks, 0);
+    const totalDirectionsClicks = listings.reduce((acc, l) => acc + l.directionsClicks, 0);
+    const totalPhoneClicks = listings.reduce((acc, l) => acc + l.phoneClicks, 0);
+
+    const ratingsSum = listings.reduce((acc, l) => acc + l.ratingAverage * l.ratingCount, 0);
+    const totalRatingReviews = listings.reduce((acc, l) => acc + l.ratingCount, 0);
+    const overallRating = totalRatingReviews > 0 ? (ratingsSum / totalRatingReviews).toFixed(1) : '5.0';
+
+    return {
+      totalListings,
+      totalViews,
+      totalWhatsappClicks,
+      totalDirectionsClicks,
+      totalPhoneClicks,
+      overallRating,
+      publishedListings: listings.filter((l) => l.status === ListingStatus.PUBLISHED).length,
+      pendingListings: listings.filter((l) => l.status === ListingStatus.PENDING).length,
+    };
+  }
+
+  async create(merchantProfileId: string, dto: CreateListingDto) {
+    // Criação com status PENDING para aprovação pela moderação
+    return this.prisma.listing.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        shortDescription: dto.shortDescription,
+        fullDescription: dto.fullDescription,
+        categoryId: dto.categoryId,
+        cityId: dto.cityId,
+        neighborhoodId: dto.neighborhoodId,
+        street: dto.street,
+        number: dto.number,
+        phone: dto.phone,
+        whatsapp: dto.whatsapp,
+        website: dto.website,
+        priceTier: dto.priceTier || '$$',
+        metaTitle: dto.metaTitle || `${dto.name} | Os Melhores da Cidade`,
+        metaDescription: dto.metaDescription || dto.shortDescription,
+        status: ListingStatus.PENDING,
+        owners: {
+          create: {
+            merchantProfileId,
+            role: 'OWNER',
+          },
+        },
+        ...(dto.hours && dto.hours.length > 0
+          ? {
+              openingHours: {
+                createMany: {
+                  data: dto.hours.map((h) => ({
+                    dayOfWeek: h.dayOfWeek,
+                    openTime: h.openTime,
+                    closeTime: h.closeTime,
+                    isClosed: !!h.isClosed,
+                  })),
+                },
+              },
+            }
+          : {}),
+      },
+    });
+  }
+}

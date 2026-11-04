@@ -1,6 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { ListingsService } from './listings.service';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { ListingsService, CreateListingDto } from './listings.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('Estabelecimentos')
 @Controller('listings')
@@ -9,14 +14,14 @@ export class ListingsController {
 
   @Get()
   @ApiOperation({ summary: 'Listar estabelecimentos com filtros e paginação' })
-  @ApiQuery({ name: 'citySlug', required: false, description: 'Slug da cidade' })
-  @ApiQuery({ name: 'categorySlug', required: false, description: 'Slug da categoria' })
-  @ApiQuery({ name: 'neighborhoodSlug', required: false, description: 'Slug do bairro' })
-  @ApiQuery({ name: 'search', required: false, description: 'Termo de busca textual' })
-  @ApiQuery({ name: 'priceTier', required: false, description: 'Faixa de preço ($, $$, $$$, $$$$)' })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['melhores', 'populares', 'menor_preco', 'recentes'] })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'citySlug', required: false })
+  @ApiQuery({ name: 'categorySlug', required: false })
+  @ApiQuery({ name: 'neighborhoodSlug', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'priceTier', required: false })
+  @ApiQuery({ name: 'sortBy', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
   async findAll(
     @Query('citySlug') citySlug?: string,
     @Query('categorySlug') categorySlug?: string,
@@ -39,8 +44,48 @@ export class ListingsController {
     });
   }
 
+  // --- ROTAS DO COMERCIANTE ---
+
+  @Get('merchant/mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar estabelecimentos pertencentes ao comerciante logado' })
+  async findMerchantListings(@CurrentUser() user: any) {
+    if (!user.merchantProfile) {
+      throw new ForbiddenException('Perfil de comerciante não vinculado.');
+    }
+    return this.listingsService.findMerchantListings(user.merchantProfile.id);
+  }
+
+  @Get('merchant/stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter métricas e estatísticas consolidadas do comerciante' })
+  async getMerchantStats(@CurrentUser() user: any) {
+    if (!user.merchantProfile) {
+      throw new ForbiddenException('Perfil de comerciante não vinculado.');
+    }
+    return this.listingsService.getMerchantStats(user.merchantProfile.id);
+  }
+
+  @Post('merchant/create')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cadastrar novo estabelecimento para moderação' })
+  async createListing(@CurrentUser() user: any, @Body() dto: CreateListingDto) {
+    if (!user.merchantProfile) {
+      throw new ForbiddenException('Perfil de comerciante não vinculado.');
+    }
+    return this.listingsService.create(user.merchantProfile.id, dto);
+  }
+
+  // --- ROTA PÚBLICA DE DETALHES ---
+
   @Get(':citySlug/:slug')
-  @ApiOperation({ summary: 'Obter detalhes completos de um estabelecimento por cidade e slug' })
+  @ApiOperation({ summary: 'Obter detalhes de um estabelecimento' })
   async findBySlug(
     @Param('citySlug') citySlug: string,
     @Param('slug') slug: string,
@@ -48,4 +93,3 @@ export class ListingsController {
     return this.listingsService.findBySlug(citySlug, slug);
   }
 }
-
