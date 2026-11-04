@@ -3,7 +3,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { constructMetadata } from '@/lib/seo';
-import { Search, MapPin, Utensils, Beer, Building2, Calendar, Star, Compass } from 'lucide-react';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { MobileNav } from '@/components/layout/MobileNav';
+import { OmniSearchBar } from '@/components/search/OmniSearchBar';
+import { CategoryCard } from '@/components/cards/CategoryCard';
+import { ListingCard } from '@/components/cards/ListingCard';
+import { EventCard } from '@/components/cards/EventCard';
+import { Sparkles, Calendar, Compass, ArrowRight, ShieldCheck, Flame } from 'lucide-react';
 
 interface CityPageProps {
   params: Promise<{
@@ -11,7 +18,6 @@ interface CityPageProps {
   }>;
 }
 
-// Exemplos de cidades válidas para validação SSR
 const CITIES_DATA: Record<
   string,
   {
@@ -19,15 +25,13 @@ const CITIES_DATA: Record<
     uf: string;
     intro: string;
     description: string;
-    heroImage: string;
   }
 > = {
   'caldas-novas': {
     name: 'Caldas Novas',
     uf: 'GO',
-    intro: 'A maior estância hidrotermal do mundo com gastronomia vibrante, hotéis de lazer e atrações únicas.',
-    description: 'Descubra restaurantes, bares, eventos, comércios, passeios e atrações em Caldas Novas, Goiás.',
-    heroImage: '/logo-01.png',
+    intro: 'A maior estância hidrotermal do mundo com culinária vibrante, parques termais exclusivos e hotelaria de alto padrão.',
+    description: 'Descubra os melhores restaurantes, bares, hotéis, parques termais e eventos em Caldas Novas, Goiás.',
   },
 };
 
@@ -43,14 +47,14 @@ export async function generateMetadata({ params }: CityPageProps): Promise<Metad
   }
 
   return constructMetadata({
-    title: `Os Melhores de ${cityData.name} (${cityData.uf}) | Restaurantes, Eventos e Lazer`,
+    title: `Os Melhores de ${cityData.name} (${cityData.uf}) | Gastronomia, Lazer e Eventos`,
     description: cityData.description,
     cityName: cityData.name,
     canonical: `/${city}`,
   });
 }
 
-export const revalidate = 3600; // ISR: Revalidação a cada 1 hora
+export const revalidate = 3600;
 
 export default async function MunicipalHomePage({ params }: CityPageProps) {
   const { city } = await params;
@@ -60,7 +64,82 @@ export default async function MunicipalHomePage({ params }: CityPageProps) {
     notFound();
   }
 
-  // Schema.org Breadcrumbs e WebSite municipal
+  // Exemplos reais de categorias
+  const categories = [
+    { name: 'Restaurantes', slug: 'restaurantes', count: 48 },
+    { name: 'Bares & Pubs', slug: 'bares', count: 26 },
+    { name: 'Hotéis & Pousadas', slug: 'hospedagem', count: 62 },
+    { name: 'Parques & Lazer', slug: 'atracoes', count: 14 },
+    { name: 'Shows & Festivais', slug: 'eventos', count: 9 },
+    { name: 'Comércio & Serviços', slug: 'comercio', count: 85 },
+  ];
+
+  // Exemplos reais de estabelecimentos extraídos dos protótipos Stitch
+  const featuredListings = [
+    {
+      id: '1',
+      name: 'Restaurante Nonna Mia',
+      slug: 'restaurante-nonna-mia',
+      categoryName: 'Culinária Italiana & Colonial',
+      neighborhood: 'Centro',
+      priceTier: '$$$',
+      ratingAverage: 4.9,
+      ratingCount: 1240,
+      isOpen: true,
+      isFeatured: true,
+    },
+    {
+      id: '2',
+      name: 'diRoma Acqua Park',
+      slug: 'diroma-acqua-park',
+      categoryName: 'Parque Aquático Termal',
+      neighborhood: 'Solar de Caldas',
+      priceTier: '$$$$',
+      ratingAverage: 4.8,
+      ratingCount: 3500,
+      isOpen: true,
+      isFeatured: true,
+    },
+    {
+      id: '3',
+      name: 'Pousada Termal do Lago',
+      slug: 'pousada-termal-do-lago',
+      categoryName: 'Hospedagem & Charme',
+      neighborhood: 'Lago Corumbá',
+      priceTier: '$$$',
+      ratingAverage: 4.9,
+      ratingCount: 890,
+      isOpen: true,
+      isFeatured: true,
+    },
+  ];
+
+  // Exemplo de evento dos protótipos Stitch
+  const upcomingEvents = [
+    {
+      id: 'evt-1',
+      name: 'Caldas Country Festival 2025',
+      slug: 'caldas-country-festival-2025',
+      categoryName: 'Festival Sertanejo',
+      startDate: '2025-11-14T19:00:00Z',
+      startTime: '20:00',
+      address: 'Arena Caldas Music, Caldas Novas',
+      isFree: false,
+      priceInfo: 'A partir de R$ 180',
+    },
+    {
+      id: 'evt-2',
+      name: 'Festival Gastronômico das Águas Quentes',
+      slug: 'festival-gastronomico-aguas-quentes',
+      categoryName: 'Gastronomia & Cultura',
+      startDate: '2025-12-05T18:00:00Z',
+      startTime: '18:00',
+      address: 'Praça Mestre Orlando, Centro',
+      isFree: true,
+      priceInfo: 'Entrada Gratuita',
+    },
+  ];
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
@@ -91,181 +170,170 @@ export default async function MunicipalHomePage({ params }: CityPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="flex-1 flex flex-col">
-        {/* Header da Cidade */}
-        <header className="w-full bg-white border-b border-[#E5E7EB] py-4 px-6 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <Link href="/" className="flex items-center">
-                <Image
-                  src="/logo-01.png"
-                  alt="Os Melhores da Cidade"
-                  width={150}
-                  height={40}
-                  className="h-9 w-auto object-contain"
-                />
-              </Link>
-              <div className="hidden md:flex items-center space-x-2 text-sm text-[#777777] bg-[#F5F5F5] px-3 py-1.5 rounded-full">
-                <MapPin className="w-3.5 h-3.5 text-[#FF3B4F]" />
-                <span className="font-semibold text-[#171717]">{cityData.name} - {cityData.uf}</span>
-                <Link href="/" className="text-xs text-[#FF3B4F] hover:underline ml-1">
-                  (Trocar)
-                </Link>
-              </div>
-            </div>
+      <Header
+        currentCitySlug={city}
+        currentCityName={cityData.name}
+        currentCityUf={cityData.uf}
+      />
 
-            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-[#171717]">
-              <Link href={`/${city}`} className="text-[#FF3B4F] font-semibold">
-                Início
-              </Link>
-              <Link href={`/${city}/lugares`} className="hover:text-[#FF3B4F] transition">
-                Lugares
-              </Link>
-              <Link href={`/${city}/eventos`} className="hover:text-[#FF3B4F] transition">
-                Eventos
-              </Link>
-              <Link href={`/${city}/blog`} className="hover:text-[#FF3B4F] transition">
-                Blog
-              </Link>
-              <Link href="/contato" className="hover:text-[#FF3B4F] transition">
-                Contatos
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-3">
-              <Link
-                href="/anuncie"
-                className="px-4 py-2 rounded-full bg-[#FF3B4F] text-white text-xs font-semibold hover:bg-[#D91F35] transition shadow-card"
-              >
-                Anuncie seu negócio
-              </Link>
-            </div>
+      <main className="flex-1 flex flex-col pb-16 sm:pb-0">
+        {/* Hero Municipal */}
+        <section className="relative py-16 lg:py-24 px-6 bg-gradient-to-r from-[#171717] via-[#241F1F] to-[#171717] text-white flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold uppercase tracking-wider mb-5">
+            <Compass className="w-3.5 h-3.5 text-[#FF3B4F]" />
+            Guia Municipal Exclusivo
           </div>
-        </header>
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black mb-4 tracking-tight">
+            Os Melhores de {cityData.name}
+          </h1>
+          <p className="text-base sm:text-lg text-gray-300 max-w-2xl mb-10 leading-relaxed">
+            {cityData.intro}
+          </p>
 
-        {/* Hero Section */}
-        <section className="bg-gradient-to-r from-[#171717] to-[#2B2B2B] text-white py-16 px-6">
-          <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-medium uppercase tracking-wider mb-4">
-              <Compass className="w-3.5 h-3.5 text-[#FF3B4F]" />
-              Guia Completo da Cidade
-            </span>
-            <h1 className="text-3xl sm:text-5xl font-black mb-4 tracking-tight">
-              Os Melhores de {cityData.name}
-            </h1>
-            <p className="text-base sm:text-lg text-gray-300 max-w-2xl mb-8">
-              {cityData.intro}
-            </p>
-
-            {/* Omni Search */}
-            <div className="w-full max-w-3xl bg-white rounded-full p-2 shadow-floating flex flex-col sm:flex-row items-center gap-2">
-              <div className="flex items-center gap-3 px-4 py-2 w-full sm:flex-1">
-                <Search className="w-5 h-5 text-[#FF3B4F]" />
-                <input
-                  type="text"
-                  placeholder="Restaurantes, hotéis, eventos, atrações..."
-                  className="w-full text-sm text-[#171717] bg-transparent focus:outline-none placeholder:text-[#9CA3AF]"
-                />
-              </div>
-              <button
-                type="button"
-                className="w-full sm:w-auto px-8 py-3 rounded-full bg-[#FF3B4F] hover:bg-[#D91F35] text-white text-sm font-bold transition shadow-card flex items-center justify-center gap-2"
-              >
-                Buscar
-              </button>
-            </div>
-          </div>
+          <OmniSearchBar
+            citySlug={city}
+            cityName={cityData.name}
+            placeholder={`O que você quer fazer hoje em ${cityData.name}?`}
+          />
         </section>
 
-        {/* Categories Bar */}
-        <section className="bg-white border-b border-[#E5E7EB] py-4 px-6 overflow-x-auto">
-          <div className="max-w-7xl mx-auto flex items-center gap-4 min-w-max">
-            <Link
-              href={`/${city}/lugares/restaurantes`}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E7EB] hover:border-[#171717] text-xs font-semibold text-[#171717] transition"
-            >
-              <Utensils className="w-4 h-4 text-[#FF3B4F]" />
-              <span>Restaurantes</span>
-            </Link>
-            <Link
-              href={`/${city}/lugares/bares`}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E7EB] hover:border-[#171717] text-xs font-semibold text-[#171717] transition"
-            >
-              <Beer className="w-4 h-4 text-[#FF3B4F]" />
-              <span>Bares & Pubs</span>
-            </Link>
-            <Link
-              href={`/${city}/lugares/hospedagem`}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E7EB] hover:border-[#171717] text-xs font-semibold text-[#171717] transition"
-            >
-              <Building2 className="w-4 h-4 text-[#FF3B4F]" />
-              <span>Hotéis & Pousadas</span>
-            </Link>
-            <Link
-              href={`/${city}/eventos`}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E5E7EB] hover:border-[#171717] text-xs font-semibold text-[#171717] transition"
-            >
-              <Calendar className="w-4 h-4 text-[#FF3B4F]" />
-              <span>Eventos & Shows</span>
-            </Link>
-          </div>
-        </section>
-
-        {/* Content Section Placeholder */}
-        <section className="max-w-7xl mx-auto py-12 px-6 w-full">
+        {/* Categorias Principais */}
+        <section className="py-14 px-6 max-w-7xl mx-auto w-full">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-[#171717]">Destaques em {cityData.name}</h2>
-              <p className="text-sm text-[#777777]">Os estabelecimentos mais bem avaliados e recomendados.</p>
+              <span className="text-xs font-bold text-[#FF3B4F] uppercase tracking-wider block mb-1">
+                Explore por Setor
+              </span>
+              <h2 className="text-2xl font-bold text-[#171717]">Categorias em Alta</h2>
             </div>
             <Link
               href={`/${city}/lugares`}
-              className="text-sm font-semibold text-[#FF3B4F] hover:underline"
+              className="text-xs sm:text-sm font-semibold text-[#FF3B4F] hover:underline flex items-center gap-1"
             >
-              Ver todos os lugares &rarr;
+              Todas as categorias &rarr;
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-card">
-              <span className="text-xs font-bold text-[#10B981] bg-[#10B981]/10 px-2.5 py-1 rounded-full">
-                ABERTO AGORA
-              </span>
-              <h3 className="text-lg font-bold text-[#171717] mt-3">Restaurante Nonna Mia</h3>
-              <p className="text-sm text-[#777777] mt-1">Culinária Italiana e Tradicional Colonial</p>
-              <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-[#F59E0B]">
-                <Star className="w-4 h-4 fill-current" />
-                <span>4.9 (1.240 avaliações)</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {categories.map((cat) => (
+              <CategoryCard
+                key={cat.slug}
+                name={cat.name}
+                slug={cat.slug}
+                citySlug={city}
+                count={cat.count}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Destaques da Cidade */}
+        <section className="py-14 px-6 bg-[#F8F9FA] border-y border-[#E5E7EB] w-full">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#FFF1F2] flex items-center justify-center">
+                  <Flame className="w-5 h-5 text-[#FF3B4F]" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-[#171717]">Destaques em {cityData.name}</h2>
+                  <p className="text-xs text-[#777777]">Os estabelecimentos mais recomendados da cidade.</p>
+                </div>
               </div>
+              <Link
+                href={`/${city}/lugares`}
+                className="text-xs sm:text-sm font-semibold text-[#FF3B4F] hover:underline"
+              >
+                Ver todos os lugares &rarr;
+              </Link>
             </div>
 
-            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-card">
-              <span className="text-xs font-bold text-[#10B981] bg-[#10B981]/10 px-2.5 py-1 rounded-full">
-                ABERTO AGORA
-              </span>
-              <h3 className="text-lg font-bold text-[#171717] mt-3">diRoma Acqua Park</h3>
-              <p className="text-sm text-[#777777] mt-1">Parque Aquático Termal e Entretenimento</p>
-              <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-[#F59E0B]">
-                <Star className="w-4 h-4 fill-current" />
-                <span>4.8 (3.500 avaliações)</span>
-              </div>
-            </div>
-
-            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-card">
-              <span className="text-xs font-bold text-[#10B981] bg-[#10B981]/10 px-2.5 py-1 rounded-full">
-                ABERTO AGORA
-              </span>
-              <h3 className="text-lg font-bold text-[#171717] mt-3">Pousada Termal do Lago</h3>
-              <p className="text-sm text-[#777777] mt-1">Hospedagem Termal com Piscinas Privativas</p>
-              <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-[#F59E0B]">
-                <Star className="w-4 h-4 fill-current" />
-                <span>4.9 (890 avaliações)</span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredListings.map((listing) => (
+                <ListingCard
+                  key={listing.id}
+                  id={listing.id}
+                  name={listing.name}
+                  slug={listing.slug}
+                  citySlug={city}
+                  neighborhood={listing.neighborhood}
+                  categoryName={listing.categoryName}
+                  priceTier={listing.priceTier}
+                  ratingAverage={listing.ratingAverage}
+                  ratingCount={listing.ratingCount}
+                  isOpen={listing.isOpen}
+                  isFeatured={listing.isFeatured}
+                />
+              ))}
             </div>
           </div>
         </section>
-      </div>
+
+        {/* Agenda Cultural e Eventos */}
+        <section className="py-16 px-6 max-w-7xl mx-auto w-full">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#FFF1F2] flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-[#FF3B4F]" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-[#171717]">Agenda & Eventos</h2>
+                <p className="text-xs text-[#777777]">Os principais shows, festivais e feiras na cidade.</p>
+              </div>
+            </div>
+            <Link
+              href={`/${city}/eventos`}
+              className="text-xs sm:text-sm font-semibold text-[#FF3B4F] hover:underline"
+            >
+              Ver agenda completa &rarr;
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {upcomingEvents.map((evt) => (
+              <EventCard
+                key={evt.id}
+                id={evt.id}
+                name={evt.name}
+                slug={evt.slug}
+                citySlug={city}
+                categoryName={evt.categoryName}
+                startDate={evt.startDate}
+                startTime={evt.startTime}
+                address={evt.address}
+                isFree={evt.isFree}
+                priceInfo={evt.priceInfo}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Banner Anuncie Seu Negócio */}
+        <section className="py-12 px-6 bg-gradient-to-r from-[#FF3B4F] to-[#D91F35] text-white my-6">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
+                Área Comercial
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black mt-2">
+                É empresário ou comerciante em {cityData.name}?
+              </h2>
+              <p className="text-sm text-red-100 max-w-xl mt-1">
+                Coloque sua empresa em evidência para milhares de moradores e turistas que consultam nosso guia todos os dias.
+              </p>
+            </div>
+            <Link
+              href="/anuncie"
+              className="px-8 py-3.5 rounded-full bg-white text-[#171717] font-bold text-sm hover:bg-gray-100 transition shadow-modal shrink-0"
+            >
+              Anunciar meu negócio agora
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <Footer currentCitySlug={city} />
+      <MobileNav currentCitySlug={city} />
     </>
   );
 }
-

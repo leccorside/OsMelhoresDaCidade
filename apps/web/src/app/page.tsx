@@ -1,113 +1,170 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { constructMetadata } from '@/lib/seo';
-import { Search, MapPin, Sparkles, Compass } from 'lucide-react';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { MobileNav } from '@/components/layout/MobileNav';
+import { OmniSearchBar } from '@/components/search/OmniSearchBar';
+import { Sparkles, MapPin, Award, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const metadata = constructMetadata({
   title: 'Guia Oficial de Cidades Brasileiras',
-  description: 'Encontre os melhores restaurantes, eventos, hospedagens e atrações em cidades do Brasil.',
+  description: 'Descubra e explore os melhores restaurantes, eventos, hospedagens e atrações turísticas em cidades do Brasil.',
 });
 
 export default function HomePage() {
   return (
-    <main className="flex-1 flex flex-col">
-      {/* Top Header */}
-      <header className="w-full bg-white border-b border-[#E5E7EB] py-4 px-6 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Image
-              src="/logo-01.png"
-              alt="Os Melhores da Cidade"
-              width={160}
-              height={44}
-              priority
-              className="h-10 w-auto object-contain"
-            />
-          </Link>
-          <div className="flex items-center space-x-4">
+    <>
+      <Header currentCitySlug="" currentCityName="Brasil" currentCityUf="BR" />
+
+      <main className="flex-1 flex flex-col pb-16 sm:pb-0">
+        {/* Hero Section */}
+        <section className="relative py-20 lg:py-28 px-6 bg-gradient-to-b from-[#FCF9F8] via-[#F8F9FA] to-white flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFF1F2] text-[#FF3B4F] text-xs font-bold tracking-wide uppercase mb-6">
+            <Sparkles className="w-3.5 h-3.5" />
+            Portal Nacional Multicidades
+          </div>
+          <h1 className="text-4xl sm:text-6xl font-extrabold text-[#171717] max-w-4xl tracking-tight leading-tight mb-6">
+            O melhor de cada cidade, <br className="hidden sm:inline" />
+            <span className="text-[#FF3B4F]">selecionado para você</span>
+          </h1>
+          <p className="text-base sm:text-xl text-[#777777] max-w-2xl mb-10 leading-relaxed">
+            Gastronomia consagrada, agenda de shows, hospedagens premiadas e serviços de excelência. Seleção editorial e avaliações 100% verificadas.
+          </p>
+
+          {/* Omni Search Bar */}
+          <OmniSearchBar
+            citySlug="caldas-novas"
+            cityName="Caldas Novas"
+            placeholder="O que você procura em Caldas Novas ou no Brasil?"
+          />
+        </section>
+
+        {/* Cidades em Destaque */}
+        <section className="py-16 px-6 max-w-7xl mx-auto w-full">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10">
+            <div>
+              <span className="text-xs font-bold text-[#FF3B4F] uppercase tracking-wider block mb-1">
+                Destinos Ativos
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#171717]">
+                Portais Municipais Disponíveis
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-[#777777] mt-2 sm:mt-0">
+              Escolha uma cidade para acessar o guia completo com estabelecimentos locais.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Caldas Novas Card */}
             <Link
               href="/caldas-novas"
-              className="text-sm font-medium text-[#171717] hover:text-[#FF3B4F] flex items-center gap-1.5 transition"
+              className="group block bg-white rounded-3xl overflow-hidden border border-[#E5E7EB] hover:shadow-modal transition-all duration-300"
             >
-              <MapPin className="w-4 h-4 text-[#FF3B4F]" />
-              <span>Caldas Novas (GO)</span>
+              <div className="h-56 bg-gradient-to-br from-[#171717] via-red-950 to-[#D91F35] relative flex items-end p-6">
+                <div className="relative z-10 text-white">
+                  <span className="text-[11px] uppercase tracking-wider font-extrabold bg-[#FF3B4F] px-3 py-1 rounded-full">
+                    Cidade Oficial
+                  </span>
+                  <h3 className="text-2xl font-black mt-3">Caldas Novas</h3>
+                  <p className="text-xs text-gray-200 mt-1">Goiás • Maior Estância Hidrotermal do Mundo</p>
+                </div>
+              </div>
+              <div className="p-6 flex items-center justify-between text-sm text-[#777777]">
+                <div>
+                  <span className="font-bold text-[#171717] block">Centenas de Locais</span>
+                  <span className="text-xs">Hotéis, restaurantes, parques e shows</span>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#FFF1F2] group-hover:bg-[#FF3B4F] flex items-center justify-center transition-colors">
+                  <ArrowRight className="w-4 h-4 text-[#FF3B4F] group-hover:text-white transition-colors" />
+                </div>
+              </div>
             </Link>
-            <Link
-              href="/anuncie"
-              className="hidden sm:inline-flex px-5 py-2 rounded-full bg-[#171717] text-white text-sm font-medium hover:bg-[#333] transition"
-            >
-              Anuncie seu negócio
-            </Link>
-          </div>
-        </div>
-      </header>
 
-      {/* Hero Section */}
-      <section className="relative py-20 px-6 bg-gradient-to-b from-[#FCF9F8] to-[#F5F5F5] flex flex-col items-center text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFF1F2] text-[#FF3B4F] text-xs font-semibold tracking-wide uppercase mb-6">
-          <Sparkles className="w-3.5 h-3.5" />
-          Plataforma Multicidades
-        </div>
-        <h1 className="text-4xl sm:text-6xl font-extrabold text-[#171717] max-w-4xl tracking-tight leading-tight mb-6">
-          Descubra o melhor de cada cidade no Brasil
-        </h1>
-        <p className="text-lg sm:text-xl text-[#777777] max-w-2xl mb-10">
-          Cultura, gastronomia, lazer e negócios locais selecionados com precisão editorial e avaliações autênticas.
-        </p>
-
-        {/* Quick City Selector Box */}
-        <div className="w-full max-w-2xl bg-white p-3 rounded-2xl shadow-hover border border-[#E5E7EB] flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex items-center gap-3 px-3 w-full sm:w-1/2">
-            <MapPin className="w-5 h-5 text-[#FF3B4F]" />
-            <select
-              defaultValue="caldas-novas"
-              className="w-full bg-transparent border-none text-[#171717] font-medium focus:outline-none"
-            >
-              <option value="caldas-novas">Caldas Novas - GO</option>
-              <option value="goiania" disabled>Goiânia - GO (Em breve)</option>
-              <option value="brasilia" disabled>Brasília - DF (Em breve)</option>
-              <option value="uberlandia" disabled>Uberlândia - MG (Em breve)</option>
-            </select>
-          </div>
-          <div className="h-px sm:h-8 w-full sm:w-px bg-[#E5E7EB]" />
-          <Link
-            href="/caldas-novas"
-            className="w-full sm:w-auto px-8 py-3 rounded-full bg-[#FF3B4F] hover:bg-[#D91F35] text-white font-semibold text-center transition flex items-center justify-center gap-2 shadow-card"
-          >
-            <Compass className="w-4 h-4" />
-            Explorar Portal
-          </Link>
-        </div>
-      </section>
-
-      {/* Featured Cities Grid */}
-      <section className="py-16 px-6 max-w-7xl mx-auto w-full">
-        <h2 className="text-2xl font-bold text-[#171717] mb-8">Cidades em Destaque</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link
-            href="/caldas-novas"
-            className="group block bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] hover:shadow-hover transition duration-300"
-          >
-            <div className="h-48 bg-gradient-to-r from-red-600 to-amber-500 relative flex items-end p-6">
-              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition" />
-              <div className="relative z-10 text-white">
-                <span className="text-xs uppercase tracking-wider font-semibold bg-[#FF3B4F] px-2.5 py-1 rounded-full">
-                  Cidade Ativa
+            {/* Próximos Lançamentos */}
+            <div className="bg-[#F8F9FA] rounded-3xl p-6 border border-dashed border-gray-300 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Em Breve
                 </span>
-                <h3 className="text-2xl font-bold mt-2">Caldas Novas</h3>
-                <p className="text-sm text-gray-200">Goiás • Águas Termais e Gastronomia</p>
+                <h3 className="text-xl font-bold text-gray-700 mt-2">Goiânia & Brasília</h3>
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                  Em fase de credenciamento dos melhores restaurantes, bares e casas de shows da capital goiana e do Distrito Federal.
+                </p>
+              </div>
+              <Link
+                href="/anuncie"
+                className="mt-6 text-xs font-bold text-[#FF3B4F] hover:underline flex items-center gap-1"
+              >
+                Cadastre seu negócio para o pré-lançamento &rarr;
+              </Link>
+            </div>
+
+            <div className="bg-[#F8F9FA] rounded-3xl p-6 border border-dashed border-gray-300 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Expansão
+                </span>
+                <h3 className="text-xl font-bold text-gray-700 mt-2">Sua Cidade no Portal</h3>
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                  Leve o guia oficial <strong>Os Melhores da Cidade</strong> para seu município e lidere o mercado de divulgação comercial e turística da região.
+                </p>
+              </div>
+              <Link
+                href="/contato?interesse=expansao"
+                className="mt-6 text-xs font-bold text-[#171717] hover:underline flex items-center gap-1"
+              >
+                Fale com a nossa equipe de expansão &rarr;
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Pilares da Plataforma */}
+        <section className="bg-white py-16 px-6 border-t border-[#E5E7EB]">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFF1F2] flex items-center justify-center shrink-0">
+                <Award className="w-6 h-6 text-[#FF3B4F]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-[#171717] mb-1">Critério Editorial Rigoroso</h3>
+                <p className="text-xs text-[#777777] leading-relaxed">
+                  Apenas estabelecimentos que cumprem padrões de qualidade, higiene e excelente atendimento ao cliente.
+                </p>
               </div>
             </div>
-            <div className="p-4 flex items-center justify-between text-sm text-[#777777]">
-              <span>Restaurantes, Eventos, Hotéis</span>
-              <span className="font-semibold text-[#FF3B4F] group-hover:translate-x-1 transition-transform inline-flex items-center">
-                Acessar &rarr;
-              </span>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFF1F2] flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-[#FF3B4F]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-[#171717] mb-1">Avaliações 100% Reais</h3>
+                <p className="text-xs text-[#777777] leading-relaxed">
+                  Sistema com controle anti-fraude onde cada usuário pode emitir apenas uma avaliação autêntica por local.
+                </p>
+              </div>
             </div>
-          </Link>
-        </div>
-      </section>
-    </main>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFF1F2] flex items-center justify-center shrink-0">
+                <MapPin className="w-6 h-6 text-[#FF3B4F]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-[#171717] mb-1">Hiperlocal e Integrado</h3>
+                <p className="text-xs text-[#777777] leading-relaxed">
+                  Filtre por bairros, rotas instantâneas no mapa e contato direto no WhatsApp com os proprietários.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer currentCitySlug="caldas-novas" />
+      <MobileNav currentCitySlug="caldas-novas" />
+    </>
   );
 }
-

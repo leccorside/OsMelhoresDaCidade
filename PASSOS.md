@@ -9,7 +9,7 @@ Este documento registra o progresso sistemático de cada uma das 17 etapas defin
 | Passo | Descrição | Status | Critérios de Aceitação & Validação |
 |---|---|---|---|
 | **PASSO 1** | Arquitetura, Monorepo e SEO Inicial | **CONCLUÍDO** | Monorepo criado, Next.js 15 App Router configurado, NestJS configurado, Prisma Schema modelado com todas as entidades, Docker & Docker Compose definidos, utilitários de SEO e documentação (`CONTEXTO.md`, `DOCUMENTACAO.md`, `PASSOS.md`, `README.md`). |
-| **PASSO 2** | Design System & Componentes Base | *Aguardando* | Implementação da identidade visual do Stitch (`DESIGN.md`), cores (#FF3B4F, #D91F35, #171717), botões, cards editoriais, badges, header, footer e layout responsivo. |
+| **PASSO 2** | Design System & Componentes Base | **CONCLUÍDO** | Implementação fiel da identidade visual do Google Stitch (`DESIGN.md`), cores institucionais (#FF3B4F, #D91F35, #171717, #10B981, #F59E0B), tipografia Inter, componentes `Button`, `Badge`, `StarRating`, `Breadcrumbs`, `ListingCard`, `EventCard`, `CategoryCard`, `OmniSearchBar`, `Header`, `Footer`, e bottom bar mobile PWA (`MobileNav`). |
 | **PASSO 3** | Geografia & Cidades | *Aguardando* | Módulo de estados, cidades (IBGE) e bairros no backend e rotas dinâmicas municipais no frontend com persistência de cidade no cliente. |
 | **PASSO 4** | Autenticação & RBAC | *Aguardando* | JWT com access/refresh tokens rotativos, Argon2, perfis USER, MERCHANT e ADMIN, verificação de e-mail e rotas protegidas. |
 | **PASSO 5** | Portal Público | *Aguardando* | Página nacional, home municipal de Caldas Novas, listagem com filtros, diretório de categorias e busca otimizada. |
