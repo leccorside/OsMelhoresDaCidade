@@ -46,3 +46,4 @@ export const MobileNav: React.FC<MobileNavProps> = ({ currentCitySlug = 'caldas-
     </nav>
   );
 };
+

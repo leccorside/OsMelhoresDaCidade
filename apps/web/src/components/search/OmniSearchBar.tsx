@@ -74,3 +74,4 @@ export const OmniSearchBar: React.FC<OmniSearchBarProps> = ({
     </form>
   );
 };
+

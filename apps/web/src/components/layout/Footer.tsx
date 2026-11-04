@@ -151,3 +151,4 @@ export const Footer: React.FC<FooterProps> = ({ currentCitySlug = 'caldas-novas'
     </footer>
   );
 };
+

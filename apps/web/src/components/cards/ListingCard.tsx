@@ -132,3 +132,4 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     </div>
   );
 };
+
