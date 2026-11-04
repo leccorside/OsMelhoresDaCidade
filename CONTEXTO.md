@@ -55,19 +55,33 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - *Hospedagem*: Calculadora de diárias com seletor de quarto, seletor de noites, total da estada e WhatsApp da recepção.
   - *Restaurante*: Reserva de mesa online sem fila, pedido delivery via WhatsApp e visualizador do cardápio em PDF.
 
-### B. Gestão de Estabelecimentos no Painel Administrativo
-- **Lista de Estabelecimentos (`/admin/estabelecimentos`)**:
-  - Tabela com filtros por busca textual, categoria/tipo (Atrações, Hospedagem, Gastronomia, Serviços) e status (Ativos, Pendentes, Destaques Ouro).
-  - Ações diretas: Visualizar ao vivo no portal, Editar formulário adaptado e Excluir anúncio.
-- **Cadastro Dinâmico Adaptável (`/admin/estabelecimentos/novo`)**:
-  - Seletor de Categoria Dinâmica que reconfigura instantaneamente os campos do formulário para o tipo de anúncio selecionado:
-    - *Atrações*: Temperatura da água, tabela de ingressos (adulto, infantil, sênior) e regras.
-    - *Hospedagem*: Diária base, horários de check-in/out, café da manhã, pet-friendly e construtor de chalés/suítes.
-    - *Gastronomia*: Tipo de cozinha, regime de serviço (rodízio/à la carte), construtor de pratos do cardápio, adega e formas de pagamento.
-    - *Comércio & Serviços*: Especialidades, modelo de atendimento e garantias.
-  - Construtor do mosaico de fotos (Hero + 4 secundárias com legendas).
-  - Construtor de Comodidades e FAQ.
-  - Suporte à edição pré-carregada via parâmetro `?edit=[slug]`.
+### B. Gestão de Estabelecimentos no Painel Administrativo & Persistência na API NestJS
+- **Backend NestJS (`apps/api`)**:
+  - DTOs robustos com `class-validator` e `class-transformer`: `CreateListingFullDto`, `CreateListingImageDto`, `CreateOpeningHourDto`, `CreateServiceCategoryDto`, `CreateServiceItemDto`.
+  - Módulo de Listings com transação atômica (`prisma.$transaction`):
+    - Criação ou vinculação automática de cidade e bairro (`Neighborhood`).
+    - Gravação de fotos do mosaico (`ListingImage`), comodidades (`Amenity` e `ListingAmenity`), horários (`ListingOpeningHour`) e categorias de serviços/produtos (`ListingServiceCategory` e `ListingServiceItem`).
+    - `POST /api/v1/listings`: Endpoint unificado de cadastro/atualização completa.
+    - `GET /api/v1/listings/admin/all`: Listagem administrativa completa com contadores de avaliações, favoritos e relacionamentos.
+    - `DELETE /api/v1/listings/:id`: Remoção de estabelecimento e seus vínculos no banco.
+- **Frontend Next.js (`apps/web`)**:
+  - Módulo de integração de API [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts) com `fetchAdminListings()`, `createOrUpdateListing()` e `deleteListingApi()`.
+  - **Lista de Estabelecimentos (`/admin/estabelecimentos`)**:
+    - Carregamento assíncrono via `useEffect` trazendo registros reais do PostgreSQL persistidos pela API, com fallback limpo para mocks caso o backend esteja em inicialização.
+    - Exclusão com confirmação visual chamando a API REST.
+    - Tabela com filtros por busca textual, categoria/tipo (Atrações, Hospedagem, Gastronomia, Serviços) e status (Ativos, Pendentes, Destaques Ouro).
+    - Ações diretas: Visualizar ao vivo no portal, Editar formulário adaptado e Excluir anúncio.
+  - **Cadastro Dinâmico Adaptável (`/admin/estabelecimentos/novo`)**:
+    - Mapeamento completo dos dados preenchidos no formulário para a estrutura do DTO e envio via `POST /api/v1/listings`.
+    - Feedback de salvamento com spinner, notificação de sucesso e redirecionamento para a listagem administrativa.
+    - Seletor de Categoria Dinâmica que reconfigura instantaneamente os campos do formulário para o tipo de anúncio selecionado:
+      - *Atrações*: Temperatura da água, tabela de ingressos (adulto, infantil, sênior) e regras.
+      - *Hospedagem*: Diária base, horários de check-in/out, café da manhã, pet-friendly e construtor de chalés/suítes.
+      - *Gastronomia*: Tipo de cozinha, regime de serviço (rodízio/à la carte), construtor de pratos do cardápio, adega e formas de pagamento.
+      - *Comércio & Serviços*: Especialidades, modelo de atendimento e garantias.
+    - Construtor do mosaico de fotos (Hero + 4 secundárias com legendas).
+    - Construtor de Comodidades e FAQ.
+    - Suporte à edição pré-carregada via parâmetro `?edit=[slug]`.
 
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:

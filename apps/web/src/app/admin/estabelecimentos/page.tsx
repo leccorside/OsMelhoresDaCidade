@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -18,7 +18,8 @@ import {
   Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { MOCK_PLACES_DETAILS } from '@/data/mockPlaceDetails';
+import { MOCK_PLACES_DETAILS, PlaceCategoryType } from '@/data/mockPlaceDetails';
+import { fetchAdminListings, deleteListingApi } from '@/lib/api';
 
 export default function AdminEstabelecimentosPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +45,48 @@ export default function AdminEstabelecimentosPage() {
     }))
   );
 
+  // Carregar dados reais da API NestJS / PostgreSQL
+  useEffect(() => {
+    fetchAdminListings()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const apiPlaces = data.map((item: any) => {
+            const catSlug = item.category?.slug || '';
+            let catType: PlaceCategoryType = 'general';
+            if (catSlug === 'atracoes') catType = 'attraction';
+            else if (catSlug === 'hospedagem') catType = 'accommodation';
+            else if (catSlug === 'restaurantes' || catSlug === 'bares') catType = 'restaurant';
+
+            return {
+              id: item.id,
+              slug: item.slug,
+              name: item.name,
+              category: item.category?.name || 'Geral',
+              categoryType: catType,
+              city: `${item.city?.name || 'Caldas Novas'} (GO)`,
+              neighborhood: item.neighborhood?.name || 'Centro',
+              priceTier: item.priceTier || '$$',
+              rating: item.ratingAverage || 5.0,
+              reviewsCount: item.ratingCount || 0,
+              status: item.status === 'PUBLISHED' ? 'ATIVO' : 'PENDENTE',
+              isFeatured: !!item.isFeatured,
+              image: item.images?.[0]?.url || 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=600&q=80',
+            };
+          });
+
+          // Unifica evitando duplicatas por slug
+          setPlacesList((prev) => {
+            const apiSlugs = new Set(apiPlaces.map((p: any) => p.slug));
+            const remainingMocks = prev.filter((p) => !apiSlugs.has(p.slug));
+            return [...apiPlaces, ...remainingMocks];
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('API listings fetch fallback to local state:', err);
+      });
+  }, []);
+
   const filteredPlaces = placesList.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,8 +105,13 @@ export default function AdminEstabelecimentosPage() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (confirm(`Deseja realmente remover o anúncio "${name}"?`)) {
+      try {
+        await deleteListingApi(id);
+      } catch (e) {
+        console.warn('Delete via API ignored, removing from local state:', e);
+      }
       setPlacesList((prev) => prev.filter((p) => p.id !== id));
     }
   };

@@ -1,6 +1,17 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ListingsService, CreateListingDto } from './listings.service';
+import { CreateListingFullDto } from './dto/create-listing-full.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -42,6 +53,35 @@ export class ListingsController {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 12,
     });
+  }
+
+  // --- ROTA DE CADASTRO COMPLETO ADAPTADO (Painel Admin & Sistema) ---
+
+  @Post()
+  @ApiOperation({ summary: 'Cadastrar ou atualizar estabelecimento com campos adaptados por categoria' })
+  async createFull(@Body() dto: CreateListingFullDto) {
+    return this.listingsService.createFull(dto);
+  }
+
+  // --- ÁREA ADMINISTRATIVA MASTER ---
+
+  @Get('admin/all')
+  @ApiOperation({ summary: 'Listar todos os estabelecimentos para o painel administrativo' })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'categorySlug', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  async findAllAdmin(
+    @Query('search') search?: string,
+    @Query('categorySlug') categorySlug?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.listingsService.findAllAdmin({ search, categorySlug, status });
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Remover estabelecimento por ID' })
+  async deleteListing(@Param('id') id: string) {
+    return this.listingsService.deleteListing(id);
   }
 
   // --- ROTAS DO COMERCIANTE ---

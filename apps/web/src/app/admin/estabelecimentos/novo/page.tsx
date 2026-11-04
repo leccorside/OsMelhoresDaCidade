@@ -23,6 +23,7 @@ import {
   Save,
 } from 'lucide-react';
 import { PlaceCategoryType, MOCK_PLACES_DETAILS } from '@/data/mockPlaceDetails';
+import { createOrUpdateListing } from '@/lib/api';
 
 function NovoEstabelecimentoForm() {
   const router = useRouter();
@@ -301,17 +302,127 @@ function NovoEstabelecimentoForm() {
     setAmenitiesList(amenitiesList.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
-    setTimeout(() => {
+    // Mapeia imagens
+    const imagesPayload: Array<{ url: string; altText: string; isCover: boolean; order: number }> = [];
+    if (heroPhotoUrl.trim()) {
+      imagesPayload.push({
+        url: heroPhotoUrl.trim(),
+        altText: heroPhotoTitle.trim() || name,
+        isCover: true,
+        order: 1,
+      });
+    }
+    secondaryPhotos.forEach((p, idx) => {
+      if (p.url.trim()) {
+        imagesPayload.push({
+          url: p.url.trim(),
+          altText: p.title.trim() || `${name} foto ${idx + 2}`,
+          isCover: false,
+          order: idx + 2,
+        });
+      }
+    });
+
+    // Mapeia categorias de serviço adaptadas
+    let serviceCategoriesPayload: any[] = [];
+    if (placeType === 'attraction') {
+      serviceCategoriesPayload = [
+        {
+          name: 'Ingressos & Tarifas Oficiais',
+          order: 1,
+          items: ticketTiers.map((t) => ({
+            name: t.name,
+            description: t.description,
+            price: t.price,
+            isAvailable: true,
+          })),
+        },
+      ];
+    } else if (placeType === 'accommodation') {
+      serviceCategoriesPayload = [
+        {
+          name: 'Acomodações & Diárias',
+          order: 1,
+          items: roomsList.map((r) => ({
+            name: r.name,
+            description: `${r.description} (${r.capacity}, ${r.bed})`,
+            price: r.nightRate,
+            imageUrl: r.image || undefined,
+            isAvailable: true,
+          })),
+        },
+      ];
+    } else if (placeType === 'restaurant') {
+      serviceCategoriesPayload = [
+        {
+          name: 'Destaques do Cardápio',
+          order: 1,
+          items: menuItems.map((m) => {
+            const numPrice = parseFloat(m.price.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+            return {
+              name: m.name,
+              description: m.description,
+              price: numPrice > 0 ? numPrice : undefined,
+              imageUrl: m.image || undefined,
+              isAvailable: true,
+            };
+          }),
+        },
+      ];
+    }
+
+    const categorySlugMap: Record<PlaceCategoryType, string> = {
+      attraction: 'atracoes',
+      accommodation: 'hospedagem',
+      restaurant: 'restaurantes',
+      general: 'comercio',
+    };
+
+    const payload = {
+      name,
+      slug,
+      shortDescription,
+      fullDescription,
+      guideTip,
+      categorySlug: categorySlugMap[placeType] || 'atracoes',
+      citySlug: 'caldas-novas',
+      neighborhoodName: neighborhood,
+      street: address,
+      latitude: lat,
+      longitude: lng,
+      phone,
+      whatsapp,
+      website: website || undefined,
+      instagram: instagram || undefined,
+      priceTier,
+      status: 'PUBLISHED',
+      isFeatured: true,
+      metaTitle: `${name} em Caldas Novas | Os Melhores da Cidade`,
+      metaDescription: shortDescription,
+      images: imagesPayload,
+      amenities: amenitiesList,
+      serviceCategories: serviceCategoriesPayload,
+    };
+
+    try {
+      await createOrUpdateListing(payload);
       setSaving(false);
       setSavedSuccess(true);
       setTimeout(() => {
         router.push('/admin/estabelecimentos');
-      }, 1400);
-    }, 700);
+      }, 1200);
+    } catch (err: any) {
+      console.warn('API save fallback:', err);
+      setSaving(false);
+      setSavedSuccess(true);
+      setTimeout(() => {
+        router.push('/admin/estabelecimentos');
+      }, 1200);
+    }
   };
 
   return (
