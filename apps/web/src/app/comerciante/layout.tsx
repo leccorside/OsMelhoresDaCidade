@@ -22,7 +22,6 @@ import {
   Ticket,
   Bell,
   QrCode,
-  Crown,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { clearAuthCookies } from '@/services/auth';
@@ -57,7 +56,6 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
   const menuItems = [
     { label: 'Dashboard', href: '/comerciante', icon: LayoutDashboard },
     { label: 'Meus Estabelecimentos', href: '/comerciante/estabelecimentos', icon: Store },
-    { label: 'Planos & Destaque', href: '/comerciante/planos', icon: Crown },
     { label: 'Promoções & Cupons', href: '/comerciante/cupons', icon: Ticket },
     { label: 'Validar Vouchers', href: '/comerciante/validar-voucher', icon: QrCode },
     { label: 'Eventos & Shows', href: '/comerciante/eventos', icon: Calendar },
