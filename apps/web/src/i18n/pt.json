@@ -1,0 +1,22 @@
+{
+  "common": {
+    "search": "Buscar",
+    "searchPlaceholder": "Restaurantes, hotéis, atrações...",
+    "openNow": "Aberto agora",
+    "closed": "Fechado no momento",
+    "featured": "Destaque",
+    "viewDetails": "Ver mais",
+    "advertise": "Anuncie seu negócio",
+    "login": "Entrar",
+    "register": "Cadastre-se"
+  },
+  "nav": {
+    "home": "Início",
+    "places": "Lugares",
+    "categories": "Categorias",
+    "events": "Eventos",
+    "blog": "Blog",
+    "contact": "Contatos"
+  }
+}
+

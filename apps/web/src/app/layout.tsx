@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import '../styles/globals.css';
 import { constructMetadata } from '@/lib/seo';
 
@@ -24,8 +25,18 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-[#FCF9F8] text-[#171717] antialiased flex flex-col">
         {children}
+        <Script id="register-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                  console.log('SW registration error: ', err);
+                });
+              });
+            }
+          `}
+        </Script>
       </body>
     </html>
   );
 }
-

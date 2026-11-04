@@ -1,0 +1,22 @@
+{
+  "common": {
+    "search": "Search",
+    "searchPlaceholder": "Restaurants, hotels, attractions...",
+    "openNow": "Open now",
+    "closed": "Closed now",
+    "featured": "Featured",
+    "viewDetails": "View details",
+    "advertise": "Advertise with us",
+    "login": "Sign in",
+    "register": "Sign up"
+  },
+  "nav": {
+    "home": "Home",
+    "places": "Places",
+    "categories": "Categories",
+    "events": "Events",
+    "blog": "Blog",
+    "contact": "Contact"
+  }
+}
+

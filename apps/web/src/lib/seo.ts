@@ -37,6 +37,11 @@ export function constructMetadata({
     metadataBase: new URL(SITE_URL),
     alternates: {
       canonical: finalCanonical,
+      languages: {
+        'pt-BR': finalCanonical,
+        'en-US': `${SITE_URL}/en${canonical || ''}`,
+        'es-ES': `${SITE_URL}/es${canonical || ''}`,
+      },
     },
     openGraph: {
       title: fullTitle,
@@ -106,7 +111,7 @@ export function generateLocalBusinessSchema(business: {
     '@type': 'LocalBusiness',
     name: business.name,
     description: business.description,
-    image: business.image,
+    image: business.image || DEFAULT_OG_IMAGE,
     telephone: business.telephone,
     url: business.url,
     priceRange: business.priceRange || '$$',
@@ -136,4 +141,3 @@ export function generateLocalBusinessSchema(business: {
     }),
   };
 }
-
