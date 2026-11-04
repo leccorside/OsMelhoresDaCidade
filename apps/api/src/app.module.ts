@@ -4,6 +4,7 @@ import configuration from './config/configuration';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ListingsModule } from './modules/listings/listings.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
     PrismaModule,
     GeographyModule,
     AuthModule,
+    ListingsModule,
   ],
   controllers: [],
   providers: [],

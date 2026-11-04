@@ -37,3 +37,4 @@ export class RegisterDto {
   @IsString()
   cnpj?: string;
 }
+

@@ -35,3 +35,4 @@ export async function registerUser(payload: {
   }
   return data;
 }
+
