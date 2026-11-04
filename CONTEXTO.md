@@ -123,6 +123,23 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Botão de upload individual por slot de foto com miniaturas de pré-visualização (thumbnails).
     - Preservação da possibilidade de preencher URLs externas manualmente.
 
+### F. Geocodificação Automática, Consulta de CEP e Mini-Mapa Interativo com Pino Arrastável
+- **Backend NestJS (`apps/api/src/modules/geography`)**:
+  - `GET /api/v1/geography/cep/:cep`: Integração com o ViaCEP com sanitização de dígitos (8 caracteres), tratamento de erros e preenchimento de logradouro, bairro, localidade e UF.
+  - `GET /api/v1/geography/geocode`: Integração com o OpenStreetMap Nominatim com cabeçalho oficial de `User-Agent: OsMelhoresDaCidade/1.0`, busca em cascata inteligente (endereço completo com número, bairro/cidade e cidade/estado) e fallback para o centro do município. Retorna latitude e longitude numéricas com precisão decimal.
+- **Frontend Next.js (`apps/web`)**:
+  - Funções de integração `lookupCepApi()` e `geocodeAddressApi()` em `apps/web/src/lib/api.ts`.
+  - Componente de Mapa de Seleção [`AdminLocationPickerMap.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/admin/AdminLocationPickerMap.tsx) carregado via dynamic import (`ssr: false`):
+    - Marcador em gota SVG estilizado com pino vermelho vibrante.
+    - Suporte a arrastar e soltar (`draggable: true`), atualizando instantaneamente os campos de Latitude e Longitude via evento `dragend`.
+    - Suporte a clique em qualquer ponto do mapa para reposicionamento rápido do pino.
+  - **Formulário de Cadastro/Edição (`/admin/estabelecimentos/novo`)**:
+    - Campo de CEP com máscara automática (`00000-000`) e busca ao completar os 8 dígitos ou clicar na lupa.
+    - Preenchimento em cadeia: o retorno do CEP preenche Logradouro, Bairro e Cidade, e engatilha automaticamente a geocodificação no mapa para obter a posição GPS.
+    - Botão "Localizar no Mapa" para forçar busca a qualquer momento após editar o número ou endereço.
+    - Botão "Usar Meu GPS" com integração à Geolocation API do navegador do administrador.
+    - Alertas contextuais com feedback de sucesso, status e aviso de coordenadas obtidas.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

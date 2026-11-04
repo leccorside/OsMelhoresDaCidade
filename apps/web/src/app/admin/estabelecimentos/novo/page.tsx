@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Store,
@@ -23,6 +24,9 @@ import {
   Save,
   Upload,
   Loader2,
+  Search,
+  Crosshair,
+  Navigation,
 } from 'lucide-react';
 import { PlaceCategoryType, MOCK_PLACES_DETAILS } from '@/data/mockPlaceDetails';
 import {
@@ -31,7 +35,21 @@ import {
   uploadImage,
   uploadMultipleImages,
   resolveImageUrl,
+  lookupCepApi,
+  geocodeAddressApi,
 } from '@/lib/api';
+
+const AdminLocationPickerMap = dynamic(
+  () => import('@/components/admin/AdminLocationPickerMap').then((m) => m.AdminLocationPickerMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-72 w-full rounded-2xl bg-white/5 animate-pulse flex items-center justify-center text-xs text-gray-500">
+        Carregando mapa interativo...
+      </div>
+    ),
+  }
+);
 
 function NovoEstabelecimentoForm() {
   const router = useRouter();
@@ -48,10 +66,19 @@ function NovoEstabelecimentoForm() {
   const [subCategory, setSubCategory] = useState('');
   const [city, setCity] = useState('Caldas Novas');
   const [uf, setUf] = useState('GO');
+  const [cep, setCep] = useState('');
   const [neighborhood, setNeighborhood] = useState('Solar de Caldas');
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState(-17.7302);
   const [lng, setLng] = useState(-48.6275);
+
+  // Estados e controle de Geocodificação / CEP
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geoFeedback, setGeoFeedback] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
   const [priceTier, setPriceTier] = useState('$$$');
   const [priceRange, setPriceRange] = useState('R$ 110 - R$ 160');
   const [badge, setBadge] = useState('Destaque Ouro Verificado');
@@ -141,6 +168,118 @@ function NovoEstabelecimentoForm() {
     } finally {
       setIsUploadingBatch(false);
     }
+  };
+
+  // Handlers de CEP e Geocodificação OpenStreetMap Nominatim
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '').slice(0, 8);
+    if (val.length > 5) {
+      val = `${val.slice(0, 5)}-${val.slice(5)}`;
+    }
+    setCep(val);
+    if (val.replace(/\D/g, '').length === 8) {
+      handleLookupCep(val);
+    }
+  };
+
+  const handleLookupCep = async (targetCep?: string) => {
+    const raw = targetCep || cep;
+    const clean = raw.replace(/\D/g, '');
+    if (clean.length !== 8) {
+      setGeoFeedback({ message: 'Digite um CEP válido com 8 dígitos.', type: 'error' });
+      return;
+    }
+
+    try {
+      setIsSearchingCep(true);
+      setGeoFeedback({ message: 'Consultando CEP no ViaCEP...', type: 'info' });
+      const data = await lookupCepApi(clean);
+      if (data.logradouro) setAddress(data.logradouro);
+      if (data.bairro) setNeighborhood(data.bairro);
+      if (data.localidade) setCity(data.localidade);
+      if (data.uf) setUf(data.uf);
+
+      setGeoFeedback({
+        message: `Endereço preenchido: ${data.logradouro || 'Sem rua cadastrada'}, ${data.bairro} — ${data.localidade}/${data.uf}`,
+        type: 'success',
+      });
+
+      // Busca automaticamente as coordenadas a partir dos dados retornados
+      await handleGeocode({
+        address: data.logradouro,
+        neighborhood: data.bairro,
+        city: data.localidade,
+        state: data.uf,
+      });
+    } catch (err: any) {
+      setGeoFeedback({ message: err.message || 'CEP não encontrado.', type: 'error' });
+    } finally {
+      setIsSearchingCep(false);
+    }
+  };
+
+  const handleGeocode = async (overrideParams?: {
+    address?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  }) => {
+    try {
+      setIsGeocoding(true);
+      setGeoFeedback({
+        message: 'Localizando coordenadas via OpenStreetMap Nominatim...',
+        type: 'info',
+      });
+
+      const addrToSearch = overrideParams?.address !== undefined ? overrideParams.address : address;
+      const neighToSearch =
+        overrideParams?.neighborhood !== undefined ? overrideParams.neighborhood : neighborhood;
+      const cityToSearch = overrideParams?.city !== undefined ? overrideParams.city : city;
+      const stateToSearch = overrideParams?.state !== undefined ? overrideParams.state : uf;
+
+      const res = await geocodeAddressApi({
+        address: addrToSearch,
+        neighborhood: neighToSearch,
+        city: cityToSearch,
+        state: stateToSearch,
+        query: name ? `${name}, ${cityToSearch}` : undefined,
+      });
+
+      setLat(res.lat);
+      setLng(res.lng);
+      setGeoFeedback({
+        message: `📍 Posição localizada com sucesso: [${res.lat}, ${res.lng}]`,
+        type: 'success',
+      });
+    } catch (err: any) {
+      setGeoFeedback({
+        message: err.message || 'Não foi possível encontrar as coordenadas automaticamente.',
+        type: 'error',
+      });
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGeoFeedback({ message: 'Geolocalização não suportada no seu navegador.', type: 'error' });
+      return;
+    }
+    setGeoFeedback({ message: 'Obtendo posição do sensor GPS...', type: 'info' });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const userLat = parseFloat(pos.coords.latitude.toFixed(6));
+        const userLng = parseFloat(pos.coords.longitude.toFixed(6));
+        setLat(userLat);
+        setLng(userLng);
+        setGeoFeedback({ message: `📍 GPS capturado com precisão: [${userLat}, ${userLng}]`, type: 'success' });
+      },
+      (err) => {
+        setGeoFeedback({ message: `Erro ao obter GPS: ${err.message}`, type: 'error' });
+      },
+      { timeout: 10000, enableHighAccuracy: true },
+    );
   };
 
   // Comodidades (separadas por vírgula ou lista)
@@ -893,39 +1032,145 @@ function NovoEstabelecimentoForm() {
         </div>
 
         {/* ========================================================= */}
-        {/* BLOCO 2: LOCALIZAÇÃO & COORDENADAS */}
+        {/* BLOCO 2: LOCALIZAÇÃO, GEOCODIFICAÇÃO E MAPA INTERATIVO */}
         {/* ========================================================= */}
-        <div className="bg-black/60 rounded-3xl p-6 border border-gray-800 space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-gray-800">
-            <MapPin className="w-4 h-4 text-[#FF3B4F]" />
-            <h2 className="text-base font-bold text-white">3. Localização & Endereço</h2>
+        <div className="bg-black/60 rounded-3xl p-6 border border-gray-800 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-800">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-[#FF3B4F]" />
+              <div>
+                <h2 className="text-base font-bold text-white">3. Localização & Endereço</h2>
+                <p className="text-xs text-gray-400">
+                  Preencha o CEP para autocompletar ou busque a posição exata no mapa via OpenStreetMap.
+                </p>
+              </div>
+            </div>
+
+            {/* Ações Rápidas de Localização */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleGeocode()}
+                disabled={isGeocoding}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FF3B4F] hover:bg-[#e03244] text-white text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                title="Buscar latitude e longitude automaticamente através do endereço digitado"
+              >
+                {isGeocoding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Buscando no Mapa...</span>
+                  </>
+                ) : (
+                  <>
+                    <Crosshair className="w-4 h-4" />
+                    <span>Localizar no Mapa</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUseCurrentLocation}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold transition-colors border border-gray-700"
+                title="Preencher com sua localização GPS atual"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>Usar Meu GPS</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          {/* Feedback Visual de Geocodificação / CEP */}
+          {geoFeedback && (
+            <div
+              className={`p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 ${
+                geoFeedback.type === 'success'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : geoFeedback.type === 'error'
+                  ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                  : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+              }`}
+            >
+              <span>{geoFeedback.message}</span>
+              <button
+                type="button"
+                onClick={() => setGeoFeedback(null)}
+                className="text-gray-400 hover:text-white text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            {/* CEP com Busca ViaCEP */}
+            <div className="space-y-1">
+              <label className="text-gray-300 font-semibold flex items-center justify-between">
+                <span>CEP do Estabelecimento</span>
+                {isSearchingCep && <Loader2 className="w-3 h-3 animate-spin text-[#FF3B4F]" />}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  maxLength={9}
+                  value={cep}
+                  onChange={handleCepChange}
+                  placeholder="75680-000"
+                  className="w-full bg-white/5 border border-gray-800 rounded-xl pl-4 pr-10 py-2.5 text-white focus:outline-none focus:border-[#FF3B4F]"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleLookupCep()}
+                  disabled={isSearchingCep}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#FF3B4F] transition-colors p-1"
+                  title="Consultar CEP no ViaCEP"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Cidade & UF */}
             <div className="space-y-1">
               <label className="text-gray-400 font-semibold">Cidade & UF</label>
               <input
                 type="text"
                 value={`${city} - ${uf}`}
                 disabled
-                className="w-full bg-white/5 border border-gray-800 rounded-xl px-4 py-2.5 text-gray-400"
+                className="w-full bg-white/5 border border-gray-800 rounded-xl px-4 py-2.5 text-gray-400 cursor-not-allowed"
               />
             </div>
 
+            {/* Bairro */}
             <div className="space-y-1">
-              <label className="text-gray-400 font-semibold">Bairro *</label>
+              <label className="text-gray-300 font-semibold">Bairro *</label>
               <input
                 type="text"
                 required
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
-                placeholder="Ex: Solar de Caldas, Centro, Lago Corumbá..."
+                placeholder="Ex: Solar de Caldas, Centro..."
                 className="w-full bg-white/5 border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#FF3B4F]"
               />
             </div>
 
+            {/* WhatsApp de Atendimento */}
             <div className="space-y-1">
-              <label className="text-gray-400 font-semibold">Endereço Completo com Número</label>
+              <label className="text-gray-300 font-semibold">WhatsApp para Atendimento *</label>
+              <input
+                type="text"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="5564999999999"
+                className="w-full bg-white/5 border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#FF3B4F]"
+              />
+            </div>
+          </div>
+
+          {/* Endereço Completo & Coordenadas */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 text-xs">
+            <div className="md:col-span-6 space-y-1">
+              <label className="text-gray-300 font-semibold">Endereço Completo com Número</label>
               <input
                 type="text"
                 value={address}
@@ -935,7 +1180,7 @@ function NovoEstabelecimentoForm() {
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="md:col-span-3 space-y-1">
               <label className="text-gray-400 font-semibold">Latitude GPS (ex: -17.7302)</label>
               <input
                 type="number"
@@ -946,7 +1191,7 @@ function NovoEstabelecimentoForm() {
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="md:col-span-3 space-y-1">
               <label className="text-gray-400 font-semibold">Longitude GPS (ex: -48.6275)</label>
               <input
                 type="number"
@@ -956,17 +1201,32 @@ function NovoEstabelecimentoForm() {
                 className="w-full bg-white/5 border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#FF3B4F]"
               />
             </div>
+          </div>
 
-            <div className="space-y-1">
-              <label className="text-gray-400 font-semibold">WhatsApp para Atendimento *</label>
-              <input
-                type="text"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-                placeholder="5564999999999"
-                className="w-full bg-white/5 border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#FF3B4F]"
-              />
+          {/* Mini-Mapa Interativo com Pino Arrastável */}
+          <div className="pt-2 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-300 font-semibold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Ajuste Fino no Mapa Interativo
+              </span>
+              <span className="text-gray-400 text-[11px]">
+                💡 Dica: Arraste o pino vermelho ou clique em qualquer lugar do mapa para fixar a coordenada exata.
+              </span>
             </div>
+
+            <AdminLocationPickerMap
+              lat={lat}
+              lng={lng}
+              onChangeLocation={(newLat, newLng) => {
+                setLat(newLat);
+                setLng(newLng);
+                setGeoFeedback({
+                  message: `📍 Posição ajustada manualmente: [${newLat}, ${newLng}]`,
+                  type: 'info',
+                });
+              }}
+            />
           </div>
         </div>
 

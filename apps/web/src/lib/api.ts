@@ -423,3 +423,53 @@ export async function uploadMultipleImages(
 
   return res.json();
 }
+
+export interface CepData {
+  cep: string;
+  logradouro: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
+  ibge?: string;
+}
+
+export interface GeocodeData {
+  lat: number;
+  lng: number;
+  displayName: string;
+  source: string;
+}
+
+export async function lookupCepApi(cep: string): Promise<CepData> {
+  const clean = cep.replace(/\D/g, '');
+  const url = `${getApiBaseUrl()}/geography/cep/${clean}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'CEP não encontrado');
+  }
+  return res.json();
+}
+
+export async function geocodeAddressApi(params: {
+  address?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  query?: string;
+}): Promise<GeocodeData> {
+  const queryParams = new URLSearchParams();
+  if (params.address) queryParams.append('address', params.address);
+  if (params.neighborhood) queryParams.append('neighborhood', params.neighborhood);
+  if (params.city) queryParams.append('city', params.city);
+  if (params.state) queryParams.append('state', params.state);
+  if (params.query) queryParams.append('query', params.query);
+
+  const url = `${getApiBaseUrl()}/geography/geocode?${queryParams.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Falha ao buscar coordenadas');
+  }
+  return res.json();
+}
