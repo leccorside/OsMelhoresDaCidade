@@ -154,6 +154,7 @@ model MerchantProfile {
   bankAgency   String?
   bankAccount  String?
   address      String?
+  asaasCustomerId String?
   isApproved   Boolean        @default(false)
   approvedAt   DateTime?
   createdAt    DateTime       @default(now())

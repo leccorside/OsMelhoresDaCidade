@@ -1,11 +1,13 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AsaasService } from './asaas.service';
 import {
   SubscriptionPlan,
   PaymentStatus,
@@ -27,9 +29,12 @@ export interface PlanDetails {
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly asaasService: AsaasService,
   ) {}
 
   getAvailablePlans(): PlanDetails[] {
@@ -134,10 +139,19 @@ export class BillingService {
 
     const price = dto.billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly;
 
-    // Gerar código EMV Copia e Cola do PIX Dinâmico (simulado com padrão nacional)
-    const randomTxid = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const pixQrCode = `00020126580014BR.GOV.BCB.PIX0136pagamentos@osmelhoresdacidade.com.br0208TXID${randomTxid}520400005303986540${price.toFixed(2)}5802BR5922OS MELHORES DA CIDADE6009GOIANIA62070503***6304E8A2`;
-    const gatewayInvoiceUrl = `https://fatura.osmelhoresdacidade.com.br/pay/${randomTxid}`;
+    // Integração Asaas: Obter/Criar cliente e gerar cobrança PIX
+    const asaasCustomerId = await this.asaasService.getOrCreateCustomer(merchant.id);
+    const asaasCharge = await this.asaasService.createPixCharge({
+      customerId: asaasCustomerId,
+      value: price,
+      description: `Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'}) - Os Melhores da Cidade`,
+      externalReference: `sub_${Math.random().toString(36).substring(2, 10)}`,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    });
+
+    const pixQrCode = asaasCharge.pixQrCode;
+    const gatewayInvoiceUrl = asaasCharge.invoiceUrl;
+    const gatewayPaymentId = asaasCharge.paymentId;
 
     // Gravar assinatura e cobrança
     const subscription = await this.prisma.merchantSubscription.create({
@@ -149,7 +163,7 @@ export class BillingService {
         price,
         billingCycle: dto.billingCycle || 'MONTHLY',
         pixQrCode,
-        gatewayPaymentId: `PAY-${randomTxid}`,
+        gatewayPaymentId,
         gatewayInvoiceUrl,
       },
       include: {
@@ -174,9 +188,31 @@ export class BillingService {
       billingCycle: subscription.billingCycle,
       pixQrCode,
       gatewayInvoiceUrl,
+      gatewayPaymentId,
       listing: subscription.listing,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h para pagamento
     };
+  }
+
+  async confirmPaymentByGateway(gatewayPaymentId: string, externalReference?: string) {
+    let subscription = null;
+    if (externalReference) {
+      subscription = await this.prisma.merchantSubscription.findFirst({
+        where: { id: externalReference },
+      });
+    }
+    if (!subscription && gatewayPaymentId) {
+      subscription = await this.prisma.merchantSubscription.findFirst({
+        where: { gatewayPaymentId },
+      });
+    }
+
+    if (!subscription) {
+      this.logger.warn(`Assinatura não localizada para webhook Asaas: ${gatewayPaymentId}`);
+      return { success: false, message: 'Assinatura não localizada' };
+    }
+
+    return this.confirmPayment(subscription.id);
   }
 
   async confirmPayment(subscriptionId: string) {

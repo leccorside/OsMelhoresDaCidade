@@ -497,6 +497,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Exportador de relatórios em CSV para conciliação contábil e fiscal.
   - Atalho "Financeiro & Planos" com ícone `DollarSign` adicionado à navegação principal do painel master ([`layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx)).
 
+### AB. Integração de Gateway de Pagamento Asaas (PIX & Webhook)
+- **Modelagem Prisma (`apps/api/prisma/schema.prisma`)**:
+  - Campo `asaasCustomerId` adicionado ao modelo `MerchantProfile` para persistência do ID de cliente no ecossistema Asaas e sincronizado via `prisma db push`.
+- **Backend NestJS (`apps/api`)**:
+  - Módulo e serviço [`AsaasService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/asaas.service.ts):
+    - Suporte a ambientes Sandbox (`https://sandbox.asaas.com/api/v3`) e Produção (`https://api.asaas.com/api/v3`) com token de autenticação via header `access_token`.
+    - Resiliência integrada: geração de cobranças PIX, fallback para PIX dinâmico com payload padrão BACEN quando em modo offline/desenvolvimento local.
+    - Métodos para criar/obter cliente Asaas (`getOrCreateCustomer`) e gerar cobrança PIX com vencimento e QR Code (`createPixCharge`).
+  - Atualização do [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - `createCheckout` agora aciona `asaasService.createPixCharge`, salvando `gatewayPaymentId`, `pixCopiaECola` e `pixQrCodeUrl`.
+    - Novo método `confirmPaymentByGateway` para processamento seguro e idempotente de pagamentos recebidos pelo gateway.
+  - Endpoint de Webhook no [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts):
+    - `POST /api/v1/billing/webhook/asaas` para escutar eventos `PAYMENT_RECEIVED` e `PAYMENT_CONFIRMED`.
+    - Suporte à validação do header `asaas-access-token` via variável `ASAAS_WEBHOOK_SECRET`.
+    - Ativação instantânea de assinatura, marcação do anúncio com `isFeatured = true` e registro de data de pagamento.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
