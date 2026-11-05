@@ -219,6 +219,27 @@ export class BillingController {
     return this.billingService.getMonthlyClosingReport(currentYear, currentMonth);
   }
 
+  @Post('admin/payout/:cityId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Processar e transferir repasse PIX de comissões acumuladas para franquia da cidade' })
+  processCityPayout(
+    @Param('cityId') cityId: string,
+    @Body('amount') amount?: number,
+  ) {
+    return this.billingService.processCityFranchisePayout(cityId, amount ? Number(amount) : undefined);
+  }
+
+  @Get('admin/payouts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Histórico de transferências bancárias PIX realizadas para franqueados' })
+  getPayoutsHistory(@Query('cityId') cityId?: string) {
+    return this.billingService.getFranchisePayoutsHistory(cityId);
+  }
+
   @Get('admin/split-settlements')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

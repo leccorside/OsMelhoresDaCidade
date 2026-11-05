@@ -3077,3 +3077,65 @@ export async function createFranchiseLeadApi(payload: CreateFranchiseLeadPayload
 
   return res.json();
 }
+
+export interface FranchisePayoutItem {
+  id: string;
+  cityId: string;
+  amount: number;
+  pixKey: string;
+  pixKeyType: string;
+  franchiseName: string;
+  status: string;
+  transactionId?: string;
+  receiptUrl?: string;
+  notes?: string;
+  transferredAt: string;
+  createdAt: string;
+  city?: {
+    id: string;
+    name: string;
+    state?: { uf: string };
+  };
+}
+
+export async function processCityFranchisePayoutApi(
+  cityId: string,
+  amount?: number
+): Promise<{ success: boolean; message: string; payout: FranchisePayoutItem; remainingBalance: number }> {
+  const url = `${getApiBaseUrl()}/billing/admin/payout/${cityId}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ amount }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao transferir PIX: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchFranchisePayoutsApi(cityId?: string): Promise<FranchisePayoutItem[]> {
+  const params = new URLSearchParams();
+  if (cityId) params.append('cityId', cityId);
+
+  const url = `${getApiBaseUrl()}/billing/admin/payouts?${params.toString()}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao carregar repasses PIX: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

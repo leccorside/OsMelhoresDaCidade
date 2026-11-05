@@ -1756,4 +1756,126 @@ export class BillingService implements OnApplicationBootstrap {
     };
   }
 
+
+  /**
+   * Processar Repasse Bancário PIX para Franquia Regional via Asaas
+   */
+  async processCityFranchisePayout(cityId: string, requestedAmount?: number) {
+    const city = await this.prisma.city.findUnique({
+      where: { id: cityId },
+      include: {
+        state: true,
+        franchisePayouts: true,
+      },
+    });
+
+    if (!city) {
+      throw new NotFoundException('Cidade não encontrada.');
+    }
+
+    if (!city.splitEnabled) {
+      throw new BadRequestException('Esta cidade não está com split de franquia habilitado.');
+    }
+
+    if (!city.franchisePixKey) {
+      throw new BadRequestException('Esta cidade não possui Chave PIX cadastrada para recebimento de repasses.');
+    }
+
+    // Calcular montante total apurado em comissões
+    const payments = await this.prisma.subscriptionPayment.findMany({
+      where: {
+        status: PaymentStatus.PAID,
+        subscription: {
+          listing: { cityId },
+        },
+      },
+      select: { amount: true },
+    });
+
+    const franchiseFeePercent = Number(city.franchiseFeePercent || 80);
+    const totalEarnedCommissions = payments.reduce((acc, p) => {
+      const gross = Number(p.amount);
+      return acc + (gross * franchiseFeePercent) / 100;
+    }, 0);
+
+    // Subtrair repasses já quitados
+    const previousPayoutsTotal = city.franchisePayouts
+      .filter((p) => p.status === 'COMPLETED')
+      .reduce((acc, p) => acc + Number(p.amount), 0);
+
+    const availableBalance = Number(Math.max(0, totalEarnedCommissions - previousPayoutsTotal).toFixed(2));
+
+    const payoutAmount = requestedAmount !== undefined && requestedAmount > 0
+      ? Math.min(requestedAmount, availableBalance)
+      : availableBalance;
+
+    if (payoutAmount <= 0) {
+      throw new BadRequestException(`Esta praça não possui saldo pendente de comissão para repasse (Saldo disponível: R$ ${availableBalance.toFixed(2)}).`);
+    }
+
+    // Executar transferência PIX via Asaas
+    const transferResult = await this.asaasService.transferPix({
+      value: payoutAmount,
+      pixKey: city.franchisePixKey,
+      pixKeyType: city.franchisePixType || 'CNPJ',
+      description: `Repasse Franquia ${city.name}/${city.state?.uf || 'BA'} - Os Melhores da Cidade`,
+    });
+
+    // Registrar no banco
+    const payout = await this.prisma.franchisePayout.create({
+      data: {
+        cityId: city.id,
+        amount: payoutAmount,
+        pixKey: city.franchisePixKey,
+        pixKeyType: city.franchisePixType || 'CNPJ',
+        franchiseName: city.franchiseName || 'Franquia Regional',
+        status: 'COMPLETED',
+        transactionId: transferResult.id,
+        receiptUrl: transferResult.receiptUrl,
+        notes: `Repasse bancário de ${payoutAmount.toFixed(2)} liquidado via Asaas Transfer.`,
+      },
+    });
+
+    // Despachar evento webhook para CRMs e auditoria
+    this.webhooksService.dispatch('SPLIT_SETTLED', {
+      payoutId: payout.id,
+      cityId: city.id,
+      cityName: city.name,
+      amount: payoutAmount,
+      pixKey: city.franchisePixKey,
+      transactionId: transferResult.id,
+      paidAt: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      message: `Repasse PIX de R$ ${payoutAmount.toFixed(2)} realizado com sucesso para a franquia de ${city.name}!`,
+      payout,
+      remainingBalance: Number((availableBalance - payoutAmount).toFixed(2)),
+    };
+  }
+
+  /**
+   * Listar Histórico de Repasses PIX
+   */
+  async getFranchisePayoutsHistory(cityId?: string) {
+    const where: any = {};
+    if (cityId) where.cityId = cityId;
+
+    return this.prisma.franchisePayout.findMany({
+      where,
+      include: {
+        city: {
+          select: {
+            id: true,
+            name: true,
+            state: { select: { uf: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
 }

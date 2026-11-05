@@ -96,6 +96,7 @@ model City {
   banners         Banner[]
   citySettings    CitySetting[]
   franchisees     User[]         @relation("FranchiseManager")
+  franchisePayouts FranchisePayout[]
 
   @@index([slug])
   @@index([isPublished])
@@ -967,4 +968,23 @@ model FranchiseLead {
   updatedAt        DateTime @updatedAt
 
   @@map("franchise_leads")
+}
+
+model FranchisePayout {
+  id             String   @id @default(uuid())
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  amount         Decimal  @db.Decimal(10, 2)
+  pixKey         String
+  pixKeyType     String
+  franchiseName  String
+  status         String   @default("COMPLETED")
+  transactionId  String?
+  receiptUrl     String?
+  notes          String?
+  transferredAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([cityId])
+  @@map("franchise_payouts")
 }

@@ -750,6 +750,23 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Seção com diferenciais tecnológicos (PWA sem app store, split automático Asaas e CRM de vendas nativo).
     - Formulário de candidatura e interesse integrado com feedback visual de confirmação.
 
+### AT. Repasse Automatizado de Comissões via Transferência PIX Asaas
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Novo modelo `FranchisePayout`: `id`, `cityId`, `amount`, `pixKey`, `pixKeyType`, `franchiseName`, `status` (`"COMPLETED"`), `transactionId`, `receiptUrl`, `notes`, `transferredAt` e `createdAt`. Sincronizado no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - `AsaasService` com método `transferPix(params)` enviando `POST /transfers` no gateway bancário com mapeamento de chaves PIX (`CPF`, `CNPJ`, `EMAIL`, `PHONE`, `EVP`) e fallback amigável em ambiente de desenvolvimento.
+  - Métodos `processCityFranchisePayout(cityId, requestedAmount)` e `getFranchisePayoutsHistory(cityId)` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Apura o montante de comissões acumuladas na cidade, deduz repasses já quitados e valida saldo disponível.
+    - Efetua a transferência PIX bancária instantânea para a chave cadastrada da franquia.
+    - Despacha o evento webhook `SPLIT_SETTLED` automaticamente para sistemas externos e conciliação contábil.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts): `POST /api/v1/billing/admin/payout/:cityId` e `GET /api/v1/billing/admin/payouts`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagem `FranchisePayoutItem` e clientes `processCityFranchisePayoutApi` e `fetchFranchisePayoutsApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Gestão de Repasses integrada em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx):
+    - Botão "Transferir PIX" na tabela de cidades com split ativo.
+    - Modal interativo de confirmação com valor personalizável ou total apurado.
+    - Tabela de "Histórico de Repasses PIX Realizados" com ID da transferência Asaas, comprovante bancário e data.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

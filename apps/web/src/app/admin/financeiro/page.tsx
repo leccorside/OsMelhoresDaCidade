@@ -48,6 +48,9 @@ import {
   deleteAdminWebhookApi,
   testAdminWebhookApi,
   WebhookEndpointItem,
+  fetchFranchisePayoutsApi,
+  processCityFranchisePayoutApi,
+  FranchisePayoutItem,
 } from '@/lib/api';
 
 export default function AdminFinancialPage() {
@@ -79,6 +82,13 @@ export default function AdminFinancialPage() {
   const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; status?: number; error?: string } | null>(null);
 
+  // Transferências PIX & Payouts State
+  const [payoutsHistory, setPayoutsHistory] = useState<FranchisePayoutItem[]>([]);
+  const [payoutModalCity, setPayoutModalCity] = useState<CitySplitItem | null>(null);
+  const [payoutAmountInput, setPayoutAmountInput] = useState<string>('');
+  const [processingPayout, setProcessingPayout] = useState(false);
+  const [payoutFeedback, setPayoutFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -93,8 +103,12 @@ export default function AdminFinancialPage() {
       setCities(citiesRes);
       setExpiringSubs(expiringRes);
       setSplitSettlements(settlementsRes as any);
-      const whList = await fetchAdminWebhooksApi().catch(() => []);
+      const [whList, payoutsList] = await Promise.all([
+        fetchAdminWebhooksApi().catch(() => []),
+        fetchFranchisePayoutsApi().catch(() => []),
+      ]);
       setWebhooks(whList);
+      setPayoutsHistory(payoutsList);
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao carregar dados financeiros.');
     } finally {
@@ -103,6 +117,34 @@ export default function AdminFinancialPage() {
   };
 
   
+
+
+  const handleOpenPayoutModal = (city: CitySplitItem) => {
+    setPayoutModalCity(city);
+    setPayoutAmountInput('');
+    setPayoutFeedback(null);
+  };
+
+  const handleExecutePayout = async () => {
+    if (!payoutModalCity) return;
+    try {
+      setProcessingPayout(true);
+      setPayoutFeedback(null);
+      const parsedAmount = payoutAmountInput.trim() ? parseFloat(payoutAmountInput) : undefined;
+      const res = await processCityFranchisePayoutApi(payoutModalCity.id, parsedAmount);
+      setPayoutFeedback({ type: 'success', message: res.message });
+      const updatedPayouts = await fetchFranchisePayoutsApi().catch(() => []);
+      setPayoutsHistory(updatedPayouts);
+      setTimeout(() => {
+        setPayoutModalCity(null);
+        setPayoutFeedback(null);
+      }, 3000);
+    } catch (err: any) {
+      setPayoutFeedback({ type: 'error', message: err.message || 'Erro ao efetuar transferência PIX.' });
+    } finally {
+      setProcessingPayout(false);
+    }
+  };
 
   const handleCreateWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -961,7 +1003,87 @@ export default function AdminFinancialPage() {
       </div>
 
       
-      {/* BLOCO DE WEBHOOKS & INTEGRAÇÕES EXTERNAS (CRMs / ZAPIER / MAKE) */}
+      {/* Histórico de Transferências Bancárias PIX de Comissões */}
+      <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600">
+              <DollarSign className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                Histórico de Repasses PIX Realizados aos Franqueados
+              </h3>
+              <p className="text-xs text-neutral-500">
+                Transferências bancárias instantâneas liquidadas via gateway Asaas com comprovante.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 self-start sm:self-auto">
+            {payoutsHistory.length} repasses executados
+          </span>
+        </div>
+
+        {payoutsHistory.length === 0 ? (
+          <div className="text-center py-8 border-2 border-dashed border-neutral-200 rounded-2xl text-xs text-neutral-400">
+            Nenhum repasse bancário PIX realizado ainda. Clique no botão "Transferir PIX" ao lado da cidade para liquidar comissões.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-neutral-50 text-neutral-500 uppercase font-semibold">
+                <tr>
+                  <th className="px-4 py-3 rounded-l-xl">Data / Hora</th>
+                  <th className="px-4 py-3">Praça / Franquia</th>
+                  <th className="px-4 py-3">Chave PIX Destino</th>
+                  <th className="px-4 py-3 text-right">Valor Transferido</th>
+                  <th className="px-4 py-3">ID Asaas</th>
+                  <th className="px-4 py-3 rounded-r-xl text-right">Comprovante</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100 font-mono">
+                {payoutsHistory.map((p) => (
+                  <tr key={p.id} className="hover:bg-neutral-50/50 transition-colors">
+                    <td className="px-4 py-3.5 text-neutral-500 whitespace-nowrap">
+                      {new Date(p.transferredAt).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="px-4 py-3.5 font-sans">
+                      <div className="font-bold text-neutral-900">{p.franchiseName}</div>
+                      <div className="text-[11px] text-neutral-400">{p.city?.name} - {p.city?.state?.uf}</div>
+                    </td>
+                    <td className="px-4 py-3.5 text-neutral-600">
+                      {p.pixKey} ({p.pixKeyType})
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-bold text-emerald-700 font-mono text-sm">
+                      R$ {Number(p.amount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3.5 text-neutral-400 text-[11px]">
+                      {p.transactionId || 'transf_sim'}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-sans">
+                      {p.receiptUrl ? (
+                        <a
+                          href={p.receiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 hover:text-sky-900 hover:underline"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Ver Comprovante
+                        </a>
+                      ) : (
+                        <span className="text-neutral-400 text-[11px] italic">Simulado</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+
+            {/* BLOCO DE WEBHOOKS & INTEGRAÇÕES EXTERNAS (CRMs / ZAPIER / MAKE) */}
       <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
           <div className="flex items-center gap-3">
@@ -1134,6 +1256,108 @@ export default function AdminFinancialPage() {
           </div>
         )}
       </div>
+
+
+      
+      {/* MODAL DE TRANSFERÊNCIA PIX PARA FRANQUIA */}
+      {payoutModalCity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-neutral-100">
+            <button
+              onClick={() => setPayoutModalCity(null)}
+              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-700 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600">
+                <Send className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">
+                  Transferir Comissão PIX
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  {payoutModalCity.name} - {payoutModalCity.franchiseName || 'Franquia Regional'}
+                </p>
+              </div>
+            </div>
+
+            {payoutFeedback && (
+              <div className={`p-4 rounded-2xl mb-4 text-xs font-bold ${
+                payoutFeedback.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border border-rose-200'
+              }`}>
+                {payoutFeedback.message}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 text-xs space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-neutral-500 font-medium">Chave PIX Destino:</span>
+                  <span className="font-mono font-bold text-neutral-900">{payoutModalCity.franchisePixKey}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500 font-medium">Tipo da Chave:</span>
+                  <span className="font-bold text-neutral-900">{payoutModalCity.franchisePixType || 'CNPJ'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500 font-medium">% de Split da Praça:</span>
+                  <span className="font-bold text-emerald-700">{payoutModalCity.franchiseFeePercent}%</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-1">
+                  Valor a Transferir em Reais (R$):
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Deixe em branco para transferir todo o saldo apurado"
+                  value={payoutAmountInput}
+                  onChange={(e) => setPayoutAmountInput(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-neutral-300 text-sm font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  * A transferência é enviada instantaneamente pelo gateway bancário Asaas.
+                </p>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalCity(null)}
+                  className="flex-1 py-3 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={processingPayout}
+                  onClick={handleExecutePayout}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {processingPayout ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Transferindo...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Confirmar Envio PIX
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* MODAL DE CONFIGURAÇÃO DE SPLIT DA CIDADE */}
