@@ -634,6 +634,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Seção analítica no painel [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx) com 3 cards de conciliação bancária de splits e tabela detalhada por transação.
   - Botão de **Exportação CSV** com codificação UTF-8 BOM (`\uFEFF`) para conciliação contábil e auditoria financeira das comissões repassadas.
 
+### AL. Notificações Push no Navegador (Web Push / Service Worker)
+- **Modelagem Prisma (`apps/api/prisma/schema.prisma`)**:
+  - Novo modelo `WebPushSubscription` armazenando endpoints de navegadores, chaves `p256dh` e `auth` criptográficas, user-agent e vinculação com `User`. Sincronizado no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Biblioteca `web-push` configurada com par de chaves VAPID oficiais.
+  - Serviço [`WebPushService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/web-push.service.ts) gerenciando inscrições, limpeza de endpoints expirados (410/404) e envio em segundo plano.
+  - Integração no [`NotificationsService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/notifications.service.ts): ao receber avaliações, mensagens de contato ou resgates de cupons, o push é disparado para os dispositivos do lojista.
+  - Endpoints em [`NotificationsController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/notifications.controller.ts):
+    - `GET /api/v1/notifications/push/vapid-key`: chave pública para registro no Service Worker.
+    - `POST /api/v1/notifications/push/subscribe`: gravação da assinatura do navegador.
+    - `POST /api/v1/notifications/push/unsubscribe`: cancelamento da assinatura.
+    - `POST /api/v1/notifications/push/test`: disparo de teste para verificação do alerta sonoro e visual.
+- **Frontend Next.js (`apps/web`)**:
+  - Service Worker dedicado [`/public/sw-push.js`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/public/sw-push.js) escutando eventos de push em segundo plano e direcionando o foco do navegador com 1 clique.
+  - Componente [`WebPushNotificationToggle.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/merchant/WebPushNotificationToggle.tsx) integrado em [`/comerciante/perfil`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/perfil/page.tsx) com detecção de compatibilidade, solicitação de permissão nativa, conversão de chave VAPID e botão para teste de alerta.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

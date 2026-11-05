@@ -2698,3 +2698,84 @@ export async function fetchAdminSplitSettlementsApi(cityId?: string): Promise<Sp
 
   return res.json();
 }
+
+// -----------------------------------------------------------------------------
+// NOTIFICAÇÕES WEB PUSH (SERVICE WORKER)
+// -----------------------------------------------------------------------------
+
+export async function fetchVapidPublicKeyApi(): Promise<{ publicKey: string }> {
+  const url = `${getApiBaseUrl()}/notifications/push/vapid-key`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Falha ao carregar chave pública VAPID.');
+  }
+
+  return res.json();
+}
+
+export async function subscribePushApi(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  userAgent?: string;
+}): Promise<any> {
+  const url = `${getApiBaseUrl()}/notifications/push/subscribe`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(subscription),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao registrar assinatura de notificações.');
+  }
+
+  return res.json();
+}
+
+export async function unsubscribePushApi(endpoint: string): Promise<any> {
+  const url = `${getApiBaseUrl()}/notifications/push/unsubscribe`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ endpoint }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao desinscrever notificações.');
+  }
+
+  return res.json();
+}
+
+export async function sendTestPushApi(): Promise<{ success: boolean; message: string }> {
+  const url = `${getApiBaseUrl()}/notifications/push/test`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao enviar notificação de teste.');
+  }
+
+  return res.json();
+}

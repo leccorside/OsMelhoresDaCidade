@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { WebPushService } from './web-push.service';
 import { NotificationType } from '@prisma/client';
 
 export interface CreateNotificationParams {
@@ -13,10 +14,13 @@ export interface CreateNotificationParams {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly webPushService: WebPushService,
+  ) {}
 
   async createNotification(params: CreateNotificationParams) {
-    return this.prisma.notification.create({
+    const notif = await this.prisma.notification.create({
       data: {
         userId: params.userId,
         type: params.type,
@@ -26,6 +30,17 @@ export class NotificationsService {
         metadata: params.metadata || {},
       },
     });
+
+    // Dispara notificação push em segundo plano sem travar
+    this.webPushService
+      .sendNotificationToUser(params.userId, {
+        title: params.title,
+        body: params.message,
+        url: params.linkUrl,
+      })
+      .catch(() => {});
+
+    return notif;
   }
 
   async notifyListingOwners(

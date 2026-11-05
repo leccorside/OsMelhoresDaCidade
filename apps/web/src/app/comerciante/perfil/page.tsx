@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { WebPushNotificationToggle } from '@/components/merchant/WebPushNotificationToggle';
 import {
   User,
   Building2,
@@ -245,6 +246,9 @@ export default function MerchantProfilePage() {
           </button>
         </div>
       )}
+
+      {/* Web Push Notifications Card */}
+      <WebPushNotificationToggle />
 
       {/* Abas de Navegação */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-gray-200">
