@@ -513,6 +513,19 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Suporte à validação do header `asaas-access-token` via variável `ASAAS_WEBHOOK_SECRET`.
     - Ativação instantânea de assinatura, marcação do anúncio com `isFeatured = true` e registro de data de pagamento.
 
+### AC. Emissão e Download de Fatura/Recibo Oficial de Prestação de Serviços em PDF (/comerciante/fatura/[id])
+- **Backend NestJS (`apps/api`)**:
+  - Método `getInvoiceDetails` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Estruturação completa do documento contábil e fiscal de publicidade digital: dados do prestador (`Os Melhores da Cidade Tecnologia e Publicidade Digital Ltda.`, CNPJ `48.219.832/0001-45`), dados do tomador (empresa, CPF/CNPJ, responsável, telefone e endereço do estabelecimento), identificador da fatura (`FAT-2026-...`), chave de autenticação digital (`OSM-...`), detalhamento dos serviços veiculados e períodos de vigência.
+    - Validação de segurança e escopo de permissões garantindo acesso exclusivo ao comerciante titular ou administradores da plataforma.
+  - Endpoint `GET /api/v1/billing/merchant/invoice/:id` em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegido por `JwtAuthGuard` e `Roles(Role.MERCHANT, Role.ADMIN)`.
+- **Frontend Next.js (`apps/web`)**:
+  - Interfaces tipadas `InvoiceData` e cliente de requisições `fetchInvoiceDetailsApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Página dedicada de visualização e emissão em [`/comerciante/fatura/[id]`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/fatura/[id]/page.tsx):
+    - Documento oficial no formato folha A4 com identidade visual timbrada, badge dinâmico de liquidação (`QUITADO / PAGO`), tabela descritiva de serviços com valores brutos e líquidos, dados de liquidação e chave de validação criptográfica.
+    - Botão "Imprimir / Salvar em PDF" com regras avançadas de estilo `@media print` (ocultamento de controles e barra superior na impressão, escala A4 limpa e nítida).
+  - Ação "Recibo / PDF" integrada à listagem de assinaturas do painel do comerciante em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) com ícone `FileText` e abertura direta do documento.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

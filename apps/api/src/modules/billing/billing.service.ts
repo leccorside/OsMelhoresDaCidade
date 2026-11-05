@@ -380,5 +380,118 @@ export class BillingService {
       transactions: recentTransactions,
     };
   }
+
+  /**
+   * Retorna os dados completos e estruturados da fatura/recibo oficial de publicidade digital
+   */
+  async getInvoiceDetails(user: any, subscriptionId: string) {
+    const subscription = await this.prisma.merchantSubscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            street: true,
+            number: true,
+            phone: true,
+            city: { select: { name: true, state: true } },
+          },
+        },
+        merchantProfile: {
+          select: {
+            id: true,
+            userId: true,
+            companyName: true,
+            legalName: true,
+            cnpj: true,
+            address: true,
+            user: { select: { id: true, name: true, email: true, phone: true } },
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Assinatura / Fatura não encontrada.');
+    }
+
+    // Validação de segurança: apenas o ADMIN ou o comerciante titular podem visualizar
+    const isOwner =
+      subscription.merchantProfile?.userId === user.id ||
+      subscription.merchantProfile?.user?.id === user.id;
+
+    if (user.role !== 'ADMIN' && !isOwner) {
+      throw new ForbiddenException('Acesso negado à fatura informada.');
+    }
+
+    const latestPayment = subscription.payments?.[0] || null;
+    const planNames: Record<SubscriptionPlan, string> = {
+      [SubscriptionPlan.FREE]: 'Gratuito',
+      [SubscriptionPlan.BRONZE_DESTAQUE]: 'Bronze Destaque VIP',
+      [SubscriptionPlan.PRATA_REGIONAL]: 'Prata Regional VIP',
+      [SubscriptionPlan.OURO_MASTER]: 'Ouro Master VIP (N° 1 do Guia)',
+    };
+
+    const year = new Date(subscription.createdAt).getFullYear();
+    const invoiceNumber = `FAT-${year}-${subscription.id.substring(0, 8).toUpperCase()}`;
+    const verificationCode = `OSM-${subscription.id.replace(/-/g, '').substring(0, 16).toUpperCase()}`;
+
+    const listingAddr = subscription.listing?.street
+      ? `${subscription.listing.street}${subscription.listing.number ? ', ' + subscription.listing.number : ''}, ${subscription.listing.city?.name || 'Barreiras'} - ${subscription.listing.city?.state || 'BA'}`
+      : subscription.merchantProfile?.address || 'Barreiras - BA';
+
+    return {
+      invoiceNumber,
+      verificationCode,
+      status: subscription.status,
+      statusLabel:
+        subscription.status === PaymentStatus.PAID
+          ? 'QUITADO / PAGO'
+          : subscription.status === PaymentStatus.PENDING
+          ? 'AGUARDANDO PAGAMENTO'
+          : 'EXPIRADO',
+      issueDate: subscription.createdAt,
+      paidAt: latestPayment?.paidAt || (subscription.status === PaymentStatus.PAID ? subscription.updatedAt : null),
+      provider: {
+        name: 'Os Melhores da Cidade Tecnologia e Publicidade Digital Ltda.',
+        tradeName: 'Portal Os Melhores da Cidade',
+        cnpj: '48.219.832/0001-45',
+        email: 'financeiro@osmelhoresdacidade.com.br',
+        website: 'https://osmelhoresdacidade.com.br',
+        address: 'Av. Barreiras, Centro Empresarial - Barreiras/BA',
+      },
+      customer: {
+        tradeName: subscription.listing?.name || subscription.merchantProfile?.companyName || 'Estabelecimento Comercial',
+        companyName: subscription.merchantProfile?.legalName || subscription.merchantProfile?.companyName || subscription.listing?.name || 'Comerciante Parceiro',
+        document: subscription.merchantProfile?.cnpj || 'Não informado',
+        contactName: subscription.merchantProfile?.user?.name || 'Responsável Legal',
+        contactEmail: subscription.merchantProfile?.user?.email || 'contato@parceiro.com.br',
+        contactPhone: subscription.listing?.phone || subscription.merchantProfile?.user?.phone || 'Não informado',
+        address: listingAddr,
+      },
+      service: {
+        subscriptionId: subscription.id,
+        plan: subscription.plan,
+        planName: planNames[subscription.plan] || subscription.plan,
+        listingName: subscription.listing?.name || 'Estabelecimento Principal',
+        billingCycle: subscription.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal',
+        periodStart: subscription.startDate,
+        periodEnd: subscription.endDate,
+        description: `Prestação de serviços de publicidade digital, indexação institucional e destaque prioritário no Guia Comercial Oficial Os Melhores da Cidade (${planNames[subscription.plan] || subscription.plan}).`,
+        grossAmount: Number(subscription.price),
+        discountAmount: 0.0,
+        netAmount: Number(subscription.price),
+        paymentMethod: latestPayment?.method || 'PIX',
+        gatewayPaymentId: subscription.gatewayPaymentId,
+        gatewayInvoiceUrl: subscription.gatewayInvoiceUrl,
+      },
+    };
+  }
 }
 

@@ -22,6 +22,7 @@ import {
   Star,
   Flame,
   Award,
+  FileText,
 } from 'lucide-react';
 import {
   fetchBillingPlansApi,
@@ -422,27 +423,41 @@ export default function MerchantPlansPage() {
                           : 'Aguardando pagamento'}
                       </td>
                       <td className="px-4 py-4 text-right">
-                        {isPending ? (
-                          <button
-                            onClick={() => handleConfirmPayment(sub.id)}
-                            disabled={confirming}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all flex items-center gap-1.5 ml-auto"
-                          >
-                            {confirming ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Zap className="w-3.5 h-3.5" />
-                            )}
-                            Confirmar PIX
-                          </button>
-                        ) : (
+                        <div className="flex items-center justify-end gap-2">
+                          {isPending && (
+                            <button
+                              onClick={() => handleConfirmPayment(sub.id)}
+                              disabled={confirming}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all flex items-center gap-1.5"
+                            >
+                              {confirming ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Zap className="w-3.5 h-3.5" />
+                              )}
+                              Confirmar PIX
+                            </button>
+                          )}
+
                           <Link
-                            href={`/comerciante/estabelecimentos`}
-                            className="text-xs font-semibold text-neutral-600 hover:text-neutral-900"
+                            href={`/comerciante/fatura/${sub.id}`}
+                            target="_blank"
+                            title="Visualizar e Imprimir Recibo Oficial / Fatura em PDF"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold transition-colors border border-neutral-200/80"
                           >
-                            Ver anúncio →
+                            <FileText className="w-3.5 h-3.5 text-neutral-600" />
+                            Recibo / PDF
                           </Link>
-                        )}
+
+                          {isPaid && (
+                            <Link
+                              href={`/comerciante/estabelecimentos`}
+                              className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 ml-1 hidden sm:inline-block"
+                            >
+                              Ver anúncio →
+                            </Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

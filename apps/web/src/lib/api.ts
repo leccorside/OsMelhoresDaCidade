@@ -2132,4 +2132,65 @@ export async function fetchAdminFinancialOverviewApi(): Promise<FinancialOvervie
   return res.json();
 }
 
+export interface InvoiceData {
+  invoiceNumber: string;
+  verificationCode: string;
+  status: string;
+  statusLabel: string;
+  issueDate: string;
+  paidAt: string | null;
+  provider: {
+    name: string;
+    tradeName: string;
+    cnpj: string;
+    email: string;
+    website: string;
+    address: string;
+  };
+  customer: {
+    tradeName: string;
+    companyName: string;
+    document: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone: string;
+    address: string;
+  };
+  service: {
+    subscriptionId: string;
+    plan: string;
+    planName: string;
+    listingName: string;
+    billingCycle: string;
+    periodStart: string;
+    periodEnd: string | null;
+    description: string;
+    grossAmount: number;
+    discountAmount: number;
+    netAmount: number;
+    paymentMethod: string;
+    gatewayPaymentId: string | null;
+    gatewayInvoiceUrl: string | null;
+  };
+}
+
+export async function fetchInvoiceDetailsApi(subscriptionId: string): Promise<InvoiceData> {
+  const url = `${getApiBaseUrl()}/billing/merchant/invoice/${subscriptionId}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao carregar fatura / recibo: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+
 

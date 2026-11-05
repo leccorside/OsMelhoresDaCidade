@@ -42,6 +42,15 @@ export class BillingController {
     return this.billingService.getMerchantSubscriptions(user);
   }
 
+  @Get('merchant/invoice/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter detalhes e comprovante oficial de prestação de serviço / fatura em PDF' })
+  getInvoiceDetails(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.billingService.getInvoiceDetails(user, id);
+  }
+
   @Post('checkout')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MERCHANT, Role.ADMIN)
