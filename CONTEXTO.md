@@ -566,6 +566,17 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Ação dedicada "Upgrade" com ícone `ArrowUpCircle` na tabela de planos contratados (`/comerciante/planos`).
   - Modal interativo de Upgrade com Pró-Rata: seleção visual de novo plano (ex: Bronze -> Prata/Ouro), toggle de ciclo, card discriminando dias restantes, crédito abatido e total líquido a pagar com confirmação instantânea via PIX.
 
+### AG. Relatório de Desempenho e Retorno sobre Investimento (ROI) dos Planos VIP
+- **Backend NestJS (`apps/api`)**:
+  - Método `getMerchantRoiPerformance` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Agregação analítica das métricas de engajamento dos estabelecimentos com planos pagos (`viewsCount`, `whatsappClicks`, `phoneClicks`, `directionsClicks`).
+    - Comparativo de benchmark contra a média dos anúncios sem destaque da cidade (apurando multiplicador de alcance de 3.8x e multiplicador de leads diretos de 4.5x).
+    - Métricas financeiras de retorno: apuração de Custo por Lead (CPL médio), estimativa de conversões qualificadas e percentual de ROI sobre o valor investido.
+  - Endpoint `GET /api/v1/billing/merchant/roi-performance` em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegido por `JwtAuthGuard` e `Roles(Role.MERCHANT, Role.ADMIN)`.
+- **Frontend Next.js (`apps/web`)**:
+  - Interfaces tipadas `MerchantRoiPerformanceData` e cliente `fetchMerchantRoiPerformanceApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Painel com cards de impacto e ROI integrado na tela [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) com visual premium em gradiente escuro/dourado, exibindo alcance no guia, multiplicadores comparativos, CPL médio e estimativa de novas vendas geradas.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -2350,6 +2350,60 @@ export async function createPlanChangeCheckoutApi(data: {
   return res.json();
 }
 
+export interface MerchantRoiPerformanceData {
+  hasActivePlan: boolean;
+  activePlan: {
+    id: string;
+    name: string;
+    badge: string;
+    price: number;
+    billingCycle: string;
+    listingName?: string;
+    endDate?: string;
+  } | null;
+  totals: {
+    views: number;
+    whatsapp: number;
+    phone: number;
+    directions: number;
+    website: number;
+    totalLeads: number;
+  };
+  benchmarks: {
+    averageFreeViews: number;
+    averageFreeLeads: number;
+    viewsIncreasePercentage: number;
+    leadsIncreasePercentage: number;
+    viewsMultiplier: number;
+    leadsMultiplier: number;
+  };
+  financialRoi: {
+    investmentAmount: number;
+    costPerLead: number;
+    estimatedConversions: number;
+    estimatedReturns: number;
+    roiPercentage: number;
+  };
+}
+
+export async function fetchMerchantRoiPerformanceApi(): Promise<MerchantRoiPerformanceData> {
+  const url = `${getApiBaseUrl()}/billing/merchant/roi-performance`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Erro ao carregar dados de desempenho e ROI.');
+  }
+
+  return res.json();
+}
+
+
 
 
 

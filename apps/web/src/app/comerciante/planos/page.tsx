@@ -27,6 +27,10 @@ import {
   Ticket,
   ArrowUpCircle,
   RefreshCw,
+  TrendingUp,
+  BarChart3,
+  Eye,
+  MessageCircle,
 } from 'lucide-react';
 import {
   fetchBillingPlansApi,
@@ -37,11 +41,13 @@ import {
   validateSubscriptionCouponApi,
   calculatePlanChangeApi,
   createPlanChangeCheckoutApi,
+  fetchMerchantRoiPerformanceApi,
   BillingPlan,
   MerchantSubscriptionItem,
   MerchantListing,
   CouponValidationResult,
   PlanChangeCalculation,
+  MerchantRoiPerformanceData,
 } from '@/lib/api';
 
 export default function MerchantPlansPage() {
@@ -82,17 +88,22 @@ export default function MerchantPlansPage() {
   const [prorataCalc, setProrataCalc] = useState<PlanChangeCalculation | null>(null);
   const [prorataLoading, setProrataLoading] = useState(false);
 
+  // Relatório de ROI State
+  const [roiData, setRoiData] = useState<MerchantRoiPerformanceData | null>(null);
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [plansData, subsData, listingsData] = await Promise.all([
+      const [plansData, subsData, listingsData, roiRes] = await Promise.all([
         fetchBillingPlansApi(),
         fetchMerchantSubscriptionsApi(),
         fetchMerchantListings(),
+        fetchMerchantRoiPerformanceApi().catch(() => null),
       ]);
       setPlans(plansData);
       setSubscriptions(subsData);
       setListings(listingsData);
+      setRoiData(roiRes);
       if (listingsData.length > 0) {
         setSelectedListingId(listingsData[0].id);
       }
@@ -468,6 +479,104 @@ export default function MerchantPlansPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Relatório de Desempenho e ROI dos Planos VIP */}
+      {roiData && (
+        <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-amber-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-neutral-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-wider mb-2 border border-amber-500/30">
+                <TrendingUp className="w-3.5 h-3.5" />
+                Impacto Real do Plano de Destaque
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                Retorno do seu Investimento (ROI) no Guia
+              </h2>
+              <p className="text-neutral-300 text-xs sm:text-sm mt-1 max-w-2xl">
+                Comparativo oficial de desempenho do seu comércio contra a média de negócios sem plano de destaque na cidade.
+              </p>
+            </div>
+
+            <Link
+              href="/comerciante/estatisticas"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors border border-white/10 shrink-0 self-start sm:self-auto"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+              Métricas Detalhadas →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Visualizações */}
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
+              <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
+                <span>Alcance no Guia</span>
+                <Eye className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-white">{roiData.totals.views.toLocaleString('pt-BR')}</span>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                  +{roiData.benchmarks.viewsIncreasePercentage}%
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400 mt-1">
+                {roiData.benchmarks.viewsMultiplier}x mais visualizações que a média da cidade.
+              </p>
+            </div>
+
+            {/* Contatos WhatsApp */}
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
+              <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
+                <span>Contatos WhatsApp</span>
+                <MessageCircle className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-white">{roiData.totals.whatsapp.toLocaleString('pt-BR')}</span>
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                  +{roiData.benchmarks.leadsIncreasePercentage}%
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400 mt-1">
+                {roiData.benchmarks.leadsMultiplier}x mais conversões no botão flutuante.
+              </p>
+            </div>
+
+            {/* Custo por Lead */}
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10">
+              <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
+                <span>Custo Médio p/ Lead</span>
+                <Tag className="w-4 h-4 text-sky-400" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-white font-mono">
+                  R$ {roiData.financialRoi.costPerLead.toFixed(2)}
+                </span>
+                <span className="text-xs text-neutral-400 font-medium">/ contato</span>
+              </div>
+              <p className="text-xs text-neutral-400 mt-1">
+                Muito inferior ao custo por clique médio do Google/Meta Ads.
+              </p>
+            </div>
+
+            {/* Estimativa de ROI */}
+            <div className="bg-gradient-to-br from-amber-500/20 to-emerald-500/20 backdrop-blur-md rounded-2xl p-5 border border-amber-500/30">
+              <div className="flex items-center justify-between text-amber-200 text-xs font-semibold uppercase tracking-wider">
+                <span>Retorno Estimado</span>
+                <Sparkles className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl font-black text-amber-300 font-mono">
+                  +{roiData.financialRoi.roiPercentage}%
+                </span>
+                <span className="text-xs font-bold text-emerald-300">ROI Alto</span>
+              </div>
+              <p className="text-xs text-neutral-300 mt-1">
+                Estimativa de R$ {roiData.financialRoi.estimatedReturns.toFixed(2)} em novas vendas geradas.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

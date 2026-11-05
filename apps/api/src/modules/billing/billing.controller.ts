@@ -58,6 +58,15 @@ export class BillingController {
     return this.billingService.getInvoiceDetails(user, id);
   }
 
+  @Get('merchant/roi-performance')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Relatório de desempenho e ROI do investimento nos planos de destaque' })
+  getMerchantRoiPerformance(@CurrentUser() user: any) {
+    return this.billingService.getMerchantRoiPerformance(user);
+  }
+
   @Post('validate-coupon')
   @ApiOperation({ summary: 'Validar cupom de desconto promocional para contratação de planos' })
   validateCoupon(@Body() dto: ValidateCouponDto) {

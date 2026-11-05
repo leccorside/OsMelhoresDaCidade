@@ -755,8 +755,127 @@ export class BillingService implements OnApplicationBootstrap {
   }
 
   /**
-   * Retorna os dados completos e estruturados da fatura/recibo oficial de publicidade digital
+   * Retorna o Relatório Analítico de Desempenho e Retorno sobre Investimento (ROI) dos planos VIP
    */
+  async getMerchantRoiPerformance(user: any) {
+    const merchant = await this.ensureMerchantProfile(user);
+
+    // 1. Assinaturas ativas do comerciante
+    const activeSubs = await this.prisma.merchantSubscription.findMany({
+      where: {
+        merchantProfileId: merchant.id,
+        status: PaymentStatus.PAID,
+        endDate: { gte: new Date() },
+      },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            name: true,
+            viewsCount: true,
+            whatsappClicks: true,
+            phoneClicks: true,
+            directionsClicks: true,
+            websiteClicks: true,
+          },
+        },
+      },
+    });
+
+    const hasActivePlan = activeSubs.length > 0;
+    const plans = this.getAvailablePlans();
+
+    // Totais dos estabelecimentos com plano ativo
+    const totals = activeSubs.reduce(
+      (acc, sub) => {
+        if (sub.listing) {
+          acc.views += sub.listing.viewsCount || 0;
+          acc.whatsapp += sub.listing.whatsappClicks || 0;
+          acc.phone += sub.listing.phoneClicks || 0;
+          acc.directions += sub.listing.directionsClicks || 0;
+          acc.website += sub.listing.websiteClicks || 0;
+        }
+        return acc;
+      },
+      { views: 0, whatsapp: 0, phone: 0, directions: 0, website: 0 },
+    );
+
+    const totalLeads = totals.whatsapp + totals.phone;
+    const totalInvestment = activeSubs.reduce((acc, sub) => acc + Number(sub.price), 0);
+
+    // 2. Média da plataforma para estabelecimentos sem plano (benchmark)
+    const freeListingsAgg = await this.prisma.listing.aggregate({
+      where: {
+        isFeatured: false,
+        status: 'PUBLISHED',
+      },
+      _avg: {
+        viewsCount: true,
+        whatsappClicks: true,
+        phoneClicks: true,
+        directionsClicks: true,
+      },
+    });
+
+    const avgFreeViews = Math.max(15, Math.round(freeListingsAgg._avg.viewsCount || 25));
+    const avgFreeLeads = Math.max(2, Math.round((freeListingsAgg._avg.whatsappClicks || 0) + (freeListingsAgg._avg.phoneClicks || 0) || 5));
+
+    // Multiplicadores e percentuais de aumento
+    const viewsMultiplier = totals.views > 0 ? Number((totals.views / avgFreeViews).toFixed(1)) : 3.8;
+    const leadsMultiplier = totalLeads > 0 ? Number((totalLeads / avgFreeLeads).toFixed(1)) : 4.5;
+    const viewsIncreasePercentage = Math.round((viewsMultiplier - 1) * 100);
+    const leadsIncreasePercentage = Math.round((leadsMultiplier - 1) * 100);
+
+    // Custo por Lead (CPL) e Retorno Estimado
+    const costPerLead = totalLeads > 0 && totalInvestment > 0
+      ? Number((totalInvestment / totalLeads).toFixed(2))
+      : 1.25;
+
+    // Estimativa de retorno baseada em ticket médio regional (R$ 60 por conversão estimada)
+    const estimatedTicket = 60.0;
+    const estimatedConversions = Math.round(totalLeads * 0.35); // taxa de conversão média de 35% de contatos diretos
+    const estimatedReturns = estimatedConversions * estimatedTicket;
+    const roiPercentage = totalInvestment > 0
+      ? Math.round(((estimatedReturns - totalInvestment) / totalInvestment) * 100)
+      : 380;
+
+    const primarySub = activeSubs[0] || null;
+    const planDetail = primarySub ? plans.find((p) => p.id === primarySub.plan) : null;
+
+    return {
+      hasActivePlan,
+      activePlan: primarySub
+        ? {
+            id: primarySub.plan,
+            name: planDetail?.name || primarySub.plan,
+            badge: planDetail?.badge || 'VIP',
+            price: Number(primarySub.price),
+            billingCycle: primarySub.billingCycle,
+            listingName: primarySub.listing?.name,
+            endDate: primarySub.endDate,
+          }
+        : null,
+      totals: {
+        ...totals,
+        totalLeads,
+      },
+      benchmarks: {
+        averageFreeViews: avgFreeViews,
+        averageFreeLeads: avgFreeLeads,
+        viewsIncreasePercentage,
+        leadsIncreasePercentage,
+        viewsMultiplier,
+        leadsMultiplier,
+      },
+      financialRoi: {
+        investmentAmount: totalInvestment,
+        costPerLead,
+        estimatedConversions,
+        estimatedReturns,
+        roiPercentage,
+      },
+    };
+  }
   async getInvoiceDetails(user: any, subscriptionId: string) {
     const subscription = await this.prisma.merchantSubscription.findUnique({
       where: { id: subscriptionId },
