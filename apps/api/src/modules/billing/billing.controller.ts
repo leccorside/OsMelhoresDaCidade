@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   Headers,
   UseGuards,
 } from '@nestjs/common';
@@ -174,6 +175,25 @@ export class BillingController {
   @ApiOperation({ summary: 'Visão geral financeira de faturamento e assinaturas do guia' })
   getFinancialOverview() {
     return this.billingService.getAdminFinancialOverview();
+  }
+
+  @Get('admin/expiring-subscriptions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar assinaturas a vencer nos próximos dias com links para WhatsApp' })
+  getExpiringSubscriptions(@Query('days') days?: string) {
+    const daysNum = days ? parseInt(days, 10) : 7;
+    return this.billingService.getExpiringSubscriptions(daysNum);
+  }
+
+  @Post('admin/process-renewals')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Processar e disparar notificações de renovação por e-mail e painel' })
+  processSubscriptionRenewals() {
+    return this.billingService.processSubscriptionRenewals();
   }
 
   @Post('webhook/asaas')

@@ -594,6 +594,46 @@ export default function MerchantPlansPage() {
           </div>
         </div>
 
+        {/* Banner de Aviso de Renovação Próxima */}
+        {(() => {
+          const expSub = subscriptions.find((s) => {
+            if (s.status !== 'PAID' || !s.endDate) return false;
+            const daysLeft = Math.ceil((new Date(s.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            return daysLeft <= 7;
+          });
+          if (!expSub || !expSub.endDate) return null;
+          const days = Math.ceil((new Date(expSub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+          return (
+            <div className="mb-6 rounded-2xl bg-amber-50 border border-amber-200/90 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 text-amber-700">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-amber-900">
+                    Aviso de Vencimento do Plano de Destaque
+                  </h4>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    O destaque VIP para <strong>{expSub.listing?.name || 'seu estabelecimento'}</strong> {days > 0 ? `vence em ${days} dia(s) (${new Date(expSub.endDate).toLocaleDateString('pt-BR')})` : 'vence hoje ou expirou recentemente'}. Garanta sua posição de topo no guia!
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    if (expSub.listing?.id) setSelectedListingId(expSub.listing.id);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-colors"
+                >
+                  Renovar Destaque Agora
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {subscriptions.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed border-neutral-200 rounded-2xl">
             <Store className="w-12 h-12 text-neutral-300 mx-auto mb-3" />

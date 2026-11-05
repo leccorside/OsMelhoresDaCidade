@@ -2457,6 +2457,69 @@ export async function updateAdminCitySplitApi(cityId: string, data: Partial<City
   return res.json();
 }
 
+export interface ExpiringSubscriptionItem {
+  id: string;
+  listingId: string | null;
+  listingName: string;
+  merchantName: string;
+  merchantEmail: string | null;
+  merchantPhone: string;
+  cityName: string;
+  plan: string;
+  planName: string;
+  billingCycle: string;
+  price: number;
+  endDate: string;
+  daysRemaining: number;
+  statusDescription: string;
+  renewUrl: string;
+  whatsAppLink: string | null;
+  whatsAppMessage: string;
+}
+
+export interface ProcessRenewalsResult {
+  success: boolean;
+  totalExpiring: number;
+  emailsSent: number;
+  notificationsCreated: number;
+  items: ExpiringSubscriptionItem[];
+}
+
+export async function fetchExpiringSubscriptionsApi(days = 7): Promise<ExpiringSubscriptionItem[]> {
+  const url = `${getApiBaseUrl()}/billing/admin/expiring-subscriptions?days=${days}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Erro ao buscar assinaturas a vencer.');
+  }
+
+  return res.json();
+}
+
+export async function processSubscriptionRenewalsApi(): Promise<ProcessRenewalsResult> {
+  const url = `${getApiBaseUrl()}/billing/admin/process-renewals`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao processar notificações de renovação.');
+  }
+
+  return res.json();
+}
+
 
 
 

@@ -593,6 +593,21 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Tabela de cidades com badges de status do split, identificação do parceiro regional, chave PIX e relação de divisão (ex: 80% Local / 20% Matriz).
     - Modal interativo para configuração de franqueado, chave PIX, carteira Asaas e percentuais customizados de repasse.
 
+### AI. Notificações de Renovação e Vencimento de Assinatura via WhatsApp e E-mail
+- **Backend NestJS (`apps/api`)**:
+  - Métodos `getExpiringSubscriptions` e `processSubscriptionRenewals` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Consulta em tempo real das assinaturas prestes a expirar (janela de 7 dias ou recém-vencidas).
+    - Montagem de mensagem humanizada com link direto de renovação pré-formatada para WhatsApp API (`wa.me/55...`).
+    - Disparo automático de e-mail de alerta de expiração via `MailService.sendSubscriptionExpiringEmail` e `sendSubscriptionExpiredEmail`.
+    - Registro de notificações internas no sistema (`Notification`) para o comerciante.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegidos por `JwtAuthGuard` e `Roles(Role.ADMIN)`:
+    - `GET /api/v1/billing/admin/expiring-subscriptions`: listagem de assinaturas a vencer com links do WhatsApp.
+    - `POST /api/v1/billing/admin/process-renewals`: rotina em lote de disparo de notificações por e-mail e painel.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagem `ExpiringSubscriptionItem`, `ProcessRenewalsResult` e clientes `fetchExpiringSubscriptionsApi`, `processSubscriptionRenewalsApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Banner dinâmico de atenção no painel [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) alertando sobre vencimento próximo (<= 7 dias) com botão de renovação em 1 clique.
+  - Seção "Lembretes de Renovação & Vencimentos (WhatsApp & E-mail)" no painel [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx) com botão de envio em lote e acionamento direto via WhatsApp Web com mensagem pré-formatada.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

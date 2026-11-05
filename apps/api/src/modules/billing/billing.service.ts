@@ -1058,5 +1058,172 @@ export class BillingService implements OnApplicationBootstrap {
       },
     };
   }
+
+  async getExpiringSubscriptions(daysWindow = 7) {
+    const now = new Date();
+    const maxDate = new Date(now.getTime() + daysWindow * 24 * 60 * 60 * 1000);
+    const minDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // até 2 dias atrás
+
+    const subscriptions = await this.prisma.merchantSubscription.findMany({
+      where: {
+        status: PaymentStatus.PAID,
+        plan: { not: SubscriptionPlan.FREE },
+        endDate: {
+          gte: minDate,
+          lte: maxDate,
+        },
+      },
+      include: {
+        listing: {
+          include: {
+            city: true,
+          },
+        },
+        merchantProfile: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: {
+        endDate: 'asc',
+      },
+    });
+
+    const webBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://osmelhoresdacidade.com.br';
+
+    return subscriptions.map((sub) => {
+      const endDate = sub.endDate || new Date();
+      const diffMs = endDate.getTime() - now.getTime();
+      const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      const merchantName = sub.merchantProfile?.user?.name || 'Comerciante';
+      const listingName = sub.listing?.name || 'Seu Estabelecimento';
+      const rawPhone = sub.listing?.whatsapp || sub.listing?.phone || sub.merchantProfile?.user?.phone || '';
+      const phoneClean = rawPhone.replace(/\D/g, '');
+
+      const planNameMap: Record<string, string> = {
+        BRONZE_DESTAQUE: 'Bronze Destaque VIP',
+        PRATA_REGIONAL: 'Prata Regional VIP',
+        OURO_MASTER: 'Ouro Master VIP',
+      };
+      const planName = planNameMap[sub.plan] || sub.plan;
+
+      const dateFormatted = endDate.toLocaleDateString('pt-BR');
+      const renewUrl = `${webBaseUrl}/comerciante/planos?renew=${sub.id}`;
+
+      let statusDescription = '';
+      if (daysRemaining > 1) {
+        statusDescription = `Vence em ${daysRemaining} dias (${dateFormatted})`;
+      } else if (daysRemaining === 1) {
+        statusDescription = `Vence amanhã (${dateFormatted})`;
+      } else if (daysRemaining === 0) {
+        statusDescription = `Vence hoje (${dateFormatted})!`;
+      } else {
+        statusDescription = `Venceu há ${Math.abs(daysRemaining)} dia(s) (${dateFormatted})`;
+      }
+
+      const message = `Olá, *${merchantName}*! Tudo bem?\n\nLembramos que o plano de destaque VIP *${planName}* do estabelecimento *${listingName}* no portal *Os Melhores da Cidade* ${daysRemaining >= 0 ? `vence em ${daysRemaining === 0 ? 'HOJE' : daysRemaining + ' dias'} (${dateFormatted})` : `expirou em ${dateFormatted}`}.\n\nPara não perder o selo VIP, o topo das pesquisas e os leads diretos no seu WhatsApp, renove de forma rápida e segura pelo link:\n👉 ${renewUrl}\n\nQualquer dúvida, estamos à disposição!`;
+
+      const whatsAppLink = phoneClean ? `https://wa.me/55${phoneClean}?text=${encodeURIComponent(message)}` : null;
+
+      return {
+        id: sub.id,
+        listingId: sub.listingId,
+        listingName,
+        merchantName,
+        merchantEmail: sub.merchantProfile?.user?.email || null,
+        merchantPhone: rawPhone,
+        cityName: sub.listing?.city?.name || 'Barreiras',
+        plan: sub.plan,
+        planName,
+        billingCycle: sub.billingCycle,
+        price: Number(sub.price),
+        endDate: sub.endDate,
+        daysRemaining,
+        statusDescription,
+        renewUrl,
+        whatsAppLink,
+        whatsAppMessage: message,
+      };
+    });
+  }
+
+  async processSubscriptionRenewals() {
+    const list = await this.getExpiringSubscriptions(5);
+    let emailsSent = 0;
+    let notificationsCreated = 0;
+
+    for (const item of list) {
+      // 1. Notificação interna se o usuário existir
+      const sub = await this.prisma.merchantSubscription.findUnique({
+        where: { id: item.id },
+        include: { merchantProfile: true },
+      });
+
+      if (sub?.merchantProfile?.userId) {
+        const userId = sub.merchantProfile.userId;
+        const recentNotif = await this.prisma.notification.findFirst({
+          where: {
+            userId,
+            createdAt: {
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // não repete no mesmo dia
+            },
+            type: NotificationType.SYSTEM_ALERT,
+            title: { contains: 'Renovação' },
+          },
+        });
+
+        if (!recentNotif) {
+          await this.prisma.notification.create({
+            data: {
+              userId,
+              type: NotificationType.SYSTEM_ALERT,
+              title: `⏰ Renovação de Plano: ${item.listingName}`,
+              message: `O plano ${item.planName} ${item.daysRemaining >= 0 ? `vence em ${item.daysRemaining} dias` : 'está expirado'}. Mantenha seu destaque e continue recebendo leads VIP.`,
+              linkUrl: '/comerciante/planos',
+              metadata: {
+                subscriptionId: item.id,
+                daysRemaining: item.daysRemaining,
+              },
+            },
+          });
+          notificationsCreated++;
+        }
+      }
+
+      // 2. Disparo de E-mail
+      if (item.merchantEmail) {
+        if (item.daysRemaining >= 0) {
+          const res = await this.mailService.sendSubscriptionExpiringEmail({
+            merchantName: item.merchantName,
+            merchantEmail: item.merchantEmail,
+            listingName: item.listingName,
+            planName: item.planName,
+            daysLeft: Math.max(0, item.daysRemaining),
+            renewUrl: item.renewUrl,
+          });
+          if (res.success) emailsSent++;
+        } else {
+          const res = await this.mailService.sendSubscriptionExpiredEmail({
+            merchantName: item.merchantName,
+            merchantEmail: item.merchantEmail,
+            listingName: item.listingName,
+            planName: item.planName,
+            renewUrl: item.renewUrl,
+          });
+          if (res.success) emailsSent++;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      totalExpiring: list.length,
+      emailsSent,
+      notificationsCreated,
+      items: list,
+    };
+  }
 }
 
