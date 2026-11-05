@@ -951,3 +951,20 @@ model WebhookEndpoint {
 
   @@map("webhook_endpoints")
 }
+
+model FranchiseLead {
+  id               String   @id @default(uuid())
+  name             String
+  email            String
+  phone            String
+  city             String
+  state            String
+  capitalAvailable String?
+  experience       String?
+  notes            String?  @db.Text
+  status           String   @default("NOVO")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("franchise_leads")
+}

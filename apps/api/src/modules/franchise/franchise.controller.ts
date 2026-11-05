@@ -1,7 +1,7 @@
-import { Controller, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FranchiseService } from './franchise.service';
-import { UpdateLeadPipelineDto } from './dto/franchise.dto';
+import { UpdateLeadPipelineDto, CreateFranchiseLeadDto } from './dto/franchise.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -10,19 +10,37 @@ import { Role } from '@prisma/client';
 
 @ApiTags('Franquias Regionais')
 @Controller('franchise')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.FRANCHISEE, Role.ADMIN)
-@ApiBearerAuth()
 export class FranchiseController {
   constructor(private readonly franchiseService: FranchiseService) {}
 
+  @Post('lead')
+  @ApiOperation({ summary: 'Enviar candidatura e interesse para abertura de nova franquia regional (Público)' })
+  createLead(@Body() dto: CreateFranchiseLeadDto) {
+    return this.franchiseService.createFranchiseLead(dto);
+  }
+
+  @Get('leads')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar candidaturas de novos franqueados para moderação e expansão' })
+  getLeads() {
+    return this.franchiseService.getFranchiseLeads();
+  }
+
   @Get('overview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.FRANCHISEE, Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Visão geral da franquia da cidade (estabelecimentos, faturamento e comissão)' })
   getOverview(@CurrentUser() user: any, @Query('cityId') cityId?: string) {
     return this.franchiseService.getFranchiseOverview(user.id, cityId);
   }
 
   @Get('merchants')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.FRANCHISEE, Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar comércios e anunciantes da cidade da franquia' })
   getMerchants(
     @CurrentUser() user: any,
@@ -38,6 +56,9 @@ export class FranchiseController {
   }
 
   @Patch('merchants/:listingId/pipeline')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.FRANCHISEE, Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Atualizar estágio do lead no funil de prospecção do franqueado' })
   updateLeadPipeline(
     @CurrentUser() user: any,
@@ -48,6 +69,9 @@ export class FranchiseController {
   }
 
   @Get('subscriptions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.FRANCHISEE, Role.ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Histórico de assinaturas e split da cidade da franquia' })
   getSubscriptions(@CurrentUser() user: any, @Query('cityId') cityId?: string) {
     return this.franchiseService.getFranchiseSubscriptions(user.id, cityId);

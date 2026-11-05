@@ -734,6 +734,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Página timbrada executiva [`/admin/financeiro/fechamento`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/fechamento/page.tsx) com seletor de competência mensal, 4 cartões de consolidação financeira, balancete analítico com livro caixa detalhado, carimbo de autenticidade contábil e botão de impressão/salvar em PDF com regras `@media print`.
   - Botão de atalho rápido "Fechamento Mensal (PDF)" adicionado no painel administrativo principal em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx).
 
+### AS. Simulador Interativo de Faturamento para Novos Franqueados
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Novo modelo `FranchiseLead`: `id`, `name`, `email`, `phone`, `city`, `state`, `capitalAvailable`, `experience`, `notes`, `status` (default `"NOVO"`), `createdAt` e `updatedAt`. Sincronizado no banco PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - DTO `CreateFranchiseLeadDto` com validações para expansão da rede.
+  - Métodos `createFranchiseLead` e `getFranchiseLeads` em [`FranchiseService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.service.ts).
+  - Endpoint público `POST /api/v1/franchise/lead` e endpoint administrativo `GET /api/v1/franchise/leads` em [`FranchiseController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.controller.ts).
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagem `CreateFranchiseLeadPayload` e cliente `createFranchiseLeadApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Landing Page completa em [`/seja-um-franqueado`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/seja-um-franqueado/page.tsx):
+    - Hero institucional com proposta de valor da franquia digital e exclusividade por município.
+    - **Calculadora Interativa de Lucro**: sliders para população da cidade (15k a 500k hab), quantidade de comércios VIPs (10 a 150 lojas) e ticket médio dos planos (Bronze R$ 79, Prata R$ 149, Ouro R$ 249).
+    - Projeção em tempo real de Lucro Líquido Mensal (80% de split), Faturamento Anual da praça e tempo estimado de payback (ROI).
+    - Seção com diferenciais tecnológicos (PWA sem app store, split automático Asaas e CRM de vendas nativo).
+    - Formulário de candidatura e interesse integrado com feedback visual de confirmação.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

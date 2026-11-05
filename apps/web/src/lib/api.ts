@@ -3045,3 +3045,35 @@ export async function fetchAdminMonthlyClosingReportApi(
 
   return res.json();
 }
+
+export interface CreateFranchiseLeadPayload {
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  capitalAvailable?: string;
+  experience?: string;
+}
+
+export async function createFranchiseLeadApi(payload: CreateFranchiseLeadPayload): Promise<{
+  success: boolean;
+  message: string;
+  leadId: string;
+}> {
+  const url = `${getApiBaseUrl()}/franchise/lead`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao enviar candidatura: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

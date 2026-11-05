@@ -1,4 +1,4 @@
-import { UpdateLeadPipelineDto } from './dto/franchise.dto';
+import { UpdateLeadPipelineDto, CreateFranchiseLeadDto } from './dto/franchise.dto';
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Role, PaymentStatus, SubscriptionPlan } from '@prisma/client';
@@ -278,6 +278,33 @@ export class FranchiseService {
       leadLastContactAt: updated.leadLastContactAt,
       message: 'Status do lead atualizado no funil com sucesso.',
     };
+  }
+
+
+  async createFranchiseLead(dto: CreateFranchiseLeadDto) {
+    const lead = await this.prisma.franchiseLead.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone,
+        city: dto.city,
+        state: dto.state,
+        capitalAvailable: dto.capitalAvailable,
+        experience: dto.experience,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Candidatura de franquia recebida com sucesso! Nossa equipe entrará em contato em até 24 horas.',
+      leadId: lead.id,
+    };
+  }
+
+  async getFranchiseLeads() {
+    return this.prisma.franchiseLead.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
 }
