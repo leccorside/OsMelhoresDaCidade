@@ -1592,4 +1592,168 @@ export class BillingService implements OnApplicationBootstrap {
     };
   }
 
+
+  /**
+   * Relatório Consolidado de Faturamento para Fechamento Mensal
+   */
+  async getMonthlyClosingReport(year: number, month: number) {
+    const targetYear = Number(year) || new Date().getFullYear();
+    const targetMonth = Number(month) || new Date().getMonth() + 1;
+
+    const startDate = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
+    const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+    const payments = await this.prisma.subscriptionPayment.findMany({
+      where: {
+        status: PaymentStatus.PAID,
+        OR: [
+          { paidAt: { gte: startDate, lte: endDate } },
+          { createdAt: { gte: startDate, lte: endDate } },
+        ],
+      },
+      include: {
+        subscription: {
+          include: {
+            listing: {
+              include: {
+                city: {
+                  include: { state: true },
+                },
+              },
+            },
+            merchantProfile: {
+              include: {
+                user: true,
+              },
+            },
+            coupon: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    let grossRevenue = 0;
+    let franchiseCommissionTotal = 0;
+    let platformNetRevenue = 0;
+
+    const methodStats: Record<string, { count: number; total: number }> = {
+      PIX: { count: 0, total: 0 },
+      CREDIT_CARD: { count: 0, total: 0 },
+    };
+
+    const cityMap = new Map<string, {
+      cityName: string;
+      uf: string;
+      franchiseName: string;
+      splitEnabled: boolean;
+      transactionsCount: number;
+      grossAmount: number;
+      franchiseAmount: number;
+      platformAmount: number;
+    }>();
+
+    const planNames: Record<SubscriptionPlan, string> = {
+      [SubscriptionPlan.FREE]: 'Gratuito',
+      [SubscriptionPlan.BRONZE_DESTAQUE]: 'Bronze Destaque VIP',
+      [SubscriptionPlan.PRATA_REGIONAL]: 'Prata Regional VIP',
+      [SubscriptionPlan.OURO_MASTER]: 'Ouro Master VIP',
+    };
+
+    const transactions = payments.map((p) => {
+      const gross = Number(p.amount);
+      grossRevenue += gross;
+
+      const mKey = p.method === PaymentMethod.CREDIT_CARD ? 'CREDIT_CARD' : 'PIX';
+      if (!methodStats[mKey]) methodStats[mKey] = { count: 0, total: 0 };
+      methodStats[mKey].count += 1;
+      methodStats[mKey].total += gross;
+
+      const city = p.subscription?.listing?.city;
+      const splitEnabled = Boolean(city?.splitEnabled);
+      const franchiseFeePercent = splitEnabled ? Number(city?.franchiseFeePercent || 80) : 0;
+      const platformFeePercent = splitEnabled ? Number(city?.platformFeePercent || 20) : 100;
+
+      const franchiseCut = Number(((gross * franchiseFeePercent) / 100).toFixed(2));
+      const platformCut = Number((gross - franchiseCut).toFixed(2));
+
+      franchiseCommissionTotal += franchiseCut;
+      platformNetRevenue += platformCut;
+
+      const cityId = city?.id || 'SEM_PRACA';
+      if (!cityMap.has(cityId)) {
+        cityMap.set(cityId, {
+          cityName: city?.name || 'Venda Central / Matriz',
+          uf: city?.state?.uf || 'BR',
+          franchiseName: city?.franchiseName || 'Matriz / Sem Franquia',
+          splitEnabled,
+          transactionsCount: 0,
+          grossAmount: 0,
+          franchiseAmount: 0,
+          platformAmount: 0,
+        });
+      }
+
+      const cData = cityMap.get(cityId)!;
+      cData.transactionsCount += 1;
+      cData.grossAmount += gross;
+      cData.franchiseAmount += franchiseCut;
+      cData.platformAmount += platformCut;
+
+      return {
+        paymentId: p.id,
+        invoiceNumber: `FAT-${targetYear}-${p.subscriptionId.substring(0, 8).toUpperCase()}`,
+        listingName: p.subscription?.listing?.name || 'Estabelecimento',
+        merchantName: p.subscription?.merchantProfile?.user?.name || p.subscription?.merchantProfile?.companyName || 'Comerciante',
+        plan: planNames[p.subscription?.plan as SubscriptionPlan] || p.subscription?.plan,
+        billingCycle: p.subscription?.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal',
+        cityName: city ? `${city.name} - ${city.state?.uf}` : 'Matriz',
+        paymentMethod: p.method,
+        grossAmount: gross,
+        franchiseAmount: franchiseCut,
+        platformAmount: platformCut,
+        paidAt: p.paidAt || p.createdAt,
+      };
+    });
+
+    const monthNames = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    const closingNumber = `FECH-${targetYear}-${String(targetMonth).padStart(2, '0')}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const closingHash = crypto
+      .createHash('sha256')
+      .update(`${closingNumber}|${targetYear}|${targetMonth}|${grossRevenue.toFixed(2)}|${transactions.length}|OSM_MONTHLY_CLOSING_SECRET`)
+      .digest('hex');
+
+    return {
+      closingNumber,
+      closingHash,
+      period: {
+        year: targetYear,
+        month: targetMonth,
+        monthName: monthNames[targetMonth - 1],
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+      },
+      summary: {
+        grossRevenue: Number(grossRevenue.toFixed(2)),
+        franchiseCommissionTotal: Number(franchiseCommissionTotal.toFixed(2)),
+        platformNetRevenue: Number(platformNetRevenue.toFixed(2)),
+        transactionsCount: transactions.length,
+        averageTicket: transactions.length > 0 ? Number((grossRevenue / transactions.length).toFixed(2)) : 0,
+        methodStats,
+      },
+      cityBreakdown: Array.from(cityMap.values()).map((c) => ({
+        ...c,
+        grossAmount: Number(c.grossAmount.toFixed(2)),
+        franchiseAmount: Number(c.franchiseAmount.toFixed(2)),
+        platformAmount: Number(c.platformAmount.toFixed(2)),
+      })),
+      transactions,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
 }

@@ -2972,3 +2972,76 @@ export async function testAdminWebhookApi(id: string): Promise<{ success: boolea
 
   return res.json();
 }
+
+export interface MonthlyClosingTransaction {
+  paymentId: string;
+  invoiceNumber: string;
+  listingName: string;
+  merchantName: string;
+  plan: string;
+  billingCycle: string;
+  cityName: string;
+  paymentMethod: string;
+  grossAmount: number;
+  franchiseAmount: number;
+  platformAmount: number;
+  paidAt: string;
+}
+
+export interface CityClosingItem {
+  cityName: string;
+  uf: string;
+  franchiseName: string;
+  splitEnabled: boolean;
+  transactionsCount: number;
+  grossAmount: number;
+  franchiseAmount: number;
+  platformAmount: number;
+}
+
+export interface MonthlyClosingReportData {
+  closingNumber: string;
+  closingHash: string;
+  period: {
+    year: number;
+    month: number;
+    monthName: string;
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    grossRevenue: number;
+    franchiseCommissionTotal: number;
+    platformNetRevenue: number;
+    transactionsCount: number;
+    averageTicket: number;
+    methodStats: Record<string, { count: number; total: number }>;
+  };
+  cityBreakdown: CityClosingItem[];
+  transactions: MonthlyClosingTransaction[];
+  generatedAt: string;
+}
+
+export async function fetchAdminMonthlyClosingReportApi(
+  year?: number,
+  month?: number
+): Promise<MonthlyClosingReportData> {
+  const params = new URLSearchParams();
+  if (year) params.append('year', String(year));
+  if (month) params.append('month', String(month));
+
+  const url = `${getApiBaseUrl()}/billing/admin/monthly-closing?${params.toString()}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao buscar fechamento mensal: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

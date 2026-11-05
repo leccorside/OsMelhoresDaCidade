@@ -720,6 +720,20 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Tabela de endpoints ativos com visualização de secret mascarado.
     - Botão de **Testar Ping** simulando evento de conectividade em tempo real com indicador visual de status HTTP.
 
+### AR. Relatório Consolidado de Faturamento para Fechamento Mensal em PDF
+- **Backend NestJS (`apps/api`)**:
+  - Método `getMonthlyClosingReport(year, month)` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Apuração cronológica de todos os lançamentos quitados no período selecionado (mês e ano de competência).
+    - Totalização de Faturamento Bruto Arrecadado, Comissões Totais destinadas às Franquias Locais, Receita Líquida Retida pela Matriz, Ticket Médio e contadores de transações.
+    - Rateio segregado por meio de pagamento (PIX Instantâneo vs Cartão de Crédito Gateway).
+    - Demonstrativo contábil consolidado por praça/cidade com métricas de volume e repasses.
+    - Geração de número oficial de fechamento (`FECH-YYYY-MM-XXXXXX`) e hash criptográfico SHA-256 de integridade contábil e auditoria.
+  - Endpoint `GET /api/v1/billing/admin/monthly-closing` em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegido por `JwtAuthGuard` e `Roles(Role.ADMIN)`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `MonthlyClosingReportData`, `MonthlyClosingSummary`, `CityClosingItem`, `MonthlyClosingTransaction` e cliente `fetchAdminMonthlyClosingReportApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Página timbrada executiva [`/admin/financeiro/fechamento`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/fechamento/page.tsx) com seletor de competência mensal, 4 cartões de consolidação financeira, balancete analítico com livro caixa detalhado, carimbo de autenticidade contábil e botão de impressão/salvar em PDF com regras `@media print`.
+  - Botão de atalho rápido "Fechamento Mensal (PDF)" adicionado no painel administrativo principal em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

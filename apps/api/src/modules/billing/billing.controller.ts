@@ -205,6 +205,20 @@ export class BillingController {
     return this.billingService.processSubscriptionRenewals();
   }
 
+  @Get('admin/monthly-closing')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Relatório executivo consolidado de fechamento mensal para contabilidade e auditoria' })
+  getMonthlyClosingReport(
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+  ) {
+    const currentYear = year ? Number(year) : new Date().getFullYear();
+    const currentMonth = month ? Number(month) : new Date().getMonth() + 1;
+    return this.billingService.getMonthlyClosingReport(currentYear, currentMonth);
+  }
+
   @Get('admin/split-settlements')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
