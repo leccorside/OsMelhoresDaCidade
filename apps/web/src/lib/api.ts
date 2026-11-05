@@ -2589,6 +2589,9 @@ export interface FranchiseMerchantItem {
   isVip: boolean;
   currentPlan: string;
   planExpiresAt: string | null;
+  leadStage?: string;
+  leadNotes?: string | null;
+  leadLastContactAt?: string | null;
   whatsAppLink: string | null;
 }
 
@@ -2858,6 +2861,28 @@ export async function fetchSubscriptionContractApi(subscriptionId: string): Prom
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.message || `Erro ao buscar contrato: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateFranchiseLeadPipelineApi(
+  listingId: string,
+  payload: { leadStage: string; leadNotes?: string }
+): Promise<any> {
+  const url = `${getApiBaseUrl()}/franchise/merchants/${listingId}/pipeline`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao atualizar lead: HTTP ${res.status}`);
   }
 
   return res.json();

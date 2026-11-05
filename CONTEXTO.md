@@ -687,6 +687,23 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Página timbrada executiva [`/comerciante/contrato/[id]`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/contrato/[id]/page.tsx) com visual corporativo, qualificação jurídica das partes, exibição das cláusulas contratuais, carimbo de assinatura eletrônica conforme MP 2.200-2/2001 e botão de impressão/PDF.
   - Botão de acesso direto "Contrato" adicionado na listagem de planos do comerciante em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx).
 
+### AP. Funil de Prospecção Ativa e CRM Local para Franqueados
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Campos de CRM adicionados à tabela `Listing`: `leadStage` (default `"NOVO"`), `leadNotes` (texto de histórico e tratativas) e `leadLastContactAt` (data do último contato).
+  - Migração de esquema aplicada com sucesso no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - DTO `UpdateLeadPipelineDto` em `apps/api/src/modules/franchise/dto/franchise.dto.ts` com validação estrita dos 6 estágios do funil: `NOVO`, `CONTATADO`, `NEGOCIACAO`, `PROPOSTA_ENVIADA`, `CONVERTIDO_VIP` e `PERDIDO`.
+  - Método `updateLeadPipeline` em [`FranchiseService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.service.ts) com validação de praça do franqueado e atualização de data de contato.
+  - Script persuasivo e personalizado de pitch de prospecção para WhatsApp integrado automaticamente em `getFranchiseMerchants`.
+  - Endpoint `PATCH /api/v1/franchise/merchants/:listingId/pipeline` em [`FranchiseController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.controller.ts) protegido por `JwtAuthGuard` e `Roles(Role.FRANCHISEE, Role.ADMIN)`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagem `FranchiseMerchantItem` e cliente `updateFranchiseLeadPipelineApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Aba interativa **"Funil de Prospecção (CRM Local)"** em [`/franqueado`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/franqueado/page.tsx):
+    - 6 cards de contadores e filtros ágeis por estágio do funil.
+    - Seletor de mudança de estágio em tempo real por estabelecimento com atualização imediata de estado.
+    - Bloco de anotações com persistência rápida ("Salvar Nota").
+    - Botão direto para WhatsApp com disparo do pitch comercial estruturado para conversão de planos VIP.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -299,6 +299,9 @@ model Listing {
   phoneClicks      Int                      @default(0)
   directionsClicks Int                      @default(0)
   websiteClicks    Int                      @default(0)
+  leadStage        String                   @default("NOVO")
+  leadNotes        String?                  @db.Text
+  leadLastContactAt DateTime?
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
   owners           ListingOwner[]

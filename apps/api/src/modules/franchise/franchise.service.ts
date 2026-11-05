@@ -1,3 +1,4 @@
+import { UpdateLeadPipelineDto } from './dto/franchise.dto';
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Role, PaymentStatus, SubscriptionPlan } from '@prisma/client';
@@ -176,6 +177,8 @@ export class FranchiseService {
       const contactPhone = l.whatsapp || l.phone || owner?.phone || '';
       const phoneClean = contactPhone.replace(/\D/g, '');
 
+      const prospectPitch = `Olá equipe da *${l.name}*! 👋 Tudo bem? Sou o gestor da franquia oficial do portal *Os Melhores da Cidade* em *${city.name}*. Notamos o excelente trabalho de vocês no segmento de ${l.category?.name || 'Comércio'} e queremos te convidar para o quadro de comércios VIPs recomendados no topo do guia! Podemos conversar?`;
+
       return {
         id: l.id,
         name: l.name,
@@ -189,10 +192,11 @@ export class FranchiseService {
         isVip,
         currentPlan: isVip ? latestSub.plan : 'FREE',
         planExpiresAt: latestSub?.endDate || null,
+        leadStage: l.leadStage || 'NOVO',
+        leadNotes: l.leadNotes || null,
+        leadLastContactAt: l.leadLastContactAt || null,
         whatsAppLink: phoneClean
-          ? `https://wa.me/55${phoneClean}?text=${encodeURIComponent(
-              `Olá, parceiro da ${l.name}! Sou o gestor oficial da franquia Os Melhores da Cidade em ${city.name}.`,
-            )}`
+          ? `https://wa.me/55${phoneClean}?text=${encodeURIComponent(prospectPitch)}`
           : null,
       };
     });
@@ -241,4 +245,39 @@ export class FranchiseService {
       };
     });
   }
+
+  async updateLeadPipeline(userId: string, listingId: string, dto: UpdateLeadPipelineDto) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      include: { city: true },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Estabelecimento não encontrado.');
+    }
+
+    const city = await this.resolveUserCity(userId, listing.cityId);
+    if (listing.cityId !== city.id) {
+      throw new ForbiddenException('Você não tem permissão para gerenciar leads desta praça.');
+    }
+
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data: {
+        leadStage: dto.leadStage,
+        leadNotes: dto.leadNotes !== undefined ? dto.leadNotes : listing.leadNotes,
+        leadLastContactAt: new Date(),
+      },
+    });
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      leadStage: updated.leadStage,
+      leadNotes: updated.leadNotes,
+      leadLastContactAt: updated.leadLastContactAt,
+      message: 'Status do lead atualizado no funil com sucesso.',
+    };
+  }
+
 }

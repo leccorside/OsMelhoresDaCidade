@@ -1,6 +1,7 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FranchiseService } from './franchise.service';
+import { UpdateLeadPipelineDto } from './dto/franchise.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -34,6 +35,16 @@ export class FranchiseController {
       status,
       requestedCityId: cityId,
     });
+  }
+
+  @Patch('merchants/:listingId/pipeline')
+  @ApiOperation({ summary: 'Atualizar estágio do lead no funil de prospecção do franqueado' })
+  updateLeadPipeline(
+    @CurrentUser() user: any,
+    @Param('listingId') listingId: string,
+    @Body() dto: UpdateLeadPipelineDto,
+  ) {
+    return this.franchiseService.updateLeadPipeline(user.id, listingId, dto);
   }
 
   @Get('subscriptions')

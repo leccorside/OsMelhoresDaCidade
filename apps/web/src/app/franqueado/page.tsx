@@ -22,18 +22,27 @@ import {
   Layers,
   ArrowUpRight,
   PieChart,
+  Target,
+  Sparkles,
+  Save,
+  Check,
 } from 'lucide-react';
 import {
   fetchFranchiseOverviewApi,
   fetchFranchiseMerchantsApi,
   fetchFranchiseSubscriptionsApi,
+  updateFranchiseLeadPipelineApi,
   FranchiseOverviewData,
   FranchiseMerchantItem,
   FranchiseSubscriptionItem,
 } from '@/lib/api';
 
 export default function FranqueadoPage() {
-  const [activeTab, setActiveTab] = useState<'merchants' | 'splits'>('merchants');
+  const [activeTab, setActiveTab] = useState<'merchants' | 'splits' | 'crm'>('merchants');
+  const [pipelineFilter, setPipelineFilter] = useState<string>('ALL');
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
+  const [savedNoteSuccess, setSavedNoteSuccess] = useState<string | null>(null);
   const [overview, setOverview] = useState<FranchiseOverviewData | null>(null);
   const [merchants, setMerchants] = useState<FranchiseMerchantItem[]>([]);
   const [subscriptions, setSubscriptions] = useState<FranchiseSubscriptionItem[]>([]);
@@ -71,6 +80,48 @@ export default function FranqueadoPage() {
     e.preventDefault();
     loadData();
   };
+
+  const handleUpdateStage = async (listingId: string, newStage: string) => {
+    try {
+      setUpdatingLeadId(listingId);
+      await updateFranchiseLeadPipelineApi(listingId, {
+        leadStage: newStage,
+        leadNotes: editingNotes[listingId],
+      });
+      setMerchants((prev) =>
+        prev.map((m) => (m.id === listingId ? { ...m, leadStage: newStage, leadLastContactAt: new Date().toISOString() } : m))
+      );
+    } catch (err: any) {
+      alert(err.message || 'Erro ao atualizar estágio do lead.');
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  };
+
+  const handleSaveNotes = async (listingId: string) => {
+    try {
+      setUpdatingLeadId(listingId);
+      const current = merchants.find((m) => m.id === listingId);
+      await updateFranchiseLeadPipelineApi(listingId, {
+        leadStage: current?.leadStage || 'NOVO',
+        leadNotes: editingNotes[listingId] ?? current?.leadNotes ?? '',
+      });
+      setMerchants((prev) =>
+        prev.map((m) =>
+          m.id === listingId
+            ? { ...m, leadNotes: editingNotes[listingId] ?? current?.leadNotes ?? '', leadLastContactAt: new Date().toISOString() }
+            : m
+        )
+      );
+      setSavedNoteSuccess(listingId);
+      setTimeout(() => setSavedNoteSuccess(null), 2500);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao salvar anotação do lead.');
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-neutral-50/50 py-8 px-4 sm:px-6 lg:px-8">
@@ -334,6 +385,154 @@ export default function FranqueadoPage() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Conteúdo da Aba CRM Local de Prospecção */}
+          {activeTab === 'crm' && (
+            <div className="p-6 sm:p-8 space-y-6">
+              {/* Funil visual de estágios */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { key: 'NOVO', label: 'Novos Leads', color: 'bg-neutral-100 text-neutral-700 border-neutral-300' },
+                  { key: 'CONTATADO', label: 'Contactados', color: 'bg-blue-50 text-blue-800 border-blue-200' },
+                  { key: 'NEGOCIACAO', label: 'Em Negociação', color: 'bg-amber-50 text-amber-900 border-amber-200' },
+                  { key: 'PROPOSTA_ENVIADA', label: 'Proposta Enviada', color: 'bg-purple-50 text-purple-900 border-purple-200' },
+                  { key: 'CONVERTIDO_VIP', label: 'Convertido VIP', color: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+                  { key: 'PERDIDO', label: 'Sem Interesse', color: 'bg-rose-50 text-rose-800 border-rose-200' },
+                ].map((stage) => {
+                  const count = merchants.filter((m) => (m.leadStage || 'NOVO') === stage.key).length;
+                  const isSelected = pipelineFilter === stage.key;
+                  return (
+                    <button
+                      key={stage.key}
+                      onClick={() => setPipelineFilter(isSelected ? 'ALL' : stage.key)}
+                      className={`p-3.5 rounded-2xl border text-left transition-all ${stage.color} ${
+                        isSelected ? 'ring-2 ring-sky-600 shadow-md font-bold' : 'hover:opacity-90'
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold uppercase tracking-wider opacity-80">{stage.label}</div>
+                      <div className="text-2xl font-black mt-1">{count}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tabela de Leads */}
+              {merchants.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-neutral-200 rounded-2xl">
+                  <Target className="w-12 h-12 text-neutral-300 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-neutral-700">Nenhum lead localizado para prospecção</p>
+                  <p className="text-xs text-neutral-400 mt-1">Cadastre ou publique comércios para iniciar o funil de vendas da praça.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-neutral-50 text-neutral-500 uppercase text-xs font-semibold">
+                      <tr>
+                        <th className="px-4 py-3 rounded-l-xl">Lead / Estabelecimento</th>
+                        <th className="px-4 py-3">Contato & Pitch</th>
+                        <th className="px-4 py-3">Estágio no Funil</th>
+                        <th className="px-4 py-3">Anotações do Franqueado</th>
+                        <th className="px-4 py-3 rounded-r-xl">Último Contato</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {merchants
+                        .filter((m) => pipelineFilter === 'ALL' || (m.leadStage || 'NOVO') === pipelineFilter)
+                        .map((m) => {
+                          const currentStage = m.leadStage || 'NOVO';
+                          const isUpdating = updatingLeadId === m.id;
+                          return (
+                            <tr key={m.id} className="hover:bg-neutral-50/50 transition-colors">
+                              <td className="px-4 py-4 align-top">
+                                <div className="font-bold text-neutral-900">{m.name}</div>
+                                <div className="text-xs text-neutral-500">{m.categoryName}</div>
+                                {m.isVip && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mt-1 border border-amber-200">
+                                    <Crown className="w-2.5 h-2.5" /> Assinante VIP
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="px-4 py-4 align-top">
+                                <div className="font-medium text-xs text-neutral-800">{m.ownerName}</div>
+                                <div className="text-xs text-neutral-500 font-mono mb-2">{m.phone || 'Sem telefone'}</div>
+                                {m.whatsAppLink && (
+                                  <a
+                                    href={m.whatsAppLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all"
+                                    title="Abrir WhatsApp com roteiro de vendas persuasivo"
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    Enviar Script WhatsApp
+                                  </a>
+                                )}
+                              </td>
+
+                              <td className="px-4 py-4 align-top">
+                                <select
+                                  value={currentStage}
+                                  disabled={isUpdating}
+                                  onChange={(e) => handleUpdateStage(m.id, e.target.value)}
+                                  className="px-3 py-1.5 rounded-xl border border-neutral-300 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                                >
+                                  <option value="NOVO">🔘 Novo Lead</option>
+                                  <option value="CONTATADO">💬 Contactado</option>
+                                  <option value="NEGOCIACAO">🤝 Em Negociação</option>
+                                  <option value="PROPOSTA_ENVIADA">📄 Proposta Enviada</option>
+                                  <option value="CONVERTIDO_VIP">👑 Convertido VIP</option>
+                                  <option value="PERDIDO">❌ Sem Interesse</option>
+                                </select>
+                              </td>
+
+                              <td className="px-4 py-4 align-top">
+                                <div className="space-y-1.5">
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Ex: Ligamos hoje, pediram retorno quinta..."
+                                    value={editingNotes[m.id] !== undefined ? editingNotes[m.id] : m.leadNotes || ''}
+                                    onChange={(e) => setEditingNotes({ ...editingNotes, [m.id]: e.target.value })}
+                                    className="w-full text-xs p-2 rounded-xl border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-sky-500 resize-none font-sans"
+                                  />
+                                  <div className="flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={() => handleSaveNotes(m.id)}
+                                      className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200 transition-colors"
+                                    >
+                                      {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                      Salvar Nota
+                                    </button>
+                                    {savedNoteSuccess === m.id && (
+                                      <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                                        <Check className="w-3 h-3" /> Salvo!
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-4 align-top text-xs text-neutral-500">
+                                {m.leadLastContactAt
+                                  ? new Date(m.leadLastContactAt).toLocaleDateString('pt-BR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })
+                                  : 'Nunca contatado'}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
