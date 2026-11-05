@@ -95,5 +95,40 @@ export class ChangePlanCheckoutDto {
   couponCode?: string;
 }
 
+export class UpdateCitySplitDto {
+  @IsOptional()
+  @IsString()
+  franchiseName?: string;
+
+  @IsOptional()
+  @IsString()
+  franchiseCnpj?: string;
+
+  @IsOptional()
+  @IsString()
+  franchisePixKey?: string;
+
+  @IsOptional()
+  @IsString()
+  franchisePixType?: string;
+
+  @IsOptional()
+  @IsString()
+  franchiseWalletId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  platformFeePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  franchiseFeePercent?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  splitEnabled?: boolean;
+}
+
+
 
 

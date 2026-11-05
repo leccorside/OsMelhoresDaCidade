@@ -18,6 +18,7 @@ import {
   CreateSubscriptionCouponDto,
   CalculatePlanChangeDto,
   ChangePlanCheckoutDto,
+  UpdateCitySplitDto,
 } from './dto/billing.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -80,6 +81,27 @@ export class BillingController {
   @ApiOperation({ summary: 'Listar cupons promocionais de assinatura de planos' })
   getAdminCoupons() {
     return this.billingService.getSubscriptionCoupons();
+  }
+
+  @Get('admin/city-splits')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar configurações de Franquia e Split de Pagamentos por Cidade' })
+  getAdminCitySplits() {
+    return this.billingService.getAdminCitySplits();
+  }
+
+  @Patch('admin/city-splits/:cityId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Configurar Franquia, Chave PIX e Splits de Pagamento da Cidade' })
+  updateAdminCitySplit(
+    @Param('cityId') cityId: string,
+    @Body() dto: UpdateCitySplitDto,
+  ) {
+    return this.billingService.updateCitySplit(cityId, dto);
   }
 
   @Post('admin/coupons')

@@ -78,6 +78,14 @@ model City {
   metaDescription String?        @db.Text
   keywords        String[]
   ogImage         String?
+  franchiseName        String?
+  franchiseCnpj        String?
+  franchisePixKey      String?
+  franchisePixType     String?
+  franchiseWalletId    String?
+  platformFeePercent   Decimal        @default(20.00) @db.Decimal(5, 2)
+  franchiseFeePercent  Decimal        @default(80.00) @db.Decimal(5, 2)
+  splitEnabled         Boolean        @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   neighborhoods   Neighborhood[]

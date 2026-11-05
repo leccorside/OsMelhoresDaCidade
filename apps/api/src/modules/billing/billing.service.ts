@@ -23,6 +23,7 @@ import {
   CreateSubscriptionCouponDto,
   CalculatePlanChangeDto,
   ChangePlanCheckoutDto,
+  UpdateCitySplitDto,
 } from './dto/billing.dto';
 
 export interface PlanDetails {
@@ -197,12 +198,30 @@ export class BillingService implements OnApplicationBootstrap {
 
     // Integração Asaas: Obter/Criar cliente e gerar cobrança PIX
     const asaasCustomerId = await this.asaasService.getOrCreateCustomer(merchant.id);
+
+    // Verificar configuração de Split de Franquia por Cidade
+    const listingWithCity = await this.prisma.listing.findUnique({
+      where: { id: dto.listingId },
+      select: { city: true },
+    });
+
+    let splitConfig: any = undefined;
+    if (listingWithCity?.city?.splitEnabled && listingWithCity.city.franchiseWalletId) {
+      splitConfig = [
+        {
+          walletId: listingWithCity.city.franchiseWalletId,
+          percentualValue: Number(listingWithCity.city.franchiseFeePercent || 80),
+        },
+      ];
+    }
+
     const asaasCharge = await this.asaasService.createPixCharge({
       customerId: asaasCustomerId,
       value: finalPrice,
       description: `Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'})${appliedCouponCode ? ` [Cupom ${appliedCouponCode}]` : ''} - Os Melhores da Cidade`,
       externalReference: `sub_${Math.random().toString(36).substring(2, 10)}`,
       dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      split: splitConfig,
     });
 
     const pixQrCode = asaasCharge.pixQrCode;
@@ -521,6 +540,56 @@ export class BillingService implements OnApplicationBootstrap {
       listing: newSubscription.listing,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     };
+  }
+
+  /**
+   * Gestão de Splits e Franquias Regionais por Cidade
+   */
+  async getAdminCitySplits() {
+    return this.prisma.city.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        ibgeCode: true,
+        isPublished: true,
+        franchiseName: true,
+        franchiseCnpj: true,
+        franchisePixKey: true,
+        franchisePixType: true,
+        franchiseWalletId: true,
+        platformFeePercent: true,
+        franchiseFeePercent: true,
+        splitEnabled: true,
+        state: { select: { uf: true, name: true } },
+        _count: { select: { listings: true } },
+      },
+    });
+  }
+
+  async updateCitySplit(cityId: string, dto: UpdateCitySplitDto) {
+    const city = await this.prisma.city.findUnique({ where: { id: cityId } });
+    if (!city) {
+      throw new NotFoundException('Cidade não encontrada.');
+    }
+
+    return this.prisma.city.update({
+      where: { id: cityId },
+      data: {
+        franchiseName: dto.franchiseName !== undefined ? dto.franchiseName : city.franchiseName,
+        franchiseCnpj: dto.franchiseCnpj !== undefined ? dto.franchiseCnpj : city.franchiseCnpj,
+        franchisePixKey: dto.franchisePixKey !== undefined ? dto.franchisePixKey : city.franchisePixKey,
+        franchisePixType: dto.franchisePixType !== undefined ? dto.franchisePixType : city.franchisePixType,
+        franchiseWalletId: dto.franchiseWalletId !== undefined ? dto.franchiseWalletId : city.franchiseWalletId,
+        platformFeePercent: dto.platformFeePercent !== undefined ? dto.platformFeePercent : city.platformFeePercent,
+        franchiseFeePercent: dto.franchiseFeePercent !== undefined ? dto.franchiseFeePercent : city.franchiseFeePercent,
+        splitEnabled: dto.splitEnabled !== undefined ? dto.splitEnabled : city.splitEnabled,
+      },
+      include: {
+        state: { select: { uf: true, name: true } },
+      },
+    });
   }
 
   async confirmPaymentByGateway(gatewayPaymentId: string, externalReference?: string) {

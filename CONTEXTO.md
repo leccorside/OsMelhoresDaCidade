@@ -577,6 +577,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Interfaces tipadas `MerchantRoiPerformanceData` e cliente `fetchMerchantRoiPerformanceApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
   - Painel com cards de impacto e ROI integrado na tela [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) com visual premium em gradiente escuro/dourado, exibindo alcance no guia, multiplicadores comparativos, CPL médio e estimativa de novas vendas geradas.
 
+### AH. Configuração de Chave PIX e Splits de Pagamento para Franquias/Cidades
+- **Modelagem Prisma (`apps/api/prisma/schema.prisma`)**:
+  - Modelo `City` expandido com campos de Franquia Regional: `franchiseName`, `franchiseCnpj`, `franchisePixKey`, `franchisePixType`, `franchiseWalletId` (Asaas), `platformFeePercent` (default 20%), `franchiseFeePercent` (default 80%) e `splitEnabled`.
+  - Sincronizado no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Suporte à configuração de `split` no [`AsaasService.createPixCharge`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/asaas.service.ts), repassando os parâmetros de carteira do Asaas (`walletId`) e percentuais de split na cobrança PIX.
+  - Métodos `getAdminCitySplits` e `updateCitySplit` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts) para gerenciamento completo dos parceiros regionais por cidade.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegidos por `JwtAuthGuard` e `Roles(Role.ADMIN)`:
+    - `GET /api/v1/billing/admin/city-splits`: listagem de todas as cidades com regras de split e dados de franquia.
+    - `PATCH /api/v1/billing/admin/city-splits/:cityId`: atualização cadastral e financeira da franquia local.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `CitySplitItem` e clientes `fetchAdminCitySplitsApi`, `updateAdminCitySplitApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Nova seção no painel financeiro master [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx):
+    - Tabela de cidades com badges de status do split, identificação do parceiro regional, chave PIX e relação de divisão (ex: 80% Local / 20% Matriz).
+    - Modal interativo para configuração de franqueado, chave PIX, carteira Asaas e percentuais customizados de repasse.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

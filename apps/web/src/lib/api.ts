@@ -2403,6 +2403,61 @@ export async function fetchMerchantRoiPerformanceApi(): Promise<MerchantRoiPerfo
   return res.json();
 }
 
+export interface CitySplitItem {
+  id: string;
+  name: string;
+  slug: string;
+  ibgeCode: number;
+  isPublished: boolean;
+  franchiseName?: string | null;
+  franchiseCnpj?: string | null;
+  franchisePixKey?: string | null;
+  franchisePixType?: string | null;
+  franchiseWalletId?: string | null;
+  platformFeePercent: number;
+  franchiseFeePercent: number;
+  splitEnabled: boolean;
+  state?: { uf: string; name: string };
+  _count?: { listings: number };
+}
+
+export async function fetchAdminCitySplitsApi(): Promise<CitySplitItem[]> {
+  const url = `${getApiBaseUrl()}/billing/admin/city-splits`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Erro ao buscar configurações de split de cidades.');
+  }
+
+  return res.json();
+}
+
+export async function updateAdminCitySplitApi(cityId: string, data: Partial<CitySplitItem>): Promise<CitySplitItem> {
+  const url = `${getApiBaseUrl()}/billing/admin/city-splits/${cityId}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao atualizar split da cidade.');
+  }
+
+  return res.json();
+}
+
+
 
 
 

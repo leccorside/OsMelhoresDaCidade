@@ -10,12 +10,19 @@ export interface AsaasCustomerData {
   mobilePhone?: string | null;
 }
 
+export interface AsaasSplitConfig {
+  walletId: string;
+  percentualValue?: number;
+  fixedValue?: number;
+}
+
 export interface AsaasPaymentPayload {
   customerId: string;
   value: number;
   description: string;
   externalReference: string;
   dueDate: string;
+  split?: AsaasSplitConfig[];
 }
 
 @Injectable()
@@ -135,20 +142,26 @@ export class AsaasService {
     }
 
     try {
+      const paymentBody: any = {
+        customer: payload.customerId,
+        billingType: 'PIX',
+        value: payload.value,
+        dueDate: payload.dueDate,
+        description: payload.description,
+        externalReference: payload.externalReference,
+      };
+
+      if (payload.split && payload.split.length > 0) {
+        paymentBody.split = payload.split;
+      }
+
       const res = await fetch(`${this.baseUrl}/payments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           access_token: this.apiKey,
         },
-        body: JSON.stringify({
-          customer: payload.customerId,
-          billingType: 'PIX',
-          value: payload.value,
-          dueDate: payload.dueDate,
-          description: payload.description,
-          externalReference: payload.externalReference,
-        }),
+        body: JSON.stringify(paymentBody),
       });
 
       const payment = await res.json();
