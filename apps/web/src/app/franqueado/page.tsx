@@ -32,6 +32,7 @@ import {
   fetchFranchiseMerchantsApi,
   fetchFranchiseSubscriptionsApi,
   updateFranchiseLeadPipelineApi,
+  testFranchiseWhatsAppAlertApi,
   FranchiseOverviewData,
   FranchiseMerchantItem,
   FranchiseSubscriptionItem,
@@ -43,6 +44,22 @@ export default function FranqueadoPage() {
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [savedNoteSuccess, setSavedNoteSuccess] = useState<string | null>(null);
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
+  const [whatsAppTestFeedback, setWhatsAppTestFeedback] = useState<string | null>(null);
+
+  const handleTestWhatsApp = async () => {
+    try {
+      setTestingWhatsApp(true);
+      setWhatsAppTestFeedback(null);
+      const res = await testFranchiseWhatsAppAlertApi();
+      setWhatsAppTestFeedback(res.message);
+      setTimeout(() => setWhatsAppTestFeedback(null), 5000);
+    } catch (err: any) {
+      alert(err.message || 'Erro ao disparar teste de WhatsApp.');
+    } finally {
+      setTestingWhatsApp(false);
+    }
+  };
   const [overview, setOverview] = useState<FranchiseOverviewData | null>(null);
   const [merchants, setMerchants] = useState<FranchiseMerchantItem[]>([]);
   const [subscriptions, setSubscriptions] = useState<FranchiseSubscriptionItem[]>([]);

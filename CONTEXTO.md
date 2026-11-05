@@ -785,6 +785,20 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Modal de abertura de chamado com seleção de categoria e prioridade.
     - Botão de finalizar chamado e atalho adicionado no menu lateral do painel do comerciante.
 
+### AV. Notificação de Novos Leads por WhatsApp via Bot/Z-API
+- **Backend NestJS (`apps/api`)**:
+  - Serviço [`WhatsAppBotService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/whatsapp-bot.service.ts) criado no módulo global de notificações:
+    - Integração com a API do WhatsApp (Z-API / webhook) com tratamento automático de DDI/DDD, autenticação via Client-Token e simulação transparente em ambiente de desenvolvimento quando as credenciais não estiverem provisionadas.
+    - Método `notifyFranchiseeNewMerchantLead(cityId, listingTitle, category, contactPhone, contactEmail)`: localiza todos os franqueados ativos da comarca/cidade e envia mensagem instantânea e formatada com os dados do comerciante cadastrado para prospecção de planos VIP.
+    - Método `sendFranchiseeTestAlert(phone, franchiseeName)`: dispara mensagem de teste para validação de conexão do franqueado.
+  - Integração no cadastro de novos estabelecimentos em [`ListingsService.create`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/listings/listings.service.ts), disparando a notificação de forma assíncrona sem onerar o tempo de resposta do cadastro.
+  - Endpoint `POST /api/v1/franchise/test-whatsapp-alert` em [`FranchiseController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.controller.ts).
+- **Frontend Next.js (`apps/web`)**:
+  - Cliente de teste `testFranchiseWhatsAppAlertApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Card/Banner de ativação do Bot de WhatsApp em [`/franqueado`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/franqueado/page.tsx):
+    - Exibição do status "Bot Ativo & Monitorando Leads em Tempo Real".
+    - Botão interativo "Testar Alerta no Meu WhatsApp" com feedback instantâneo de envio e sucesso.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

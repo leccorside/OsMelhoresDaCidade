@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { WhatsAppBotService } from '../notifications/whatsapp-bot.service';
 import { ListingStatus, DayOfWeek, Prisma, PaymentStatus } from '@prisma/client';
 import { CreateListingFullDto } from './dto/create-listing-full.dto';
 
@@ -37,7 +38,10 @@ export interface CreateListingDto {
 
 @Injectable()
 export class ListingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsAppBot: WhatsAppBotService,
+  ) {}
 
   async findAll(params: ListingFilterParams) {
     const {
@@ -766,7 +770,7 @@ export class ListingsService {
 
   async create(merchantProfileId: string, dto: CreateListingDto) {
     // Criação com status PENDING para aprovação pela moderação
-    return this.prisma.listing.create({
+    const createdListing = await this.prisma.listing.create({
       data: {
         name: dto.name,
         slug: dto.slug,
@@ -806,6 +810,14 @@ export class ListingsService {
           : {}),
       },
     });
+
+    // Notificar franqueado regional instantaneamente via WhatsApp Bot
+    this.whatsAppBot.notifyFranchiseeNewMerchantLead(dto.cityId, {
+      name: dto.name,
+      phone: dto.whatsapp || dto.phone,
+    }).catch(() => {});
+
+    return createdListing;
   }
 
   // --- GERENCIAMENTO DE CARDÁPIO & SERVIÇOS DO COMERCIANTE ---

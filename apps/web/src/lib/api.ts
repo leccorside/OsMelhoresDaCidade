@@ -3260,3 +3260,22 @@ export async function resolveTicketApi(ticketId: string): Promise<any> {
 
   return res.json();
 }
+
+export async function testFranchiseWhatsAppAlertApi(phone?: string): Promise<{ success: boolean; message: string }> {
+  const url = `${getApiBaseUrl()}/franchise/test-whatsapp-alert`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ phone }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao testar WhatsApp: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
