@@ -37,13 +37,6 @@ export class SupportController {
     return this.supportService.getMerchantTickets(user);
   }
 
-  @Get('franchise')
-  @Roles(Role.FRANCHISEE, Role.ADMIN)
-  @ApiOperation({ summary: 'Listar chamados da comarca da franquia' })
-  getFranchiseTickets(@CurrentUser() user: any) {
-    return this.supportService.getFranchiseeTickets(user);
-  }
-
   @Get(':id')
   @ApiOperation({ summary: 'Visualizar detalhes e histórico de mensagens de um chamado' })
   getTicketDetails(@CurrentUser() user: any, @Param('id') id: string) {

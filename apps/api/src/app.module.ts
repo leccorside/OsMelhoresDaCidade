@@ -15,7 +15,6 @@ import { UploadModule } from './modules/upload/upload.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BillingModule } from './modules/billing/billing.module';
-import { FranchiseModule } from './modules/franchise/franchise.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { SupportModule } from './modules/support/support.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -37,7 +36,6 @@ import { AuditModule } from './modules/audit/audit.module';
     ReviewsModule,
     CouponsModule,
     BillingModule,
-    FranchiseModule,
     WebhooksModule,
     SupportModule,
     FavoritesModule,

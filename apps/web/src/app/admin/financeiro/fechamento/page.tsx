@@ -187,7 +187,7 @@ export default function MonthlyClosingReportPage() {
                   Repasse Franquias
                 </span>
                 <div className="text-xl font-black text-emerald-700 mt-1">
-                  R$ {report.summary.franchiseCommissionTotal.toFixed(2)}
+                  R$ {report.summary.operationalDeductionsTotal.toFixed(2)}
                 </div>
                 <p className="text-[10px] text-emerald-600 mt-0.5">
                   Splits de praças locais
@@ -291,14 +291,14 @@ export default function MonthlyClosingReportPage() {
                           {c.cityName} - {c.uf}
                         </td>
                         <td className="px-4 py-2.5 text-neutral-600">
-                          {c.franchiseName}
+                          {c.channelName}
                         </td>
                         <td className="px-4 py-2.5 font-mono">{c.transactionsCount}</td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-neutral-900">
                           R$ {c.grossAmount.toFixed(2)}
                         </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
-                          R$ {c.franchiseAmount.toFixed(2)}
+                          R$ {c.retainedAmount.toFixed(2)}
                         </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-sky-800">
                           R$ {c.platformAmount.toFixed(2)}
@@ -356,7 +356,7 @@ export default function MonthlyClosingReportPage() {
                             R$ {t.grossAmount.toFixed(2)}
                           </td>
                           <td className="px-3 py-2 text-right font-bold text-emerald-700">
-                            R$ {t.franchiseAmount.toFixed(2)}
+                            R$ {t.retainedAmount.toFixed(2)}
                           </td>
                           <td className="px-3 py-2 text-right font-bold text-sky-800">
                             R$ {t.platformAmount.toFixed(2)}

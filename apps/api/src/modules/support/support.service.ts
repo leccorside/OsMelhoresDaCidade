@@ -66,7 +66,7 @@ export class SupportService {
         category: dto.category,
         priority: dto.priority || 'NORMAL',
         status: 'ABERTO',
-        assignedRole: cityId ? 'FRANCHISEE' : 'ADMIN',
+        assignedRole: 'ADMIN',
         messages: {
           create: {
             senderId: user.id,
@@ -124,7 +124,7 @@ export class SupportService {
 
     // Validação de acesso
     const isOwner = ticket.merchant.userId === user.id;
-    const isStaff = user.role === Role.ADMIN || user.role === Role.FRANCHISEE;
+    const isStaff = user.role === Role.ADMIN;
 
     if (!isOwner && !isStaff) {
       throw new ForbiddenException('Acesso negado a este chamado.');
@@ -144,13 +144,13 @@ export class SupportService {
     }
 
     const isMerchant = ticket.merchant.userId === user.id;
-    const isStaff = user.role === Role.ADMIN || user.role === Role.FRANCHISEE;
+    const isStaff = user.role === Role.ADMIN;
 
     if (!isMerchant && !isStaff) {
       throw new ForbiddenException('Acesso negado para responder a este chamado.');
     }
 
-    const senderRole = isMerchant ? 'MERCHANT' : user.role === Role.ADMIN ? 'ADMIN' : 'FRANCHISEE';
+    const senderRole = isMerchant ? 'MERCHANT' : 'ADMIN';
     const newStatus = isMerchant ? 'EM_ANDAMENTO' : 'RESPONDIDO';
 
     const [message] = await this.prisma.$transaction([
@@ -187,7 +187,7 @@ export class SupportService {
     }
 
     const isOwner = ticket.merchant.userId === user.id;
-    const isStaff = user.role === Role.ADMIN || user.role === Role.FRANCHISEE;
+    const isStaff = user.role === Role.ADMIN;
 
     if (!isOwner && !isStaff) {
       throw new ForbiddenException('Acesso negado para finalizar este chamado.');
@@ -202,31 +202,4 @@ export class SupportService {
     });
   }
 
-  async getFranchiseeTickets(user: any) {
-    const franchiseeUser = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      select: { franchiseCityId: true, role: true },
-    });
-
-    const where: any = {};
-    if (franchiseeUser?.role === Role.FRANCHISEE && franchiseeUser.franchiseCityId) {
-      where.cityId = franchiseeUser.franchiseCityId;
-    }
-
-    return this.prisma.supportTicket.findMany({
-      where,
-      include: {
-        merchant: {
-          include: {
-            user: { select: { id: true, name: true, email: true, phone: true } },
-          },
-        },
-        _count: {
-          select: { messages: true },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 100,
-    });
   }
-}

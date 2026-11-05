@@ -26,7 +26,6 @@ import {
   CreateSubscriptionCouponDto,
   CalculatePlanChangeDto,
   ChangePlanCheckoutDto,
-  UpdateCitySplitDto,
 } from './dto/billing.dto';
 
 export interface PlanDetails {
@@ -206,21 +205,7 @@ export class BillingService implements OnApplicationBootstrap {
     // Integração Asaas: Obter/Criar cliente e gerar cobrança PIX
     const asaasCustomerId = await this.asaasService.getOrCreateCustomer(merchant.id);
 
-    // Verificar configuração de Split de Franquia por Cidade
-    const listingWithCity = await this.prisma.listing.findUnique({
-      where: { id: dto.listingId },
-      select: { city: true },
-    });
-
     let splitConfig: any = undefined;
-    if (listingWithCity?.city?.splitEnabled && listingWithCity.city.franchiseWalletId) {
-      splitConfig = [
-        {
-          walletId: listingWithCity.city.franchiseWalletId,
-          percentualValue: Number(listingWithCity.city.franchiseFeePercent || 80),
-        },
-      ];
-    }
 
     // Checkout com Cartão de Crédito
     if (dto.paymentMethod === PaymentMethod.CREDIT_CARD) {
@@ -675,53 +660,6 @@ export class BillingService implements OnApplicationBootstrap {
   /**
    * Gestão de Splits e Franquias Regionais por Cidade
    */
-  async getAdminCitySplits() {
-    return this.prisma.city.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        ibgeCode: true,
-        isPublished: true,
-        franchiseName: true,
-        franchiseCnpj: true,
-        franchisePixKey: true,
-        franchisePixType: true,
-        franchiseWalletId: true,
-        platformFeePercent: true,
-        franchiseFeePercent: true,
-        splitEnabled: true,
-        state: { select: { uf: true, name: true } },
-        _count: { select: { listings: true } },
-      },
-    });
-  }
-
-  async updateCitySplit(cityId: string, dto: UpdateCitySplitDto) {
-    const city = await this.prisma.city.findUnique({ where: { id: cityId } });
-    if (!city) {
-      throw new NotFoundException('Cidade não encontrada.');
-    }
-
-    const updatedCity = await this.prisma.city.update({
-      where: { id: cityId },
-      data: {
-        franchiseName: dto.franchiseName !== undefined ? dto.franchiseName : city.franchiseName,
-        franchiseCnpj: dto.franchiseCnpj !== undefined ? dto.franchiseCnpj : city.franchiseCnpj,
-        franchisePixKey: dto.franchisePixKey !== undefined ? dto.franchisePixKey : city.franchisePixKey,
-        franchisePixType: dto.franchisePixType !== undefined ? dto.franchisePixType : city.franchisePixType,
-        franchiseWalletId: dto.franchiseWalletId !== undefined ? dto.franchiseWalletId : city.franchiseWalletId,
-        platformFeePercent: dto.platformFeePercent !== undefined ? dto.platformFeePercent : city.platformFeePercent,
-        franchiseFeePercent: dto.franchiseFeePercent !== undefined ? dto.franchiseFeePercent : city.franchiseFeePercent,
-        splitEnabled: dto.splitEnabled !== undefined ? dto.splitEnabled : city.splitEnabled,
-      },
-      include: {
-        state: { select: { uf: true, name: true } },
-      },
-    });
-  }
-
   async confirmPaymentByGateway(gatewayPaymentId: string, externalReference?: string) {
     let subscription = null;
     if (externalReference) {
@@ -1370,88 +1308,6 @@ export class BillingService implements OnApplicationBootstrap {
     };
   }
 
-  async getAdminSplitSettlements(cityId?: string) {
-    const where: any = {
-      status: PaymentStatus.PAID,
-    };
-
-    if (cityId) {
-      where.subscription = {
-        listing: { cityId },
-      };
-    }
-
-    const payments = await this.prisma.subscriptionPayment.findMany({
-      where,
-      include: {
-        subscription: {
-          include: {
-            listing: {
-              include: {
-                city: true,
-              },
-            },
-            merchantProfile: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { paidAt: 'desc' },
-      take: 100,
-    });
-
-    let grossTotal = 0;
-    let franchiseTotal = 0;
-    let platformTotal = 0;
-
-    const settlements = payments.map((p) => {
-      const city = p.subscription?.listing?.city;
-      const franchiseFeePercent = city?.splitEnabled ? Number(city.franchiseFeePercent || 80) : 0;
-      const platformFeePercent = 100 - franchiseFeePercent;
-
-      const grossAmount = Number(p.amount);
-      const franchiseAmount = (grossAmount * franchiseFeePercent) / 100;
-      const platformAmount = grossAmount - franchiseAmount;
-
-      grossTotal += grossAmount;
-      franchiseTotal += franchiseAmount;
-      platformTotal += platformAmount;
-
-      return {
-        paymentId: p.id,
-        subscriptionId: p.subscriptionId,
-        listingName: p.subscription?.listing?.name || 'Estabelecimento',
-        merchantName: p.subscription?.merchantProfile?.user?.name || 'Comerciante',
-        cityName: city?.name || 'Não informada',
-        splitEnabled: Boolean(city?.splitEnabled),
-        franchiseName: city?.franchiseName || 'Matriz / Sem Franquia',
-        franchiseWalletId: city?.franchiseWalletId || null,
-        franchisePixKey: city?.franchisePixKey || null,
-        franchiseFeePercent,
-        platformFeePercent,
-        grossAmount,
-        franchiseAmount,
-        platformAmount,
-        paymentMethod: p.method,
-        status: p.status,
-        paidAt: p.paidAt || p.createdAt,
-      };
-    });
-
-    return {
-      totals: {
-        grossTotal,
-        franchiseTotal,
-        platformTotal,
-        settlementsCount: settlements.length,
-      },
-      settlements,
-    };
-  }
-
   /**
    * Emissão de Contrato de Adesão e Publicidade Digital em PDF
    */
@@ -1636,7 +1492,7 @@ export class BillingService implements OnApplicationBootstrap {
     });
 
     let grossRevenue = 0;
-    let franchiseCommissionTotal = 0;
+    let operationalDeductionsTotal = 0;
     let platformNetRevenue = 0;
 
     const methodStats: Record<string, { count: number; total: number }> = {
@@ -1647,11 +1503,11 @@ export class BillingService implements OnApplicationBootstrap {
     const cityMap = new Map<string, {
       cityName: string;
       uf: string;
-      franchiseName: string;
+      channelName: string;
       splitEnabled: boolean;
       transactionsCount: number;
       grossAmount: number;
-      franchiseAmount: number;
+      retainedAmount: number;
       platformAmount: number;
     }>();
 
@@ -1672,14 +1528,8 @@ export class BillingService implements OnApplicationBootstrap {
       methodStats[mKey].total += gross;
 
       const city = p.subscription?.listing?.city;
-      const splitEnabled = Boolean(city?.splitEnabled);
-      const franchiseFeePercent = splitEnabled ? Number(city?.franchiseFeePercent || 80) : 0;
-      const platformFeePercent = splitEnabled ? Number(city?.platformFeePercent || 20) : 100;
-
-      const franchiseCut = Number(((gross * franchiseFeePercent) / 100).toFixed(2));
-      const platformCut = Number((gross - franchiseCut).toFixed(2));
-
-      franchiseCommissionTotal += franchiseCut;
+      const platformCut = gross;
+      const retainedCut = 0;
       platformNetRevenue += platformCut;
 
       const cityId = city?.id || 'SEM_PRACA';
@@ -1687,11 +1537,11 @@ export class BillingService implements OnApplicationBootstrap {
         cityMap.set(cityId, {
           cityName: city?.name || 'Venda Central / Matriz',
           uf: city?.state?.uf || 'BR',
-          franchiseName: city?.franchiseName || 'Matriz / Sem Franquia',
-          splitEnabled,
+          channelName: 'Matriz Central',
+          splitEnabled: false,
           transactionsCount: 0,
           grossAmount: 0,
-          franchiseAmount: 0,
+          retainedAmount: 0,
           platformAmount: 0,
         });
       }
@@ -1699,7 +1549,7 @@ export class BillingService implements OnApplicationBootstrap {
       const cData = cityMap.get(cityId)!;
       cData.transactionsCount += 1;
       cData.grossAmount += gross;
-      cData.franchiseAmount += franchiseCut;
+      cData.retainedAmount += retainedCut;
       cData.platformAmount += platformCut;
 
       return {
@@ -1712,7 +1562,7 @@ export class BillingService implements OnApplicationBootstrap {
         cityName: city ? `${city.name} - ${city.state?.uf}` : 'Matriz',
         paymentMethod: p.method,
         grossAmount: gross,
-        franchiseAmount: franchiseCut,
+        retainedAmount: retainedCut,
         platformAmount: platformCut,
         paidAt: p.paidAt || p.createdAt,
       };
@@ -1741,7 +1591,7 @@ export class BillingService implements OnApplicationBootstrap {
       },
       summary: {
         grossRevenue: Number(grossRevenue.toFixed(2)),
-        franchiseCommissionTotal: Number(franchiseCommissionTotal.toFixed(2)),
+        operationalDeductionsTotal: Number(operationalDeductionsTotal.toFixed(2)),
         platformNetRevenue: Number(platformNetRevenue.toFixed(2)),
         transactionsCount: transactions.length,
         averageTicket: transactions.length > 0 ? Number((grossRevenue / transactions.length).toFixed(2)) : 0,
@@ -1750,7 +1600,7 @@ export class BillingService implements OnApplicationBootstrap {
       cityBreakdown: Array.from(cityMap.values()).map((c) => ({
         ...c,
         grossAmount: Number(c.grossAmount.toFixed(2)),
-        franchiseAmount: Number(c.franchiseAmount.toFixed(2)),
+        retainedAmount: Number(c.retainedAmount.toFixed(2)),
         platformAmount: Number(c.platformAmount.toFixed(2)),
       })),
       transactions,
@@ -1759,139 +1609,5 @@ export class BillingService implements OnApplicationBootstrap {
   }
 
 
-  /**
-   * Processar Repasse Bancário PIX para Franquia Regional via Asaas
-   */
-  async processCityFranchisePayout(cityId: string, requestedAmount?: number) {
-    const city = await this.prisma.city.findUnique({
-      where: { id: cityId },
-      include: {
-        state: true,
-        franchisePayouts: true,
-      },
-    });
-
-    if (!city) {
-      throw new NotFoundException('Cidade não encontrada.');
-    }
-
-    if (!city.splitEnabled) {
-      throw new BadRequestException('Esta cidade não está com split de franquia habilitado.');
-    }
-
-    if (!city.franchisePixKey) {
-      throw new BadRequestException('Esta cidade não possui Chave PIX cadastrada para recebimento de repasses.');
-    }
-
-    // Calcular montante total apurado em comissões
-    const payments = await this.prisma.subscriptionPayment.findMany({
-      where: {
-        status: PaymentStatus.PAID,
-        subscription: {
-          listing: { cityId },
-        },
-      },
-      select: { amount: true },
-    });
-
-    const franchiseFeePercent = Number(city.franchiseFeePercent || 80);
-    const totalEarnedCommissions = payments.reduce((acc, p) => {
-      const gross = Number(p.amount);
-      return acc + (gross * franchiseFeePercent) / 100;
-    }, 0);
-
-    // Subtrair repasses já quitados
-    const previousPayoutsTotal = city.franchisePayouts
-      .filter((p) => p.status === 'COMPLETED')
-      .reduce((acc, p) => acc + Number(p.amount), 0);
-
-    const availableBalance = Number(Math.max(0, totalEarnedCommissions - previousPayoutsTotal).toFixed(2));
-
-    const payoutAmount = requestedAmount !== undefined && requestedAmount > 0
-      ? Math.min(requestedAmount, availableBalance)
-      : availableBalance;
-
-    if (payoutAmount <= 0) {
-      throw new BadRequestException(`Esta praça não possui saldo pendente de comissão para repasse (Saldo disponível: R$ ${availableBalance.toFixed(2)}).`);
-    }
-
-    // Executar transferência PIX via Asaas
-    const transferResult = await this.asaasService.transferPix({
-      value: payoutAmount,
-      pixKey: city.franchisePixKey,
-      pixKeyType: city.franchisePixType || 'CNPJ',
-      description: `Repasse Franquia ${city.name}/${city.state?.uf || 'BA'} - Os Melhores da Cidade`,
-    });
-
-    // Registrar no banco
-    const payout = await this.prisma.franchisePayout.create({
-      data: {
-        cityId: city.id,
-        amount: payoutAmount,
-        pixKey: city.franchisePixKey,
-        pixKeyType: city.franchisePixType || 'CNPJ',
-        franchiseName: city.franchiseName || 'Franquia Regional',
-        status: 'COMPLETED',
-        transactionId: transferResult.id,
-        receiptUrl: transferResult.receiptUrl,
-        notes: `Repasse bancário de ${payoutAmount.toFixed(2)} liquidado via Asaas Transfer.`,
-      },
-    });
-
-    // Despachar evento webhook para CRMs e auditoria
-    await this.auditService.log({
-      action: 'PAYOUT_PIX_EXECUTED',
-      entity: 'PAYOUT',
-      entityId: payout.id,
-      details: {
-        cityId: city.id,
-        cityName: city.name,
-        amount: payoutAmount,
-        pixKey: city.franchisePixKey,
-        transactionId: transferResult.id,
-        receiptUrl: transferResult.receiptUrl,
-      },
-    });
-
-    this.webhooksService.dispatch('SPLIT_SETTLED', {
-      payoutId: payout.id,
-      cityId: city.id,
-      cityName: city.name,
-      amount: payoutAmount,
-      pixKey: city.franchisePixKey,
-      transactionId: transferResult.id,
-      paidAt: new Date().toISOString(),
-    });
-
-    return {
-      success: true,
-      message: `Repasse PIX de R$ ${payoutAmount.toFixed(2)} realizado com sucesso para a franquia de ${city.name}!`,
-      payout,
-      remainingBalance: Number((availableBalance - payoutAmount).toFixed(2)),
-    };
-  }
-
-  /**
-   * Listar Histórico de Repasses PIX
-   */
-  async getFranchisePayoutsHistory(cityId?: string) {
-    const where: any = {};
-    if (cityId) where.cityId = cityId;
-
-    return this.prisma.franchisePayout.findMany({
-      where,
-      include: {
-        city: {
-          select: {
-            id: true,
-            name: true,
-            state: { select: { uf: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-  }
-
+  
 }

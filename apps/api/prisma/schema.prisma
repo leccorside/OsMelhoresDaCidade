@@ -10,7 +10,6 @@ generator client {
 enum Role {
   USER
   MERCHANT
-  FRANCHISEE
   ADMIN
 }
 
@@ -79,14 +78,6 @@ model City {
   metaDescription String?        @db.Text
   keywords        String[]
   ogImage         String?
-  franchiseName        String?
-  franchiseCnpj        String?
-  franchisePixKey      String?
-  franchisePixType     String?
-  franchiseWalletId    String?
-  platformFeePercent   Decimal        @default(20.00) @db.Decimal(5, 2)
-  franchiseFeePercent  Decimal        @default(80.00) @db.Decimal(5, 2)
-  splitEnabled         Boolean        @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   neighborhoods   Neighborhood[]
@@ -95,8 +86,6 @@ model City {
   blogPosts       BlogPost[]
   banners         Banner[]
   citySettings    CitySetting[]
-  franchisees     User[]         @relation("FranchiseManager")
-  franchisePayouts FranchisePayout[]
 
   @@index([slug])
   @@index([isPublished])
@@ -131,8 +120,6 @@ model User {
   preferredCityId        String?
   preferredLocale        String                   @default("pt-BR")
   role                   Role                     @default(USER)
-  franchiseCityId        String?
-  franchiseCity          City?                    @relation("FranchiseManager", fields: [franchiseCityId], references: [id], onDelete: SetNull)
   isEmailVerified        Boolean                  @default(false)
   isActive               Boolean                  @default(true)
   createdAt              DateTime                 @default(now())
@@ -954,42 +941,6 @@ model WebhookEndpoint {
   @@map("webhook_endpoints")
 }
 
-model FranchiseLead {
-  id               String   @id @default(uuid())
-  name             String
-  email            String
-  phone            String
-  city             String
-  state            String
-  capitalAvailable String?
-  experience       String?
-  notes            String?  @db.Text
-  status           String   @default("NOVO")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@map("franchise_leads")
-}
-
-model FranchisePayout {
-  id             String   @id @default(uuid())
-  cityId         String
-  city           City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  amount         Decimal  @db.Decimal(10, 2)
-  pixKey         String
-  pixKeyType     String
-  franchiseName  String
-  status         String   @default("COMPLETED")
-  transactionId  String?
-  receiptUrl     String?
-  notes          String?
-  transferredAt  DateTime @default(now())
-  createdAt      DateTime @default(now())
-
-  @@index([cityId])
-  @@map("franchise_payouts")
-}
-
 model SupportTicket {
   id           String                 @id @default(uuid())
   ticketNumber String                 @unique
@@ -1000,7 +951,7 @@ model SupportTicket {
   category     String                 @default("DUVIDAS")
   priority     String                 @default("NORMAL")
   status       String                 @default("ABERTO")
-  assignedRole String                 @default("FRANCHISEE")
+  assignedRole String                 @default("ADMIN")
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   messages     SupportTicketMessage[]

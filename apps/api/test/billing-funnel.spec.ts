@@ -93,55 +93,18 @@ describe('E2E Funil de Assinaturas, Faturamento e Splits', () => {
     });
   });
 
-  describe('2. Split Automático de Pagamento para Franquias por Cidade', () => {
-    function calculateCitySplit(
-      amount: number,
-      city: { splitEnabled: boolean; franchiseFeePercent: number; platformFeePercent: number },
-    ) {
-      if (!city.splitEnabled) {
-        return {
-          splitApplied: false,
-          franchiseAmount: 0,
-          platformAmount: amount,
-        };
-      }
-
-      const franchiseAmount = (amount * city.franchiseFeePercent) / 100;
-      const platformAmount = (amount * city.platformFeePercent) / 100;
-
+  describe('2. Faturamento Integral da Plataforma (Modelo Direto Sem Franquias)', () => {
+    function calculatePlatformRevenue(amount: number) {
       return {
-        splitApplied: true,
-        franchiseAmount,
-        platformAmount,
-        sumCheck: franchiseAmount + platformAmount,
+        platformAmount: amount,
+        isDirectBilling: true,
       };
     }
 
-    it('deve ratear 80% franqueado local e 20% matriz para cidade com split ativo', () => {
-      const city = {
-        splitEnabled: true,
-        franchiseFeePercent: 80,
-        platformFeePercent: 20,
-      };
-
-      const split = calculateCitySplit(100.0, city);
-      expect(split.splitApplied).toBe(true);
-      expect(split.franchiseAmount).toBe(80.0);
-      expect(split.platformAmount).toBe(20.0);
-      expect(split.sumCheck).toBe(100.0);
-    });
-
-    it('deve manter 100% para a matriz em cidades administradas sem franquia', () => {
-      const city = {
-        splitEnabled: false,
-        franchiseFeePercent: 80,
-        platformFeePercent: 20,
-      };
-
-      const split = calculateCitySplit(199.0, city);
-      expect(split.splitApplied).toBe(false);
-      expect(split.franchiseAmount).toBe(0);
-      expect(split.platformAmount).toBe(199.0);
+    it('deve destinar 100% da receita de assinaturas para a plataforma central', () => {
+      const revenue = calculatePlatformRevenue(199.0);
+      expect(revenue.platformAmount).toBe(199.0);
+      expect(revenue.isDirectBilling).toBe(true);
     });
   });
 

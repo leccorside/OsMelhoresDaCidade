@@ -363,7 +363,7 @@ export default function MerchantSupportPage() {
                   Novo Chamado de Suporte
                 </h3>
                 <p className="text-xs text-neutral-500">
-                  Nossa equipe ou o franqueado da sua praça responderá prontamente.
+                  Nossa equipe de atendimento oficial responderá prontamente.
                 </p>
               </div>
             </div>

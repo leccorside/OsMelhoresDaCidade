@@ -811,12 +811,6 @@ export class ListingsService {
       },
     });
 
-    // Notificar franqueado regional instantaneamente via WhatsApp Bot
-    this.whatsAppBot.notifyFranchiseeNewMerchantLead(dto.cityId, {
-      name: dto.name,
-      phone: dto.whatsapp || dto.phone,
-    }).catch(() => {});
-
     return createdListing;
   }
 

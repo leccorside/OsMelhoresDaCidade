@@ -2425,59 +2425,11 @@ export async function fetchMerchantRoiPerformanceApi(): Promise<MerchantRoiPerfo
   return res.json();
 }
 
-export interface CitySplitItem {
-  id: string;
-  name: string;
-  slug: string;
-  ibgeCode: number;
-  isPublished: boolean;
-  franchiseName?: string | null;
-  franchiseCnpj?: string | null;
-  franchisePixKey?: string | null;
-  franchisePixType?: string | null;
-  franchiseWalletId?: string | null;
-  platformFeePercent: number;
-  franchiseFeePercent: number;
-  splitEnabled: boolean;
-  state?: { uf: string; name: string };
-  _count?: { listings: number };
-}
 
-export async function fetchAdminCitySplitsApi(): Promise<CitySplitItem[]> {
-  const url = `${getApiBaseUrl()}/billing/admin/city-splits`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-  });
 
-  if (!res.ok) {
-    throw new Error('Erro ao buscar configurações de split de cidades.');
-  }
 
-  return res.json();
-}
 
-export async function updateAdminCitySplitApi(cityId: string, data: Partial<CitySplitItem>): Promise<CitySplitItem> {
-  const url = `${getApiBaseUrl()}/billing/admin/city-splits/${cityId}`;
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-    body: JSON.stringify(data),
-  });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Erro ao atualizar split da cidade.');
-  }
-
-  return res.json();
-}
 
 export interface ExpiringSubscriptionItem {
   id: string;
@@ -2546,134 +2498,7 @@ export async function processSubscriptionRenewalsApi(): Promise<ProcessRenewalsR
 // FRANQUIA REGIONAL & GESTÃO DA CIDADE
 // -----------------------------------------------------------------------------
 
-export interface FranchiseOverviewData {
-  city: {
-    id: string;
-    name: string;
-    slug: string;
-    uf: string;
-    franchiseName: string;
-    franchiseCnpj: string | null;
-    franchisePixKey: string | null;
-    franchisePixType: string | null;
-    franchiseFeePercent: number;
-    platformFeePercent: number;
-    splitEnabled: boolean;
-  };
-  stats: {
-    totalListings: number;
-    publishedListings: number;
-    pendingListings: number;
-    activeVipCount: number;
-    monthlyRevenue: number;
-    franchiseCommission: number;
-    platformCommission: number;
-    vipPlansBreakdown: {
-      bronze: number;
-      prata: number;
-      ouro: number;
-    };
-  };
-}
 
-export interface FranchiseMerchantItem {
-  id: string;
-  name: string;
-  slug: string;
-  status: string;
-  categoryName: string;
-  address: string;
-  phone: string;
-  ownerName: string;
-  ownerEmail: string | null;
-  isVip: boolean;
-  currentPlan: string;
-  planExpiresAt: string | null;
-  leadStage?: string;
-  leadNotes?: string | null;
-  leadLastContactAt?: string | null;
-  whatsAppLink: string | null;
-}
-
-export interface FranchiseSubscriptionItem {
-  id: string;
-  listingName: string;
-  merchantName: string;
-  plan: string;
-  status: string;
-  billingCycle: string;
-  grossAmount: number;
-  franchiseCut: number;
-  platformCut: number;
-  startDate: string;
-  endDate: string | null;
-  createdAt: string;
-}
-
-export async function fetchFranchiseOverviewApi(cityId?: string): Promise<FranchiseOverviewData> {
-  const query = cityId ? `?cityId=${cityId}` : '';
-  const url = `${getApiBaseUrl()}/franchise/overview${query}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Erro ao carregar dados da franquia.');
-  }
-
-  return res.json();
-}
-
-export async function fetchFranchiseMerchantsApi(params?: {
-  search?: string;
-  status?: string;
-  cityId?: string;
-}): Promise<FranchiseMerchantItem[]> {
-  const q = new URLSearchParams();
-  if (params?.search) q.append('search', params.search);
-  if (params?.status) q.append('status', params.status);
-  if (params?.cityId) q.append('cityId', params.cityId);
-
-  const url = `${getApiBaseUrl()}/franchise/merchants?${q.toString()}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Erro ao buscar lojistas da franquia.');
-  }
-
-  return res.json();
-}
-
-export async function fetchFranchiseSubscriptionsApi(cityId?: string): Promise<FranchiseSubscriptionItem[]> {
-  const query = cityId ? `?cityId=${cityId}` : '';
-  const url = `${getApiBaseUrl()}/franchise/subscriptions${query}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Erro ao buscar assinaturas da cidade.');
-  }
-
-  return res.json();
-}
 
 export interface SplitSettlementItem {
   paymentId: string;
@@ -2682,47 +2507,20 @@ export interface SplitSettlementItem {
   merchantName: string;
   cityName: string;
   splitEnabled: boolean;
-  franchiseName: string;
-  franchiseWalletId: string | null;
-  franchisePixKey: string | null;
-  franchiseFeePercent: number;
+  channelName: string;
+  
+  
+  
   platformFeePercent: number;
   grossAmount: number;
-  franchiseAmount: number;
+  retainedAmount: number;
   platformAmount: number;
   paymentMethod: string;
   status: string;
   paidAt: string;
 }
 
-export interface SplitSettlementsResponse {
-  totals: {
-    grossTotal: number;
-    franchiseTotal: number;
-    platformTotal: number;
-    settlementsCount: number;
-  };
-  settlements: SplitSettlementItem[];
-}
 
-export async function fetchAdminSplitSettlementsApi(cityId?: string): Promise<SplitSettlementsResponse> {
-  const query = cityId ? `?cityId=${cityId}` : '';
-  const url = `${getApiBaseUrl()}/billing/admin/split-settlements${query}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Erro ao carregar extrato de splits.');
-  }
-
-  return res.json();
-}
 
 // -----------------------------------------------------------------------------
 // NOTIFICAÇÕES WEB PUSH (SERVICE WORKER)
@@ -2866,27 +2664,7 @@ export async function fetchSubscriptionContractApi(subscriptionId: string): Prom
   return res.json();
 }
 
-export async function updateFranchiseLeadPipelineApi(
-  listingId: string,
-  payload: { leadStage: string; leadNotes?: string }
-): Promise<any> {
-  const url = `${getApiBaseUrl()}/franchise/merchants/${listingId}/pipeline`;
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-    body: JSON.stringify(payload),
-  });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Erro ao atualizar lead: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
 
 export interface WebhookEndpointItem {
   id: string;
@@ -2983,7 +2761,7 @@ export interface MonthlyClosingTransaction {
   cityName: string;
   paymentMethod: string;
   grossAmount: number;
-  franchiseAmount: number;
+  retainedAmount: number;
   platformAmount: number;
   paidAt: string;
 }
@@ -2991,11 +2769,11 @@ export interface MonthlyClosingTransaction {
 export interface CityClosingItem {
   cityName: string;
   uf: string;
-  franchiseName: string;
+  channelName: string;
   splitEnabled: boolean;
   transactionsCount: number;
   grossAmount: number;
-  franchiseAmount: number;
+  retainedAmount: number;
   platformAmount: number;
 }
 
@@ -3011,7 +2789,7 @@ export interface MonthlyClosingReportData {
   };
   summary: {
     grossRevenue: number;
-    franchiseCommissionTotal: number;
+    operationalDeductionsTotal: number;
     platformNetRevenue: number;
     transactionsCount: number;
     averageTicket: number;
@@ -3046,99 +2824,9 @@ export async function fetchAdminMonthlyClosingReportApi(
   return res.json();
 }
 
-export interface CreateFranchiseLeadPayload {
-  name: string;
-  email: string;
-  phone: string;
-  city: string;
-  state: string;
-  capitalAvailable?: string;
-  experience?: string;
-}
 
-export async function createFranchiseLeadApi(payload: CreateFranchiseLeadPayload): Promise<{
-  success: boolean;
-  message: string;
-  leadId: string;
-}> {
-  const url = `${getApiBaseUrl()}/franchise/lead`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Erro ao enviar candidatura: HTTP ${res.status}`);
-  }
 
-  return res.json();
-}
-
-export interface FranchisePayoutItem {
-  id: string;
-  cityId: string;
-  amount: number;
-  pixKey: string;
-  pixKeyType: string;
-  franchiseName: string;
-  status: string;
-  transactionId?: string;
-  receiptUrl?: string;
-  notes?: string;
-  transferredAt: string;
-  createdAt: string;
-  city?: {
-    id: string;
-    name: string;
-    state?: { uf: string };
-  };
-}
-
-export async function processCityFranchisePayoutApi(
-  cityId: string,
-  amount?: number
-): Promise<{ success: boolean; message: string; payout: FranchisePayoutItem; remainingBalance: number }> {
-  const url = `${getApiBaseUrl()}/billing/admin/payout/${cityId}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-    body: JSON.stringify({ amount }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Erro ao transferir PIX: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export async function fetchFranchisePayoutsApi(cityId?: string): Promise<FranchisePayoutItem[]> {
-  const params = new URLSearchParams();
-  if (cityId) params.append('cityId', cityId);
-
-  const url = `${getApiBaseUrl()}/billing/admin/payouts?${params.toString()}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      ...getAuthHeader(),
-    },
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Erro ao carregar repasses PIX: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
 
 export interface SupportTicketMessageItem {
   id: string;
@@ -3261,24 +2949,7 @@ export async function resolveTicketApi(ticketId: string): Promise<any> {
   return res.json();
 }
 
-export async function testFranchiseWhatsAppAlertApi(phone?: string): Promise<{ success: boolean; message: string }> {
-  const url = `${getApiBaseUrl()}/franchise/test-whatsapp-alert`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeader(),
-    },
-    body: JSON.stringify({ phone }),
-  });
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Erro ao testar WhatsApp: HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
 
 
 // =============================================================================

@@ -822,6 +822,24 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Modal interativo de inspeção profunda exibindo payload JSON formatado com destaque visual.
   - Link de navegação "Auditoria & Logs" adicionado na barra lateral administrativa de [`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx).
 
+### AX. Remoção Integral do Modelo de Franquias e Transição para Faturamento 100% Direto
+- **Decisão de Arquitetura & Negócio**: Conforme diretriz do usuário, qualquer elemento ou menção a franquias/franqueados foi completamente eliminado da plataforma. O modelo agora é 100% de venda direta e faturamento integral pela matriz do portal Os Melhores da Cidade.
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Remoção de `FRANCHISEE` do enum `Role` (mantendo exclusivamente `USER`, `MERCHANT`, `ADMIN`).
+  - Remoção dos modelos `FranchiseLead` e `FranchisePayout`.
+  - Remoção dos campos de split e franquia da tabela `cities` (`franchiseName`, `franchiseCnpj`, `franchisePixKey`, `franchisePixType`, `franchiseWalletId`, `platformFeePercent`, `franchiseFeePercent`, `splitEnabled`).
+  - Remoção da relação `franchisees` em `User` e `City`. Sincronizado no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Remoção da pasta inteira `apps/api/src/modules/franchise/` e de sua importação no `AppModule`.
+  - Remoção de rotas e métodos de repasses PIX de franquias, splits por cidade e DTOs associados.
+  - O faturamento de assinaturas no Asaas passa a ser 100% da matriz, sem divisão de carteira (splits).
+  - Central de suporte e tickets direcionada 100% para o atendimento do administrador do portal.
+- **Frontend Next.js (`apps/web`)**:
+  - Exclusão das páginas públicas e painéis `/seja-um-franqueado` e `/franqueado`.
+  - Remoção de itens de menu do painel de administração e de abas/modais de repasse para franqueados em `/admin/financeiro`.
+  - Atualização do relatório mensal `/admin/financeiro/fechamento` para modelo de balanço analítico direto.
+  - Limpeza de todos os clientes e interfaces de franquia em `apps/web/src/lib/api.ts`.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

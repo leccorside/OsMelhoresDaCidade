@@ -34,23 +34,15 @@ import {
 } from 'lucide-react';
 import {
   fetchAdminFinancialOverviewApi,
-  fetchAdminCitySplitsApi,
-  updateAdminCitySplitApi,
   fetchExpiringSubscriptionsApi,
   processSubscriptionRenewalsApi,
   FinancialOverviewData,
-  CitySplitItem,
   ExpiringSubscriptionItem,
-  fetchAdminSplitSettlementsApi,
-  SplitSettlementsResponse,
   fetchAdminWebhooksApi,
   createAdminWebhookApi,
   deleteAdminWebhookApi,
   testAdminWebhookApi,
   WebhookEndpointItem,
-  fetchFranchisePayoutsApi,
-  processCityFranchisePayoutApi,
-  FranchisePayoutItem,
 } from '@/lib/api';
 
 export default function AdminFinancialPage() {
@@ -59,19 +51,9 @@ export default function AdminFinancialPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Franquias e Splits State
-  const [cities, setCities] = useState<CitySplitItem[]>([]);
-  const [editingCity, setEditingCity] = useState<CitySplitItem | null>(null);
-  const [splitForm, setSplitForm] = useState<Partial<CitySplitItem>>({});
-  const [savingSplit, setSavingSplit] = useState(false);
-  const [splitFeedback, setSplitFeedback] = useState<string | null>(null);
-
-  // Renovações & Notificações State
   const [expiringSubs, setExpiringSubs] = useState<ExpiringSubscriptionItem[]>([]);
   const [processingRenewals, setProcessingRenewals] = useState(false);
   const [renewalFeedback, setRenewalFeedback] = useState<string | null>(null);
-  const [splitSettlements, setSplitSettlements] = useState<SplitSettlementsResponse | null>(null);
 
   // Webhooks State
   const [webhooks, setWebhooks] = useState<WebhookEndpointItem[]>([]);
@@ -82,33 +64,18 @@ export default function AdminFinancialPage() {
   const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; status?: number; error?: string } | null>(null);
 
-  // Transferências PIX & Payouts State
-  const [payoutsHistory, setPayoutsHistory] = useState<FranchisePayoutItem[]>([]);
-  const [payoutModalCity, setPayoutModalCity] = useState<CitySplitItem | null>(null);
-  const [payoutAmountInput, setPayoutAmountInput] = useState<string>('');
-  const [processingPayout, setProcessingPayout] = useState(false);
-  const [payoutFeedback, setPayoutFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
   const loadData = async () => {
     try {
       setLoading(true);
       setErrorMsg(null);
-      const [res, citiesRes, expiringRes, settlementsRes] = await Promise.all([
+      const [res, expiringRes, whList] = await Promise.all([
         fetchAdminFinancialOverviewApi(),
-        fetchAdminCitySplitsApi().catch(() => []),
         fetchExpiringSubscriptionsApi(7).catch(() => []),
-        fetchAdminSplitSettlementsApi().catch(() => null),
+        fetchAdminWebhooksApi().catch(() => []),
       ]);
       setData(res);
-      setCities(citiesRes);
       setExpiringSubs(expiringRes);
-      setSplitSettlements(settlementsRes as any);
-      const [whList, payoutsList] = await Promise.all([
-        fetchAdminWebhooksApi().catch(() => []),
-        fetchFranchisePayoutsApi().catch(() => []),
-      ]);
       setWebhooks(whList);
-      setPayoutsHistory(payoutsList);
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao carregar dados financeiros.');
     } finally {
@@ -118,33 +85,6 @@ export default function AdminFinancialPage() {
 
   
 
-
-  const handleOpenPayoutModal = (city: CitySplitItem) => {
-    setPayoutModalCity(city);
-    setPayoutAmountInput('');
-    setPayoutFeedback(null);
-  };
-
-  const handleExecutePayout = async () => {
-    if (!payoutModalCity) return;
-    try {
-      setProcessingPayout(true);
-      setPayoutFeedback(null);
-      const parsedAmount = payoutAmountInput.trim() ? parseFloat(payoutAmountInput) : undefined;
-      const res = await processCityFranchisePayoutApi(payoutModalCity.id, parsedAmount);
-      setPayoutFeedback({ type: 'success', message: res.message });
-      const updatedPayouts = await fetchFranchisePayoutsApi().catch(() => []);
-      setPayoutsHistory(updatedPayouts);
-      setTimeout(() => {
-        setPayoutModalCity(null);
-        setPayoutFeedback(null);
-      }, 3000);
-    } catch (err: any) {
-      setPayoutFeedback({ type: 'error', message: err.message || 'Erro ao efetuar transferência PIX.' });
-    } finally {
-      setProcessingPayout(false);
-    }
-  };
 
   const handleCreateWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,55 +131,6 @@ export default function AdminFinancialPage() {
     }
   };
 
-  const handleExportSettlementsCsv = () => {
-    if (!splitSettlements || splitSettlements.settlements.length === 0) return;
-
-    const headers = [
-      'ID Pagamento',
-      'Estabelecimento',
-      'Comerciante',
-      'Cidade',
-      'Franquia',
-      'Chave PIX',
-      'Valor Bruto (R$)',
-      '% Franqueado',
-      'Repasse Franqueado (R$)',
-      '% Matriz',
-      'Retenção Matriz (R$)',
-      'Data Pagamento',
-      'Status',
-    ];
-
-    const rows = splitSettlements.settlements.map((s) => [
-      s.paymentId,
-      `"${s.listingName.replace(/"/g, '""')}"`,
-      `"${s.merchantName.replace(/"/g, '""')}"`,
-      `"${s.cityName}"`,
-      `"${s.franchiseName.replace(/"/g, '""')}"`,
-      `"${s.franchisePixKey || 'N/A'}"`,
-      s.grossAmount.toFixed(2),
-      `${s.franchiseFeePercent}%`,
-      s.franchiseAmount.toFixed(2),
-      `${s.platformFeePercent}%`,
-      s.platformAmount.toFixed(2),
-      new Date(s.paidAt).toLocaleDateString('pt-BR'),
-      s.status,
-    ]);
-
-    const csvContent =
-      '\uFEFF' +
-      [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `extrato_splits_franquias_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handleProcessRenewals = async () => {
     try {
       setProcessingRenewals(true);
@@ -255,36 +146,6 @@ export default function AdminFinancialPage() {
       setRenewalFeedback(`Erro: ${err.message || 'Falha ao processar notificações.'}`);
     } finally {
       setProcessingRenewals(false);
-    }
-  };
-
-  const handleOpenEditCity = (city: CitySplitItem) => {
-    setEditingCity(city);
-    setSplitForm({
-      franchiseName: city.franchiseName || '',
-      franchiseCnpj: city.franchiseCnpj || '',
-      franchisePixKey: city.franchisePixKey || '',
-      franchisePixType: city.franchisePixType || 'CNPJ',
-      franchiseWalletId: city.franchiseWalletId || '',
-      platformFeePercent: Number(city.platformFeePercent || 20),
-      franchiseFeePercent: Number(city.franchiseFeePercent || 80),
-      splitEnabled: city.splitEnabled ?? false,
-    });
-  };
-
-  const handleSaveCitySplit = async () => {
-    if (!editingCity) return;
-    try {
-      setSavingSplit(true);
-      const updated = await updateAdminCitySplitApi(editingCity.id, splitForm);
-      setCities((prev) => prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
-      setSplitFeedback(`Configurações de ${editingCity.name} atualizadas com sucesso!`);
-      setEditingCity(null);
-      setTimeout(() => setSplitFeedback(null), 4000);
-    } catch (err: any) {
-      alert(err.message || 'Erro ao salvar configurações de split.');
-    } finally {
-      setSavingSplit(false);
     }
   };
 
@@ -757,333 +618,7 @@ export default function AdminFinancialPage() {
         )}
       </div>
 
-      {/* Franquias Regionais & Divisão de Receitas por Cidade (Split PIX / Asaas) */}
-      <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 text-sky-700 text-xs font-bold uppercase tracking-wider mb-2 border border-sky-200">
-              <Layers className="w-3.5 h-3.5" />
-              Gestão Multirregional & Franquias
-            </div>
-            <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-sky-600" />
-              Franquias & Divisão de Receitas por Cidade (Split)
-            </h2>
-            <p className="text-sm text-neutral-500 mt-1">
-              Configure chaves PIX, wallet do Asaas e regras de repasse automático para os parceiros gestores locais.
-            </p>
-          </div>
-
-          {splitFeedback && (
-            <div className="px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              {splitFeedback}
-            </div>
-          )}
-        </div>
-
-        {cities.length === 0 ? (
-          <div className="text-center py-10 border-2 border-dashed border-neutral-200 rounded-2xl">
-            <Building className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
-            <p className="text-sm text-neutral-500">Nenhuma cidade cadastrada no portal.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-50 text-neutral-500 uppercase text-xs font-semibold">
-                <tr>
-                  <th className="px-4 py-3 rounded-l-xl">Cidade / Estado</th>
-                  <th className="px-4 py-3">Split Status</th>
-                  <th className="px-4 py-3">Franquia Gestora</th>
-                  <th className="px-4 py-3">Chave PIX Local</th>
-                  <th className="px-4 py-3">Divisão de Receita</th>
-                  <th className="px-4 py-3 rounded-r-xl text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {cities.map((city) => (
-                  <tr key={city.id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="px-4 py-4 font-bold text-neutral-900">
-                      {city.name} - {city.state?.uf || 'BA'}
-                      <span className="block text-xs font-normal text-neutral-400">
-                        {city._count?.listings || 0} estabelecimentos
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      {city.splitEnabled ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Split Ativo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-neutral-100 text-neutral-600">
-                          100% Matriz
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-neutral-800 text-xs">
-                      {city.franchiseName ? (
-                        <div>
-                          <p className="font-bold text-neutral-900">{city.franchiseName}</p>
-                          <p className="text-neutral-400 font-mono text-[11px]">{city.franchiseCnpj || 'Sem CNPJ'}</p>
-                        </div>
-                      ) : (
-                        <span className="text-neutral-400 italic">Administrado pela Matriz</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-neutral-600 font-mono text-xs">
-                      {city.franchisePixKey ? (
-                        <span>{city.franchisePixKey}</span>
-                      ) : (
-                        <span className="text-neutral-400 font-sans italic">Não configurada</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-xs">
-                      <span className="font-bold text-emerald-700 font-mono">
-                        {city.franchiseFeePercent}% Local
-                      </span>
-                      <span className="text-neutral-400 mx-1">•</span>
-                      <span className="font-bold text-neutral-700 font-mono">
-                        {city.platformFeePercent}% Matriz
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <button
-                        onClick={() => handleOpenEditCity(city)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold transition-colors"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-neutral-600" />
-                        Configurar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      
-      {/* Extrato de Repasses & Liquidação de Splits (Asaas) */}
-      <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2 border border-emerald-200">
-              <DollarSign className="w-3.5 h-3.5" />
-              Conciliação Bancária & Splits
-            </div>
-            <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
-              <Building className="w-5 h-5 text-emerald-600" />
-              Extrato de Repasses e Liquidação de Splits
-            </h2>
-            <p className="text-sm text-neutral-500 mt-1">
-              Histórico de pagamentos recebidos com split de comissões rateadas entre a plataforma e os franqueados regionais.
-            </p>
-          </div>
-
-          <button
-            onClick={handleExportSettlementsCsv}
-            disabled={!splitSettlements || splitSettlements.settlements.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-neutral-200 text-white font-bold text-xs shadow-sm transition-all self-start sm:self-auto"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Exportar Relatório (.CSV)
-          </button>
-        </div>
-
-        {/* 3 Cards de Consolidação de Splits */}
-        {splitSettlements && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-200">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 block">
-                Total Bruto Liquidado
-              </span>
-              <div className="text-2xl font-black text-neutral-900 mt-1">
-                R$ {splitSettlements.totals.grossTotal.toFixed(2)}
-              </div>
-              <p className="text-xs text-neutral-400 mt-1">
-                {splitSettlements.totals.settlementsCount} transações processadas
-              </p>
-            </div>
-
-            <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-200">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 block">
-                Repassado às Franquias Locais
-              </span>
-              <div className="text-2xl font-black text-emerald-700 mt-1">
-                R$ {splitSettlements.totals.franchiseTotal.toFixed(2)}
-              </div>
-              <p className="text-xs text-emerald-600 mt-1">Rateio automático para parceiros</p>
-            </div>
-
-            <div className="bg-sky-50/50 rounded-2xl p-5 border border-sky-200">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800 block">
-                Retenção Líquida da Matriz
-              </span>
-              <div className="text-2xl font-black text-sky-800 mt-1">
-                R$ {splitSettlements.totals.platformTotal.toFixed(2)}
-              </div>
-              <p className="text-xs text-sky-600 mt-1">Receita da administração central</p>
-            </div>
-          </div>
-        )}
-
-        {/* Tabela de Lançamentos */}
-        {!splitSettlements || splitSettlements.settlements.length === 0 ? (
-          <div className="text-center py-10 border-2 border-dashed border-neutral-200 rounded-2xl">
-            <DollarSign className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
-            <p className="text-sm font-bold text-neutral-700">Nenhum repasse de split liquidado ainda</p>
-            <p className="text-xs text-neutral-400 mt-1">
-              Os repasses aparecerão assim que pagamentos com split forem confirmados na plataforma.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-50 text-neutral-500 uppercase text-xs font-semibold">
-                <tr>
-                  <th className="px-4 py-3 rounded-l-xl">Estabelecimento / Cidade</th>
-                  <th className="px-4 py-3">Franquia & Chave</th>
-                  <th className="px-4 py-3">Valor Total</th>
-                  <th className="px-4 py-3">Parte Franquia</th>
-                  <th className="px-4 py-3">Parte Matriz</th>
-                  <th className="px-4 py-3">Data / Hora</th>
-                  <th className="px-4 py-3 rounded-r-xl">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {splitSettlements.settlements.map((s) => (
-                  <tr key={s.paymentId} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="font-bold text-neutral-900">{s.listingName}</div>
-                      <div className="text-xs text-neutral-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" />
-                        {s.cityName}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-xs">
-                      <div className="font-bold text-neutral-800">{s.franchiseName}</div>
-                      <div className="text-neutral-500 font-mono text-[11px]">{s.franchisePixKey || 'Sem chave'}</div>
-                    </td>
-                    <td className="px-4 py-4 font-semibold text-neutral-900">
-                      R$ {s.grossAmount.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="font-bold text-emerald-700">
-                        R$ {s.franchiseAmount.toFixed(2)}
-                      </span>
-                      <span className="text-[11px] text-neutral-400 block">
-                        ({s.franchiseFeePercent}%)
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-xs">
-                      <span className="font-bold text-neutral-700">
-                        R$ {s.platformAmount.toFixed(2)}
-                      </span>
-                      <span className="text-[11px] text-neutral-400 block">
-                        ({s.platformFeePercent}%)
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-xs text-neutral-500">
-                      {new Date(s.paidAt).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Liquidado
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      
-      {/* Histórico de Transferências Bancárias PIX de Comissões */}
-      <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600">
-              <DollarSign className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
-                Histórico de Repasses PIX Realizados aos Franqueados
-              </h3>
-              <p className="text-xs text-neutral-500">
-                Transferências bancárias instantâneas liquidadas via gateway Asaas com comprovante.
-              </p>
-            </div>
-          </div>
-          <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 self-start sm:self-auto">
-            {payoutsHistory.length} repasses executados
-          </span>
-        </div>
-
-        {payoutsHistory.length === 0 ? (
-          <div className="text-center py-8 border-2 border-dashed border-neutral-200 rounded-2xl text-xs text-neutral-400">
-            Nenhum repasse bancário PIX realizado ainda. Clique no botão "Transferir PIX" ao lado da cidade para liquidar comissões.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-neutral-50 text-neutral-500 uppercase font-semibold">
-                <tr>
-                  <th className="px-4 py-3 rounded-l-xl">Data / Hora</th>
-                  <th className="px-4 py-3">Praça / Franquia</th>
-                  <th className="px-4 py-3">Chave PIX Destino</th>
-                  <th className="px-4 py-3 text-right">Valor Transferido</th>
-                  <th className="px-4 py-3">ID Asaas</th>
-                  <th className="px-4 py-3 rounded-r-xl text-right">Comprovante</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 font-mono">
-                {payoutsHistory.map((p) => (
-                  <tr key={p.id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="px-4 py-3.5 text-neutral-500 whitespace-nowrap">
-                      {new Date(p.transferredAt).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="px-4 py-3.5 font-sans">
-                      <div className="font-bold text-neutral-900">{p.franchiseName}</div>
-                      <div className="text-[11px] text-neutral-400">{p.city?.name} - {p.city?.state?.uf}</div>
-                    </td>
-                    <td className="px-4 py-3.5 text-neutral-600">
-                      {p.pixKey} ({p.pixKeyType})
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-bold text-emerald-700 font-mono text-sm">
-                      R$ {Number(p.amount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3.5 text-neutral-400 text-[11px]">
-                      {p.transactionId || 'transf_sim'}
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-sans">
-                      {p.receiptUrl ? (
-                        <a
-                          href={p.receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 hover:text-sky-900 hover:underline"
-                        >
-                          <ExternalLink className="w-3 h-3" /> Ver Comprovante
-                        </a>
-                      ) : (
-                        <span className="text-neutral-400 text-[11px] italic">Simulado</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-
-            {/* BLOCO DE WEBHOOKS & INTEGRAÇÕES EXTERNAS (CRMs / ZAPIER / MAKE) */}
+      {/* BLOCO DE WEBHOOKS & INTEGRAÇÕES EXTERNAS (CRMs / ZAPIER / MAKE) */}
       <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
           <div className="flex items-center gap-3">
@@ -1148,18 +683,7 @@ export default function AdminFinancialPage() {
                 />
                 SUBSCRIPTION_PAID (Pagamento Confirmado)
               </label>
-              <label className="flex items-center gap-1.5 cursor-pointer font-medium text-neutral-800">
-                <input
-                  type="checkbox"
-                  checked={webhookEvents.includes('SPLIT_SETTLED')}
-                  onChange={(e) => {
-                    if (e.target.checked) setWebhookEvents([...webhookEvents, 'SPLIT_SETTLED']);
-                    else setWebhookEvents(webhookEvents.filter((ev) => ev !== 'SPLIT_SETTLED'));
-                  }}
-                  className="rounded text-purple-600"
-                />
-                SPLIT_SETTLED (Comissão Rateada)
-              </label>
+              
             </div>
 
             <button
@@ -1260,273 +784,6 @@ export default function AdminFinancialPage() {
 
       
       {/* MODAL DE TRANSFERÊNCIA PIX PARA FRANQUIA */}
-      {payoutModalCity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-neutral-100">
-            <button
-              onClick={() => setPayoutModalCity(null)}
-              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-700 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-5">
-              <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-600">
-                <Send className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-neutral-900">
-                  Transferir Comissão PIX
-                </h3>
-                <p className="text-xs text-neutral-500">
-                  {payoutModalCity.name} - {payoutModalCity.franchiseName || 'Franquia Regional'}
-                </p>
-              </div>
-            </div>
-
-            {payoutFeedback && (
-              <div className={`p-4 rounded-2xl mb-4 text-xs font-bold ${
-                payoutFeedback.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                  : 'bg-rose-50 text-rose-800 border border-rose-200'
-              }`}>
-                {payoutFeedback.message}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-neutral-500 font-medium">Chave PIX Destino:</span>
-                  <span className="font-mono font-bold text-neutral-900">{payoutModalCity.franchisePixKey}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500 font-medium">Tipo da Chave:</span>
-                  <span className="font-bold text-neutral-900">{payoutModalCity.franchisePixType || 'CNPJ'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500 font-medium">% de Split da Praça:</span>
-                  <span className="font-bold text-emerald-700">{payoutModalCity.franchiseFeePercent}%</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-1">
-                  Valor a Transferir em Reais (R$):
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Deixe em branco para transferir todo o saldo apurado"
-                  value={payoutAmountInput}
-                  onChange={(e) => setPayoutAmountInput(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-300 text-sm font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-                <p className="text-[11px] text-neutral-400 mt-1">
-                  * A transferência é enviada instantaneamente pelo gateway bancário Asaas.
-                </p>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPayoutModalCity(null)}
-                  className="flex-1 py-3 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-700 text-xs font-bold transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={processingPayout}
-                  onClick={handleExecutePayout}
-                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  {processingPayout ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Transferindo...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Confirmar Envio PIX
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* MODAL DE CONFIGURAÇÃO DE SPLIT DA CIDADE */}
-      {editingCity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-neutral-100 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setEditingCity(null)}
-              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-700 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-5">
-              <div className="p-3 bg-sky-500/10 rounded-2xl text-sky-600">
-                <MapPin className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-neutral-900">
-                  Configurar Franquia & Split
-                </h3>
-                <p className="text-xs text-neutral-500">
-                  {editingCity.name} - {editingCity.state?.uf || 'BA'}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1">
-                  Nome do Franqueado / Parceiro Regional:
-                </label>
-                <input
-                  type="text"
-                  value={splitForm.franchiseName || ''}
-                  onChange={(e) => setSplitForm({ ...splitForm, franchiseName: e.target.value })}
-                  placeholder="Ex: Franquia Regional Barreiras"
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1">
-                  CNPJ ou CPF do Franqueado:
-                </label>
-                <input
-                  type="text"
-                  value={splitForm.franchiseCnpj || ''}
-                  onChange={(e) => setSplitForm({ ...splitForm, franchiseCnpj: e.target.value })}
-                  placeholder="Ex: 00.000.000/0001-00"
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1">
-                    Tipo de Chave PIX:
-                  </label>
-                  <select
-                    value={splitForm.franchisePixType || 'CNPJ'}
-                    onChange={(e) => setSplitForm({ ...splitForm, franchisePixType: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  >
-                    <option value="CNPJ">CNPJ</option>
-                    <option value="CPF">CPF</option>
-                    <option value="EMAIL">E-mail</option>
-                    <option value="PHONE">Telefone</option>
-                    <option value="RANDOM">Chave Aleatória</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1">
-                    Chave PIX:
-                  </label>
-                  <input
-                    type="text"
-                    value={splitForm.franchisePixKey || ''}
-                    onChange={(e) => setSplitForm({ ...splitForm, franchisePixKey: e.target.value })}
-                    placeholder="Chave PIX para repasse"
-                    className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-1">
-                  Asaas Wallet ID (para Split Automático via API):
-                </label>
-                <input
-                  type="text"
-                  value={splitForm.franchiseWalletId || ''}
-                  onChange={(e) => setSplitForm({ ...splitForm, franchiseWalletId: e.target.value })}
-                  placeholder="Ex: c1a8e9d0-234b-4f5a-90ef..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 p-4 bg-neutral-50 rounded-2xl border border-neutral-200">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-600 mb-1">
-                    % Franqueado Local:
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={splitForm.franchiseFeePercent ?? 80}
-                    onChange={(e) => {
-                      const f = Number(e.target.value);
-                      setSplitForm({
-                        ...splitForm,
-                        franchiseFeePercent: f,
-                        platformFeePercent: Math.max(0, 100 - f),
-                      });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-sm font-bold text-emerald-700 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-neutral-600 mb-1">
-                    % Matriz Portal:
-                  </label>
-                  <input
-                    type="number"
-                    disabled
-                    value={splitForm.platformFeePercent ?? 20}
-                    className="w-full px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-100 text-sm font-bold text-neutral-700 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="splitEnabledCheck"
-                  checked={splitForm.splitEnabled || false}
-                  onChange={(e) => setSplitForm({ ...splitForm, splitEnabled: e.target.checked })}
-                  className="w-4 h-4 text-sky-600 rounded border-neutral-300 focus:ring-sky-500"
-                />
-                <label htmlFor="splitEnabledCheck" className="text-xs font-bold text-neutral-800 cursor-pointer">
-                  Habilitar Split Automático de Assinaturas para esta Cidade
-                </label>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveCitySplit}
-                disabled={savingSplit}
-                className="w-full py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20"
-              >
-                {savingSplit ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Salvando alterações...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Salvar Configurações da Cidade
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
-

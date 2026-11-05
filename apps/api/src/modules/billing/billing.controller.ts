@@ -19,7 +19,6 @@ import {
   CreateSubscriptionCouponDto,
   CalculatePlanChangeDto,
   ChangePlanCheckoutDto,
-  UpdateCitySplitDto,
 } from './dto/billing.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -91,27 +90,6 @@ export class BillingController {
   @ApiOperation({ summary: 'Listar cupons promocionais de assinatura de planos' })
   getAdminCoupons() {
     return this.billingService.getSubscriptionCoupons();
-  }
-
-  @Get('admin/city-splits')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Listar configurações de Franquia e Split de Pagamentos por Cidade' })
-  getAdminCitySplits() {
-    return this.billingService.getAdminCitySplits();
-  }
-
-  @Patch('admin/city-splits/:cityId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Configurar Franquia, Chave PIX e Splits de Pagamento da Cidade' })
-  updateAdminCitySplit(
-    @Param('cityId') cityId: string,
-    @Body() dto: UpdateCitySplitDto,
-  ) {
-    return this.billingService.updateCitySplit(cityId, dto);
   }
 
   @Post('admin/coupons')
@@ -217,36 +195,6 @@ export class BillingController {
     const currentYear = year ? Number(year) : new Date().getFullYear();
     const currentMonth = month ? Number(month) : new Date().getMonth() + 1;
     return this.billingService.getMonthlyClosingReport(currentYear, currentMonth);
-  }
-
-  @Post('admin/payout/:cityId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Processar e transferir repasse PIX de comissões acumuladas para franquia da cidade' })
-  processCityPayout(
-    @Param('cityId') cityId: string,
-    @Body('amount') amount?: number,
-  ) {
-    return this.billingService.processCityFranchisePayout(cityId, amount ? Number(amount) : undefined);
-  }
-
-  @Get('admin/payouts')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Histórico de transferências bancárias PIX realizadas para franqueados' })
-  getPayoutsHistory(@Query('cityId') cityId?: string) {
-    return this.billingService.getFranchisePayoutsHistory(cityId);
-  }
-
-  @Get('admin/split-settlements')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Extrato detalhado de repasses e liquidações de splits para franquias' })
-  getSplitSettlements(@Query('cityId') cityId?: string) {
-    return this.billingService.getAdminSplitSettlements(cityId);
   }
 
   @Post('webhook/asaas')
