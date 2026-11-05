@@ -2650,9 +2650,51 @@ export async function fetchFranchiseSubscriptionsApi(cityId?: string): Promise<F
   return res.json();
 }
 
+export interface SplitSettlementItem {
+  paymentId: string;
+  subscriptionId: string;
+  listingName: string;
+  merchantName: string;
+  cityName: string;
+  splitEnabled: boolean;
+  franchiseName: string;
+  franchiseWalletId: string | null;
+  franchisePixKey: string | null;
+  franchiseFeePercent: number;
+  platformFeePercent: number;
+  grossAmount: number;
+  franchiseAmount: number;
+  platformAmount: number;
+  paymentMethod: string;
+  status: string;
+  paidAt: string;
+}
 
+export interface SplitSettlementsResponse {
+  totals: {
+    grossTotal: number;
+    franchiseTotal: number;
+    platformTotal: number;
+    settlementsCount: number;
+  };
+  settlements: SplitSettlementItem[];
+}
 
+export async function fetchAdminSplitSettlementsApi(cityId?: string): Promise<SplitSettlementsResponse> {
+  const query = cityId ? `?cityId=${cityId}` : '';
+  const url = `${getApiBaseUrl()}/billing/admin/split-settlements${query}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
 
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao carregar extrato de splits.');
+  }
 
-
-
+  return res.json();
+}

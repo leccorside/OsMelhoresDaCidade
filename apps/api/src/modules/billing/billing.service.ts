@@ -1225,5 +1225,87 @@ export class BillingService implements OnApplicationBootstrap {
       items: list,
     };
   }
+
+  async getAdminSplitSettlements(cityId?: string) {
+    const where: any = {
+      status: PaymentStatus.PAID,
+    };
+
+    if (cityId) {
+      where.subscription = {
+        listing: { cityId },
+      };
+    }
+
+    const payments = await this.prisma.subscriptionPayment.findMany({
+      where,
+      include: {
+        subscription: {
+          include: {
+            listing: {
+              include: {
+                city: true,
+              },
+            },
+            merchantProfile: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { paidAt: 'desc' },
+      take: 100,
+    });
+
+    let grossTotal = 0;
+    let franchiseTotal = 0;
+    let platformTotal = 0;
+
+    const settlements = payments.map((p) => {
+      const city = p.subscription?.listing?.city;
+      const franchiseFeePercent = city?.splitEnabled ? Number(city.franchiseFeePercent || 80) : 0;
+      const platformFeePercent = 100 - franchiseFeePercent;
+
+      const grossAmount = Number(p.amount);
+      const franchiseAmount = (grossAmount * franchiseFeePercent) / 100;
+      const platformAmount = grossAmount - franchiseAmount;
+
+      grossTotal += grossAmount;
+      franchiseTotal += franchiseAmount;
+      platformTotal += platformAmount;
+
+      return {
+        paymentId: p.id,
+        subscriptionId: p.subscriptionId,
+        listingName: p.subscription?.listing?.name || 'Estabelecimento',
+        merchantName: p.subscription?.merchantProfile?.user?.name || 'Comerciante',
+        cityName: city?.name || 'Não informada',
+        splitEnabled: Boolean(city?.splitEnabled),
+        franchiseName: city?.franchiseName || 'Matriz / Sem Franquia',
+        franchiseWalletId: city?.franchiseWalletId || null,
+        franchisePixKey: city?.franchisePixKey || null,
+        franchiseFeePercent,
+        platformFeePercent,
+        grossAmount,
+        franchiseAmount,
+        platformAmount,
+        paymentMethod: p.method,
+        status: p.status,
+        paidAt: p.paidAt || p.createdAt,
+      };
+    });
+
+    return {
+      totals: {
+        grossTotal,
+        franchiseTotal,
+        platformTotal,
+        settlementsCount: settlements.length,
+      },
+      settlements,
+    };
+  }
 }
 

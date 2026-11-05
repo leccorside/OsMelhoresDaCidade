@@ -196,6 +196,15 @@ export class BillingController {
     return this.billingService.processSubscriptionRenewals();
   }
 
+  @Get('admin/split-settlements')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Extrato detalhado de repasses e liquidações de splits para franquias' })
+  getSplitSettlements(@Query('cityId') cityId?: string) {
+    return this.billingService.getAdminSplitSettlements(cityId);
+  }
+
   @Post('webhook/asaas')
   @ApiOperation({ summary: 'Webhook oficial do Asaas para recebimento e confirmação de pagamentos PIX' })
   async handleAsaasWebhook(

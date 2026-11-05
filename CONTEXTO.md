@@ -622,6 +622,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Página dedicada [`/franqueado`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/franqueado/page.tsx) com 4 cards de KPIs da praça, abas interativas de "Comércios da Sua Praça" e "Extrato de Splits", busca de lojistas e botões de contato direto via WhatsApp.
   - Atalho no menu do painel administrativo [`/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx).
 
+### AK. Extrato de Repasses e Liquidação de Splits Asaas
+- **Backend NestJS (`apps/api`)**:
+  - Método `getAdminSplitSettlements` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Apuração consolidada de todos os pagamentos quitados de planos de destaque.
+    - Rateio exato por cidade de acordo com os percentuais de split e identificação das carteiras Asaas / chaves PIX de destino.
+    - Totalizadores acumulados: Valor Bruto Arrecadado, Total Repassado aos Franqueados e Retenção Líquida da Matriz.
+  - Endpoint `GET /api/v1/billing/admin/split-settlements` em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegido por `JwtAuthGuard` e `Roles(Role.ADMIN)`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `SplitSettlementItem`, `SplitSettlementsResponse` e cliente `fetchAdminSplitSettlementsApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Seção analítica no painel [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx) com 3 cards de conciliação bancária de splits e tabela detalhada por transação.
+  - Botão de **Exportação CSV** com codificação UTF-8 BOM (`\uFEFF`) para conciliação contábil e auditoria financeira das comissões repassadas.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

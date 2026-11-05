@@ -25,6 +25,7 @@ import {
   Layers,
   Send,
   MessageCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   fetchAdminFinancialOverviewApi,
@@ -35,6 +36,8 @@ import {
   FinancialOverviewData,
   CitySplitItem,
   ExpiringSubscriptionItem,
+  fetchAdminSplitSettlementsApi,
+  SplitSettlementsResponse,
 } from '@/lib/api';
 
 export default function AdminFinancialPage() {
@@ -55,24 +58,77 @@ export default function AdminFinancialPage() {
   const [expiringSubs, setExpiringSubs] = useState<ExpiringSubscriptionItem[]>([]);
   const [processingRenewals, setProcessingRenewals] = useState(false);
   const [renewalFeedback, setRenewalFeedback] = useState<string | null>(null);
+  const [splitSettlements, setSplitSettlements] = useState<SplitSettlementsResponse | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setErrorMsg(null);
-      const [res, citiesRes, expiringRes] = await Promise.all([
+      const [res, citiesRes, expiringRes, settlementsRes] = await Promise.all([
         fetchAdminFinancialOverviewApi(),
         fetchAdminCitySplitsApi().catch(() => []),
         fetchExpiringSubscriptionsApi(7).catch(() => []),
+        fetchAdminSplitSettlementsApi().catch(() => null),
       ]);
       setData(res);
       setCities(citiesRes);
       setExpiringSubs(expiringRes);
+      setSplitSettlements(settlementsRes as any);
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao carregar dados financeiros.');
     } finally {
       setLoading(false);
     }
+  };
+
+  
+  const handleExportSettlementsCsv = () => {
+    if (!splitSettlements || splitSettlements.settlements.length === 0) return;
+
+    const headers = [
+      'ID Pagamento',
+      'Estabelecimento',
+      'Comerciante',
+      'Cidade',
+      'Franquia',
+      'Chave PIX',
+      'Valor Bruto (R$)',
+      '% Franqueado',
+      'Repasse Franqueado (R$)',
+      '% Matriz',
+      'Retenção Matriz (R$)',
+      'Data Pagamento',
+      'Status',
+    ];
+
+    const rows = splitSettlements.settlements.map((s) => [
+      s.paymentId,
+      `"${s.listingName.replace(/"/g, '""')}"`,
+      `"${s.merchantName.replace(/"/g, '""')}"`,
+      `"${s.cityName}"`,
+      `"${s.franchiseName.replace(/"/g, '""')}"`,
+      `"${s.franchisePixKey || 'N/A'}"`,
+      s.grossAmount.toFixed(2),
+      `${s.franchiseFeePercent}%`,
+      s.franchiseAmount.toFixed(2),
+      `${s.platformFeePercent}%`,
+      s.platformAmount.toFixed(2),
+      new Date(s.paidAt).toLocaleDateString('pt-BR'),
+      s.status,
+    ]);
+
+    const csvContent =
+      '\uFEFF' +
+      [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `extrato_splits_franquias_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleProcessRenewals = async () => {
@@ -690,6 +746,144 @@ export default function AdminFinancialPage() {
                         <Edit3 className="w-3.5 h-3.5 text-neutral-600" />
                         Configurar
                       </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      
+      {/* Extrato de Repasses & Liquidação de Splits (Asaas) */}
+      <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2 border border-emerald-200">
+              <DollarSign className="w-3.5 h-3.5" />
+              Conciliação Bancária & Splits
+            </div>
+            <h2 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
+              <Building className="w-5 h-5 text-emerald-600" />
+              Extrato de Repasses e Liquidação de Splits
+            </h2>
+            <p className="text-sm text-neutral-500 mt-1">
+              Histórico de pagamentos recebidos com split de comissões rateadas entre a plataforma e os franqueados regionais.
+            </p>
+          </div>
+
+          <button
+            onClick={handleExportSettlementsCsv}
+            disabled={!splitSettlements || splitSettlements.settlements.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-neutral-200 text-white font-bold text-xs shadow-sm transition-all self-start sm:self-auto"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Exportar Relatório (.CSV)
+          </button>
+        </div>
+
+        {/* 3 Cards de Consolidação de Splits */}
+        {splitSettlements && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 block">
+                Total Bruto Liquidado
+              </span>
+              <div className="text-2xl font-black text-neutral-900 mt-1">
+                R$ {splitSettlements.totals.grossTotal.toFixed(2)}
+              </div>
+              <p className="text-xs text-neutral-400 mt-1">
+                {splitSettlements.totals.settlementsCount} transações processadas
+              </p>
+            </div>
+
+            <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 block">
+                Repassado às Franquias Locais
+              </span>
+              <div className="text-2xl font-black text-emerald-700 mt-1">
+                R$ {splitSettlements.totals.franchiseTotal.toFixed(2)}
+              </div>
+              <p className="text-xs text-emerald-600 mt-1">Rateio automático para parceiros</p>
+            </div>
+
+            <div className="bg-sky-50/50 rounded-2xl p-5 border border-sky-200">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800 block">
+                Retenção Líquida da Matriz
+              </span>
+              <div className="text-2xl font-black text-sky-800 mt-1">
+                R$ {splitSettlements.totals.platformTotal.toFixed(2)}
+              </div>
+              <p className="text-xs text-sky-600 mt-1">Receita da administração central</p>
+            </div>
+          </div>
+        )}
+
+        {/* Tabela de Lançamentos */}
+        {!splitSettlements || splitSettlements.settlements.length === 0 ? (
+          <div className="text-center py-10 border-2 border-dashed border-neutral-200 rounded-2xl">
+            <DollarSign className="w-10 h-10 text-neutral-300 mx-auto mb-2" />
+            <p className="text-sm font-bold text-neutral-700">Nenhum repasse de split liquidado ainda</p>
+            <p className="text-xs text-neutral-400 mt-1">
+              Os repasses aparecerão assim que pagamentos com split forem confirmados na plataforma.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-neutral-50 text-neutral-500 uppercase text-xs font-semibold">
+                <tr>
+                  <th className="px-4 py-3 rounded-l-xl">Estabelecimento / Cidade</th>
+                  <th className="px-4 py-3">Franquia & Chave</th>
+                  <th className="px-4 py-3">Valor Total</th>
+                  <th className="px-4 py-3">Parte Franquia</th>
+                  <th className="px-4 py-3">Parte Matriz</th>
+                  <th className="px-4 py-3">Data / Hora</th>
+                  <th className="px-4 py-3 rounded-r-xl">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {splitSettlements.settlements.map((s) => (
+                  <tr key={s.paymentId} className="hover:bg-neutral-50/50 transition-colors">
+                    <td className="px-4 py-4">
+                      <div className="font-bold text-neutral-900">{s.listingName}</div>
+                      <div className="text-xs text-neutral-400 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3" />
+                        {s.cityName}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-xs">
+                      <div className="font-bold text-neutral-800">{s.franchiseName}</div>
+                      <div className="text-neutral-500 font-mono text-[11px]">{s.franchisePixKey || 'Sem chave'}</div>
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-neutral-900">
+                      R$ {s.grossAmount.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="font-bold text-emerald-700">
+                        R$ {s.franchiseAmount.toFixed(2)}
+                      </span>
+                      <span className="text-[11px] text-neutral-400 block">
+                        ({s.franchiseFeePercent}%)
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-xs">
+                      <span className="font-bold text-neutral-700">
+                        R$ {s.platformAmount.toFixed(2)}
+                      </span>
+                      <span className="text-[11px] text-neutral-400 block">
+                        ({s.platformFeePercent}%)
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-xs text-neutral-500">
+                      {new Date(s.paidAt).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Liquidado
+                      </span>
                     </td>
                   </tr>
                 ))}
