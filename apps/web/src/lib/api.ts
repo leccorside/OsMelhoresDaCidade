@@ -2801,3 +2801,64 @@ export async function sendTestPushApi(): Promise<{ success: boolean; message: st
 
   return res.json();
 }
+
+export interface ContractClause {
+  title: string;
+  content: string;
+}
+
+export interface SubscriptionContractData {
+  contractNumber: string;
+  digitalSignatureHash: string;
+  verificationUrl: string;
+  status: string;
+  issuedAt: string;
+  effectiveStartDate?: string;
+  effectiveEndDate?: string;
+  billingCycle: string;
+  plan: {
+    id: string;
+    name: string;
+    price: number;
+  };
+  emitter: {
+    tradeName: string;
+    legalName: string;
+    cnpj: string;
+    headquarters: string;
+    email: string;
+    website: string;
+  };
+  contractor: {
+    tradeName: string;
+    legalName: string;
+    document: string;
+    address: string;
+    responsibleName: string;
+    responsibleEmail: string;
+    responsiblePhone: string;
+  };
+  listing: {
+    id: string;
+    name: string;
+    city: string;
+  };
+  clauses: ContractClause[];
+}
+
+export async function fetchSubscriptionContractApi(subscriptionId: string): Promise<SubscriptionContractData> {
+  const url = `${getApiBaseUrl()}/billing/merchant/contract/${subscriptionId}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao buscar contrato: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

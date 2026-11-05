@@ -23,6 +23,7 @@ import {
   Flame,
   Award,
   FileText,
+  FileCheck,
   Tag,
   Ticket,
   ArrowUpCircle,
@@ -789,6 +790,16 @@ export default function MerchantPlansPage() {
                           >
                             <FileText className="w-3.5 h-3.5 text-neutral-600" />
                             Recibo / PDF
+                          </Link>
+
+                          <Link
+                            href={`/comerciante/contrato/${sub.id}`}
+                            target="_blank"
+                            title="Visualizar e Imprimir Contrato de Adesão e Publicidade em PDF"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold transition-colors border border-amber-200"
+                          >
+                            <FileCheck className="w-3.5 h-3.5 text-amber-600" />
+                            Contrato
                           </Link>
 
                           {isPaid && (

@@ -51,6 +51,15 @@ export class BillingController {
     return this.billingService.getMerchantSubscriptions(user);
   }
 
+  @Get('merchant/contract/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obter instrumento de contrato de adesão de publicidade com assinatura digital' })
+  getContractDetails(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.billingService.getSubscriptionContract(user, id);
+  }
+
   @Get('merchant/invoice/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.MERCHANT, Role.ADMIN)

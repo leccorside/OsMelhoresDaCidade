@@ -675,6 +675,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Formulário seguro com campos formatados: Nome impresso, Número do cartão, Mês/Ano de validade, Código de segurança (CVV) e CPF/CNPJ do titular.
     - Feedback visual em tempo real e ativação imediata do destaque ao concluir a transação sem necessidade de aguardar compensação bancária.
 
+### AO. Geração de Contrato de Publicidade e Adesão em PDF com Assinatura Digital
+- **Backend NestJS (`apps/api`)**:
+  - Método `getSubscriptionContract` implementado em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Apuração dos dados cadastrais da Contratada (Plataforma) e da Contratante (Comerciante/Estabelecimento).
+    - Definição formal das 6 cláusulas jurídicas fundamentais: Objeto, Obrigações da Contratada, Obrigações da Contratante, Preço e Condições de Pagamento, Vigência e Rescisão, e Foro de Eleição com validade jurídica digital.
+    - Geração de hash criptográfico de assinatura digital SHA-256 combinando contrato, identificador único, data de criação e secret digital.
+  - Endpoint `GET /api/v1/billing/merchant/contract/:id` em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegido por `JwtAuthGuard` e verificação de titularidade do comerciante ou permissão de administrador.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `SubscriptionContractData`, `ContractClause` e função `fetchSubscriptionContractApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Página timbrada executiva [`/comerciante/contrato/[id]`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/contrato/[id]/page.tsx) com visual corporativo, qualificação jurídica das partes, exibição das cláusulas contratuais, carimbo de assinatura eletrônica conforme MP 2.200-2/2001 e botão de impressão/PDF.
+  - Botão de acesso direto "Contrato" adicionado na listagem de planos do comerciante em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

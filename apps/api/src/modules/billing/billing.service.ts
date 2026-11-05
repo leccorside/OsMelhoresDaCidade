@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   Injectable,
   Logger,
@@ -1419,5 +1420,147 @@ export class BillingService implements OnApplicationBootstrap {
       settlements,
     };
   }
-}
 
+  /**
+   * Emissão de Contrato de Adesão e Publicidade Digital em PDF
+   */
+  async getSubscriptionContract(user: any, subscriptionId: string) {
+    const subscription = await this.prisma.merchantSubscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            street: true,
+            number: true,
+            neighborhood: true,
+            phone: true,
+            whatsapp: true,
+            city: { select: { id: true, name: true, state: true } },
+          },
+        },
+        merchantProfile: {
+          select: {
+            id: true,
+            userId: true,
+            companyName: true,
+            legalName: true,
+            cnpj: true,
+            address: true,
+            phone: true,
+            whatsapp: true,
+            user: { select: { id: true, name: true, email: true, phone: true } },
+          },
+        },
+        coupon: {
+          select: { code: true, description: true },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Assinatura não encontrada.');
+    }
+
+    const isOwner =
+      subscription.merchantProfile?.userId === user.id ||
+      subscription.merchantProfile?.user?.id === user.id;
+
+    if (user.role !== 'ADMIN' && !isOwner) {
+      throw new ForbiddenException('Acesso negado ao contrato desta assinatura.');
+    }
+
+    const year = new Date(subscription.createdAt).getFullYear();
+    const contractNumber = `CTR-${year}-${subscription.id.substring(0, 8).toUpperCase()}`;
+
+    const planNames: Record<SubscriptionPlan, string> = {
+      [SubscriptionPlan.FREE]: 'Plano Gratuito',
+      [SubscriptionPlan.BRONZE_DESTAQUE]: 'Bronze Destaque VIP',
+      [SubscriptionPlan.PRATA_REGIONAL]: 'Prata Regional VIP',
+      [SubscriptionPlan.OURO_MASTER]: 'Ouro Master VIP (N° 1 do Guia)',
+    };
+
+    const cityName = subscription.listing?.city?.name || 'Barreiras';
+    const stateName = subscription.listing?.city?.state || 'BA';
+
+    // Hash de Autenticidade Digital SHA-256
+    const rawContractSignature = `${contractNumber}|${subscription.id}|${subscription.merchantProfile?.id}|${subscription.price}|${subscription.createdAt.toISOString()}|OSM_DIGITAL_LEGAL_CONTRACT_SECRET`;
+    const digitalSignatureHash = crypto
+      .createHash('sha256')
+      .update(rawContractSignature)
+      .digest('hex');
+
+    return {
+      contractNumber,
+      digitalSignatureHash,
+      verificationUrl: `https://osmelhoresdacidade.com.br/verificar-contrato?id=${subscription.id}&hash=${digitalSignatureHash.substring(0, 16)}`,
+      status: subscription.status,
+      issuedAt: subscription.createdAt,
+      effectiveStartDate: subscription.startDate,
+      effectiveEndDate: subscription.endDate,
+      billingCycle: subscription.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal',
+      plan: {
+        id: subscription.plan,
+        name: planNames[subscription.plan] || subscription.plan,
+        price: Number(subscription.price),
+      },
+      emitter: {
+        tradeName: 'Os Melhores da Cidade Internet & Publicidade Ltda',
+        legalName: 'OS MELHORES DA CIDADE PLATAFORMA DIGITAL LTDA',
+        cnpj: '48.912.834/0001-90',
+        headquarters: 'Barreiras - Bahia, Brasil',
+        email: 'juridico@osmelhoresdacidade.com.br',
+        website: 'https://osmelhoresdacidade.com.br',
+      },
+      contractor: {
+        tradeName: subscription.merchantProfile?.companyName || subscription.listing?.name || 'Comerciante Titular',
+        legalName: subscription.merchantProfile?.legalName || subscription.merchantProfile?.companyName || subscription.listing?.name,
+        document: subscription.merchantProfile?.cnpj || 'Documento cadastrado em conta',
+        address: subscription.listing?.street
+          ? `${subscription.listing.street}${subscription.listing.number ? ', ' + subscription.listing.number : ''} - ${cityName}/${stateName}`
+          : subscription.merchantProfile?.address || `${cityName} - ${stateName}`,
+        responsibleName: subscription.merchantProfile?.user?.name || 'Representante Legal',
+        responsibleEmail: subscription.merchantProfile?.user?.email || '',
+        responsiblePhone: subscription.merchantProfile?.whatsapp || subscription.merchantProfile?.phone || subscription.listing?.whatsapp || '',
+      },
+      listing: {
+        id: subscription.listing?.id,
+        name: subscription.listing?.name,
+        city: `${cityName} - ${stateName}`,
+      },
+      clauses: [
+        {
+          title: 'CLÁUSULA PRIMEIRA — DO OBJETO',
+          content: `O presente instrumento tem por objeto a prestação de serviços de publicidade, divulgação eletrônica e veiculação institucional do estabelecimento comercial CONTRATANTE no portal "Os Melhores da Cidade" na praça de ${cityName}/${stateName}, sob as prerrogativas do plano ${planNames[subscription.plan]}, assegurando indexação otimizada, carrosséis prioritários e exibição de selo de destaque certificado.`,
+        },
+        {
+          title: 'CLÁUSULA SEGUNDA — DAS OBRIGAÇÕES DA CONTRATADA',
+          content: 'A CONTRATADA compromete-se a: (a) Manter os servidores da plataforma disponíveis 24 horas por dia, 7 dias por semana, ressalvadas manutenções programadas; (b) Aplicar o algoritmo de ordenação de destaques contratado conforme o plano; (c) Prover canal de atendimento direto para suporte técnico; (d) Disponibilizar painel de métricas analíticas e estatísticas de engajamento.',
+        },
+        {
+          title: 'CLÁUSULA TERCEIRA — DAS OBRIGAÇÕES DA CONTRATANTE',
+          content: 'A CONTRATANTE obriga-se a: (a) Fornecer informações verídicas, fotos legítimas e dados cadastrais idôneos sobre seu negócio; (b) Não veicular produtos, serviços ou anúncios em desconformidade com a legislação brasileira ou os Termos de Uso da plataforma; (c) Efetuar os pagamentos nas datas de vencimento acordadas.',
+        },
+        {
+          title: 'CLÁUSULA QUARTA — DO PREÇO E CONDIÇÕES DE PAGAMENTO',
+          content: `Pela prestação dos serviços contratados, a CONTRATANTE pagará o valor de R$ ${Number(subscription.price).toFixed(2)} por ciclo ${subscription.billingCycle === 'YEARLY' ? 'anual' : 'mensal'}, por meio das formas de pagamento homologadas (PIX Dinâmico ou Cartão de Crédito).`,
+        },
+        {
+          title: 'CLÁUSULA QUINTA — DA VIGÊNCIA E RESCISÃO',
+          content: 'O contrato entra em vigor na data de sua confirmação financeira com vigência contratual correspondente ao ciclo de faturamento selecionado. O cancelamento pode ser efetuado a qualquer momento no painel do comerciante sem imposição de multas rescisórias abusivas para os períodos subsequentes.',
+        },
+        {
+          title: 'CLÁUSULA SEXTA — DA VALIDADE JURÍDICA ELETRÔNICA E FORO',
+          content: `As partes reconhecem a plena validade jurídica, integridade e eficácia executiva do presente contrato celebrado por meio eletrônico, fundamentado nos termos do Art. 10, § 2º da Medida Provisória nº 2.200-2/2001 e do Código Civil Brasileiro. Para dirimir quaisquer controvérsias oriundas deste instrumento, as partes elegem expressamente o foro da Comarca de ${cityName}/${stateName}.`,
+        },
+      ],
+    };
+  }
+
+}
