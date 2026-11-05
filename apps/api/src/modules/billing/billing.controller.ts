@@ -16,6 +16,8 @@ import {
   CreateCheckoutDto,
   ValidateCouponDto,
   CreateSubscriptionCouponDto,
+  CalculatePlanChangeDto,
+  ChangePlanCheckoutDto,
 } from './dto/billing.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -96,6 +98,24 @@ export class BillingController {
   @ApiOperation({ summary: 'Criar cobrança e gerar QR Code PIX para assinatura de destaque' })
   createCheckout(@CurrentUser() user: any, @Body() dto: CreateCheckoutDto) {
     return this.billingService.createCheckout(user, dto);
+  }
+
+  @Post('change-plan/calculate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Simular e calcular o crédito pró-rata para migração/upgrade de plano' })
+  calculatePlanChange(@CurrentUser() user: any, @Body() dto: CalculatePlanChangeDto) {
+    return this.billingService.calculatePlanChange(user, dto);
+  }
+
+  @Post('change-plan/checkout')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Gerar checkout de migração/upgrade com crédito proporcional aplicado' })
+  createPlanChangeCheckout(@CurrentUser() user: any, @Body() dto: ChangePlanCheckoutDto) {
+    return this.billingService.createPlanChangeCheckout(user, dto);
   }
 
   @Post('confirm/:id')

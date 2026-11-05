@@ -25,6 +25,8 @@ import {
   FileText,
   Tag,
   Ticket,
+  ArrowUpCircle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   fetchBillingPlansApi,
@@ -33,10 +35,13 @@ import {
   confirmSubscriptionPaymentApi,
   fetchMerchantListings,
   validateSubscriptionCouponApi,
+  calculatePlanChangeApi,
+  createPlanChangeCheckoutApi,
   BillingPlan,
   MerchantSubscriptionItem,
   MerchantListing,
   CouponValidationResult,
+  PlanChangeCalculation,
 } from '@/lib/api';
 
 export default function MerchantPlansPage() {
@@ -68,6 +73,14 @@ export default function MerchantPlansPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+
+  // Upgrade / Pró-Rata State
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [targetSub, setTargetSub] = useState<MerchantSubscriptionItem | null>(null);
+  const [targetNewPlan, setTargetNewPlan] = useState<string>('OURO_MASTER');
+  const [targetNewCycle, setTargetNewCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const [prorataCalc, setProrataCalc] = useState<PlanChangeCalculation | null>(null);
+  const [prorataLoading, setProrataLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -128,6 +141,82 @@ export default function MerchantPlansPage() {
     setAppliedCoupon(null);
     setCouponInput('');
     setCouponError(null);
+  };
+
+  const handleOpenUpgrade = async (sub: MerchantSubscriptionItem) => {
+    setTargetSub(sub);
+    const nextPlan =
+      sub.plan === 'BRONZE_DESTAQUE'
+        ? 'PRATA_REGIONAL'
+        : 'OURO_MASTER';
+    setTargetNewPlan(nextPlan);
+    setTargetNewCycle(sub.billingCycle as any || 'MONTHLY');
+    setUpgradeModalOpen(true);
+    setCouponInput('');
+    setAppliedCoupon(null);
+    setCouponError(null);
+
+    try {
+      setProrataLoading(true);
+      const calc = await calculatePlanChangeApi({
+        subscriptionId: sub.id,
+        newPlan: nextPlan,
+        newBillingCycle: sub.billingCycle || 'MONTHLY',
+      });
+      setProrataCalc(calc);
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Erro ao calcular pró-rata.' });
+    } finally {
+      setProrataLoading(false);
+    }
+  };
+
+  const handleRecalculateProrata = async (newPlan: string, newCycle: 'MONTHLY' | 'YEARLY') => {
+    if (!targetSub) return;
+    setTargetNewPlan(newPlan);
+    setTargetNewCycle(newCycle);
+
+    try {
+      setProrataLoading(true);
+      const calc = await calculatePlanChangeApi({
+        subscriptionId: targetSub.id,
+        newPlan,
+        newBillingCycle: newCycle,
+      });
+      setProrataCalc(calc);
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Erro ao recalcular pró-rata.' });
+    } finally {
+      setProrataLoading(false);
+    }
+  };
+
+  const handleExecuteUpgrade = async () => {
+    if (!targetSub) return;
+    try {
+      setCheckoutLoading(true);
+      setFeedback(null);
+      const res = await createPlanChangeCheckoutApi({
+        subscriptionId: targetSub.id,
+        newPlan: targetNewPlan,
+        newBillingCycle: targetNewCycle,
+        couponCode: appliedCoupon?.code,
+      });
+
+      setUpgradeModalOpen(false);
+      setCheckoutResult({
+        subscriptionId: res.subscriptionId,
+        pixQrCode: res.pixQrCode,
+        price: res.price,
+        billingCycle: res.billingCycle,
+      });
+      setSelectedPlan(res.newPlan);
+      setModalOpen(true);
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Erro ao iniciar upgrade.' });
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   const handleGenerateCheckout = async () => {
@@ -478,6 +567,17 @@ export default function MerchantPlansPage() {
                             </button>
                           )}
 
+                          {isPaid && sub.plan !== 'OURO_MASTER' && (
+                            <button
+                              onClick={() => handleOpenUpgrade(sub)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition-colors border border-amber-300"
+                              title="Fazer Upgrade de Plano com Pró-Rata proporcional"
+                            >
+                              <ArrowUpCircle className="w-3.5 h-3.5 text-amber-600" />
+                              Upgrade
+                            </button>
+                          )}
+
                           <Link
                             href={`/comerciante/fatura/${sub.id}`}
                             target="_blank"
@@ -751,6 +851,144 @@ export default function MerchantPlansPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* MODAL DE UPGRADE / PRÓ-RATA */}
+      {upgradeModalOpen && targetSub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-neutral-100 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setUpgradeModalOpen(false);
+                setTargetSub(null);
+              }}
+              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-700 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-600">
+                <ArrowUpCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900">
+                  Upgrade com Pró-Rata
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  {targetSub.listing?.name || 'Estabelecimento'} • Aproveite seus créditos restantes
+                </p>
+              </div>
+            </div>
+
+            {/* SELEÇÃO DO NOVO PLANO */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+                  Escolha o Novo Plano Desejado:
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {plans
+                    .filter((p) => p.id !== targetSub.plan)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleRecalculateProrata(p.id, targetNewCycle)}
+                        className={`p-3.5 rounded-2xl border text-left transition-all ${
+                          targetNewPlan === p.id
+                            ? 'border-amber-500 bg-amber-50/50 shadow-sm'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <div className="font-bold text-neutral-900 text-sm">{p.name}</div>
+                        <div className="text-xs text-neutral-500 mt-0.5">
+                          R$ {(targetNewCycle === 'YEARLY' ? p.priceYearly : p.priceMonthly).toFixed(2)}
+                          /{targetNewCycle === 'YEARLY' ? 'ano' : 'mês'}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+
+              {/* CICLO TOGGLE */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+                  Ciclo de Cobrança:
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-1.5 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => handleRecalculateProrata(targetNewPlan, 'MONTHLY')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                      targetNewCycle === 'MONTHLY' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500'
+                    }`}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRecalculateProrata(targetNewPlan, 'YEARLY')}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                      targetNewCycle === 'YEARLY' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500'
+                    }`}
+                  >
+                    Anual (2 meses grátis)
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD DETALHADO DO PRÓ-RATA */}
+              {prorataLoading ? (
+                <div className="p-6 bg-neutral-50 rounded-2xl border border-neutral-200 text-center">
+                  <Loader2 className="w-6 h-6 text-amber-500 animate-spin mx-auto mb-2" />
+                  <p className="text-xs text-neutral-500 font-medium">Calculando crédito residual proporcional...</p>
+                </div>
+              ) : prorataCalc ? (
+                <div className="bg-neutral-50 rounded-2xl p-4 border border-neutral-200 space-y-2.5 text-xs text-neutral-600">
+                  <div className="flex justify-between items-center pb-2 border-b border-neutral-200">
+                    <span className="font-medium">Plano Atual ({prorataCalc.currentPlan.name}):</span>
+                    <span className="font-bold text-neutral-800">
+                      {prorataCalc.currentPlan.daysRemaining} dias restantes
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-700 font-semibold">
+                    <span>Crédito Abatido do Plano Atual:</span>
+                    <span className="font-mono">- R$ {prorataCalc.unusedCredit.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Valor do Novo Plano ({prorataCalc.newPlan.name}):</span>
+                    <span className="font-mono">R$ {prorataCalc.newPlan.price.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-neutral-200 text-sm font-extrabold text-neutral-900">
+                    <span>Valor Proporcional a Pagar:</span>
+                    <span className="text-base text-emerald-600 font-mono">
+                      R$ {prorataCalc.amountToPay.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={handleExecuteUpgrade}
+                disabled={checkoutLoading || prorataLoading}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-sm shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2"
+              >
+                {checkoutLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Gerando PIX de Upgrade...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5" />
+                    Confirmar Upgrade & Pagar via PIX
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

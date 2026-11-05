@@ -21,6 +21,8 @@ import {
   CreateCheckoutDto,
   ValidateCouponDto,
   CreateSubscriptionCouponDto,
+  CalculatePlanChangeDto,
+  ChangePlanCheckoutDto,
 } from './dto/billing.dto';
 
 export interface PlanDetails {
@@ -351,6 +353,174 @@ export class BillingService implements OnApplicationBootstrap {
       where: { id },
       data: { isActive: !coupon.isActive },
     });
+  }
+
+  /**
+   * Calcula o pró-rata proporcional para Upgrade ou Downgrade de plano
+   */
+  async calculatePlanChange(user: any, dto: CalculatePlanChangeDto) {
+    const subscription = await this.prisma.merchantSubscription.findUnique({
+      where: { id: dto.subscriptionId },
+      include: {
+        listing: { select: { id: true, name: true } },
+        merchantProfile: { select: { userId: true } },
+      },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Assinatura não encontrada.');
+    }
+
+    if (user.role !== 'ADMIN' && subscription.merchantProfile.userId !== user.id) {
+      throw new ForbiddenException('Acesso negado à assinatura informada.');
+    }
+
+    if (subscription.status !== PaymentStatus.PAID || !subscription.endDate) {
+      throw new BadRequestException('Apenas assinaturas ativas e pagas podem ser migradas com pró-rata.');
+    }
+
+    const now = new Date();
+    if (new Date(subscription.endDate) <= now) {
+      throw new BadRequestException('Esta assinatura já expirou. Realize uma nova contratação de plano.');
+    }
+
+    const plans = this.getAvailablePlans();
+    const currentPlanDetails = plans.find((p) => p.id === subscription.plan);
+    const newPlanDetails = plans.find((p) => p.id === dto.newPlan);
+
+    if (!newPlanDetails) {
+      throw new BadRequestException('O novo plano informado é inválido.');
+    }
+
+    // Dias restantes no ciclo atual
+    const msDiff = new Date(subscription.endDate).getTime() - now.getTime();
+    const daysRemaining = Math.max(1, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
+    const totalCycleDays = subscription.billingCycle === 'YEARLY' ? 365 : 30;
+
+    // Crédito pró-rata não utilizado do plano atual
+    const currentPrice = Number(subscription.price);
+    const dailyRate = currentPrice / totalCycleDays;
+    const unusedCredit = Number(Math.min(currentPrice, dailyRate * daysRemaining).toFixed(2));
+
+    // Preço do novo plano
+    const newCycle = dto.newBillingCycle || 'MONTHLY';
+    const newBasePrice = newCycle === 'YEARLY' ? newPlanDetails.priceYearly : newPlanDetails.priceMonthly;
+
+    // Diferença líquida proporcional a ser cobrada
+    const amountToPay = Number(Math.max(1.0, newBasePrice - unusedCredit).toFixed(2));
+    const isUpgrade = newBasePrice >= currentPrice;
+
+    return {
+      subscriptionId: subscription.id,
+      listingId: subscription.listingId,
+      listingName: subscription.listing?.name,
+      currentPlan: {
+        id: subscription.plan,
+        name: currentPlanDetails?.name || subscription.plan,
+        price: currentPrice,
+        billingCycle: subscription.billingCycle,
+        endDate: subscription.endDate,
+        daysRemaining,
+      },
+      newPlan: {
+        id: newPlanDetails.id,
+        name: newPlanDetails.name,
+        price: newBasePrice,
+        billingCycle: newCycle,
+      },
+      unusedCredit,
+      amountToPay,
+      isUpgrade,
+    };
+  }
+
+  /**
+   * Checkout de Migração/Upgrade com Pró-Rata
+   */
+  async createPlanChangeCheckout(user: any, dto: ChangePlanCheckoutDto) {
+    const calc = await this.calculatePlanChange(user, {
+      subscriptionId: dto.subscriptionId,
+      newPlan: dto.newPlan,
+      newBillingCycle: dto.newBillingCycle,
+    });
+
+    const merchant = await this.ensureMerchantProfile(user);
+    const plans = this.getAvailablePlans();
+    const newPlanDetails = plans.find((p) => p.id === dto.newPlan)!;
+
+    let finalPrice = calc.amountToPay;
+    let couponDiscount = 0;
+    let couponId: string | null = null;
+    let appliedCouponCode: string | null = null;
+
+    if (dto.couponCode) {
+      const couponValidation = await this.validateCoupon(dto.couponCode, dto.newPlan, dto.newBillingCycle);
+      couponDiscount = Math.min(finalPrice - 1.0, couponValidation.discountAmount);
+      finalPrice = Math.max(1.0, finalPrice - couponDiscount);
+      couponId = couponValidation.couponId;
+      appliedCouponCode = couponValidation.code;
+
+      await this.prisma.subscriptionCoupon.update({
+        where: { id: couponId },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
+
+    // Criar cobrança PIX no Asaas
+    const asaasCustomerId = await this.asaasService.getOrCreateCustomer(merchant.id);
+    const asaasCharge = await this.asaasService.createPixCharge({
+      customerId: asaasCustomerId,
+      value: finalPrice,
+      description: `Upgrade para Plano ${newPlanDetails.name} (${dto.newBillingCycle === 'YEARLY' ? 'Anual' : 'Mensal'})${appliedCouponCode ? ` [Cupom ${appliedCouponCode}]` : ''} - Os Melhores da Cidade`,
+      externalReference: `sub_${Math.random().toString(36).substring(2, 10)}`,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    });
+
+    // Criar a nova assinatura em status PENDING (que substituirá a anterior ao pagar)
+    const newSubscription = await this.prisma.merchantSubscription.create({
+      data: {
+        merchantProfileId: merchant.id,
+        listingId: calc.listingId,
+        plan: dto.newPlan,
+        status: PaymentStatus.PENDING,
+        price: finalPrice,
+        discountAmount: Number((calc.unusedCredit + couponDiscount).toFixed(2)),
+        couponId,
+        billingCycle: dto.newBillingCycle || 'MONTHLY',
+        pixQrCode: asaasCharge.pixQrCode,
+        gatewayPaymentId: asaasCharge.paymentId,
+        gatewayInvoiceUrl: asaasCharge.invoiceUrl,
+      },
+      include: {
+        listing: { select: { id: true, name: true, slug: true } },
+      },
+    });
+
+    await this.prisma.subscriptionPayment.create({
+      data: {
+        subscriptionId: newSubscription.id,
+        amount: finalPrice,
+        method: PaymentMethod.PIX,
+        status: PaymentStatus.PENDING,
+      },
+    });
+
+    return {
+      success: true,
+      subscriptionId: newSubscription.id,
+      previousSubscriptionId: dto.subscriptionId,
+      newPlan: newPlanDetails,
+      unusedCredit: calc.unusedCredit,
+      couponDiscount,
+      couponCode: appliedCouponCode,
+      price: finalPrice,
+      billingCycle: newSubscription.billingCycle,
+      pixQrCode: asaasCharge.pixQrCode,
+      gatewayInvoiceUrl: asaasCharge.invoiceUrl,
+      gatewayPaymentId: asaasCharge.paymentId,
+      listing: newSubscription.listing,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    };
   }
 
   async confirmPaymentByGateway(gatewayPaymentId: string, externalReference?: string) {

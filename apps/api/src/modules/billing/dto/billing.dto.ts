@@ -65,4 +65,35 @@ export class CreateSubscriptionCouponDto {
   isActive?: boolean = true;
 }
 
+export class CalculatePlanChangeDto {
+  @IsString({ message: 'ID da assinatura atual é obrigatório' })
+  @IsNotEmpty()
+  subscriptionId: string;
+
+  @IsEnum(SubscriptionPlan, { message: 'Novo plano inválido' })
+  newPlan: SubscriptionPlan;
+
+  @IsOptional()
+  @IsString()
+  newBillingCycle?: string = 'MONTHLY';
+}
+
+export class ChangePlanCheckoutDto {
+  @IsString({ message: 'ID da assinatura atual é obrigatório' })
+  @IsNotEmpty()
+  subscriptionId: string;
+
+  @IsEnum(SubscriptionPlan, { message: 'Novo plano inválido' })
+  newPlan: SubscriptionPlan;
+
+  @IsOptional()
+  @IsString()
+  newBillingCycle?: string = 'MONTHLY';
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+}
+
+
 

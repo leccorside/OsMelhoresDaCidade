@@ -2280,6 +2280,77 @@ export async function toggleAdminSubscriptionCouponApi(id: string): Promise<Subs
   return res.json();
 }
 
+export interface PlanChangeCalculation {
+  subscriptionId: string;
+  listingId: string;
+  listingName: string;
+  currentPlan: {
+    id: string;
+    name: string;
+    price: number;
+    billingCycle: string;
+    endDate: string;
+    daysRemaining: number;
+  };
+  newPlan: {
+    id: string;
+    name: string;
+    price: number;
+    billingCycle: string;
+  };
+  unusedCredit: number;
+  amountToPay: number;
+  isUpgrade: boolean;
+}
+
+export async function calculatePlanChangeApi(data: {
+  subscriptionId: string;
+  newPlan: string;
+  newBillingCycle?: string;
+}): Promise<PlanChangeCalculation> {
+  const url = `${getApiBaseUrl()}/billing/change-plan/calculate`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao calcular migração de plano.');
+  }
+
+  return res.json();
+}
+
+export async function createPlanChangeCheckoutApi(data: {
+  subscriptionId: string;
+  newPlan: string;
+  newBillingCycle?: string;
+  couponCode?: string;
+}): Promise<any> {
+  const url = `${getApiBaseUrl()}/billing/change-plan/checkout`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao gerar checkout de upgrade.');
+  }
+
+  return res.json();
+}
+
+
 
 
 

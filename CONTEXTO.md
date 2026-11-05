@@ -552,6 +552,20 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Integração com o fluxo de liquidação no [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
     - Acionado instantaneamente tanto na confirmação direta via PIX quanto no recebimento de webhooks do gateway Asaas (`PAYMENT_RECEIVED` e `PAYMENT_CONFIRMED`).
 
+### AF. Migração e Upgrade de Planos com Cálculo Pró-Rata
+- **Backend NestJS (`apps/api`)**:
+  - Métodos `calculatePlanChange` e `createPlanChangeCheckout` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Algoritmo de Pró-Rata preciso: cálculo dos dias restantes da vigência da assinatura atual, apuração da taxa diária e crédito residual proporcional não utilizado.
+    - Abatimento integral do crédito acumulado no valor da contratação do novo plano (mensal ou anual), com suporte à acumulação de cupons promocionais adicionais.
+    - Geração de cobrança PIX no gateway Asaas correspondente ao valor líquido proporcional.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) protegidos por `JwtAuthGuard` e `Roles(Role.MERCHANT, Role.ADMIN)`:
+    - `POST /api/v1/billing/change-plan/calculate`: simulação em tempo real do crédito residual e valor da diferença.
+    - `POST /api/v1/billing/change-plan/checkout`: geração da cobrança e QR Code PIX com pró-rata.
+- **Frontend Next.js (`apps/web`)**:
+  - Funções de integração `calculatePlanChangeApi`, `createPlanChangeCheckoutApi` e interface `PlanChangeCalculation` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Ação dedicada "Upgrade" com ícone `ArrowUpCircle` na tabela de planos contratados (`/comerciante/planos`).
+  - Modal interativo de Upgrade com Pró-Rata: seleção visual de novo plano (ex: Bronze -> Prata/Ouro), toggle de ciclo, card discriminando dias restantes, crédito abatido e total líquido a pagar com confirmação instantânea via PIX.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
