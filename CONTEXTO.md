@@ -650,6 +650,15 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Service Worker dedicado [`/public/sw-push.js`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/public/sw-push.js) escutando eventos de push em segundo plano e direcionando o foco do navegador com 1 clique.
   - Componente [`WebPushNotificationToggle.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/components/merchant/WebPushNotificationToggle.tsx) integrado em [`/comerciante/perfil`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/perfil/page.tsx) com detecção de compatibilidade, solicitação de permissão nativa, conversão de chave VAPID e botão para teste de alerta.
 
+### AM. Testes Automatizados do Funil de Assinaturas e Splits
+- **Suíte de Testes Jest (`apps/api/test/billing-funnel.spec.ts`)**:
+  - Cobertura de 12 cenários automatizados cobrindo os pilares do ecossistema de billing:
+    - **Cupons Promocionais**: aplicação de cupons percentuais e de valor fixo em reais, além da rejeição estrita de cupons expirados e com limite de utilização atingido.
+    - **Split de Franquias**: validação do rateio de 80% franqueado local e 20% matriz para cidades com split ativo, e retenção de 100% da matriz em cidades sem franquia.
+    - **Pró-Rata & Upgrade**: cálculo exato de taxa diária residual acumulada e abatimento no checkout de novos planos, impedindo cobranças negativas.
+    - **Fatura e Recibo Oficial**: validação dos padrões de identificador fiscal `FAT-YYYY-XXXXXXXX` e código de verificação digital `OSM-XXXXXXXXXXXXXXXX`.
+    - **Notificações de Vencimento**: verificação de urgência (<= 3 dias) e cálculo dos dias restantes para disparo de lembretes automáticos.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
