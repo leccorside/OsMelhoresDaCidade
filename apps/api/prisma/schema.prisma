@@ -1025,3 +1025,27 @@ model SupportTicketMessage {
   @@index([ticketId])
   @@map("support_ticket_messages")
 }
+
+// -----------------------------------------------------------------------------
+// AUDITORIA E TRILHA DE LOGS (AUDIT TRAIL)
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  userName   String?
+  userEmail  String?
+  userRole   String?
+  action     String   // Ex: UPDATE_CITY_SPLIT, PAYOUT_PIX_EXECUTED, COUPON_CREATED, LISTING_APPROVED, BANNER_CREATED
+  entity     String   // Ex: CITY, PAYOUT, COUPON, LISTING, BANNER, USER
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

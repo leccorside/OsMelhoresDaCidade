@@ -3279,3 +3279,77 @@ export async function testFranchiseWhatsAppAlertApi(phone?: string): Promise<{ s
 
   return res.json();
 }
+
+
+// =============================================================================
+// AUDITORIA E LOGS ADMINISTRATIVOS (AUDIT TRAIL)
+// =============================================================================
+
+export interface AuditLogItem {
+  id: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  action: string;
+  entity: string;
+  entityId?: string;
+  details?: any;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
+export interface AuditStatsItem {
+  totalCount: number;
+  last24hCount: number;
+  recentPayouts: number;
+  recentConfigChanges: number;
+}
+
+export async function fetchAdminAuditLogsApi(params?: {
+  action?: string;
+  entity?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ logs: AuditLogItem[]; total: number; limit: number; offset: number }> {
+  const query = new URLSearchParams();
+  if (params?.action && params.action !== 'ALL') query.append('action', params.action);
+  if (params?.entity && params.entity !== 'ALL') query.append('entity', params.entity);
+  if (params?.search) query.append('search', params.search);
+  if (params?.limit) query.append('limit', String(params.limit));
+  if (params?.offset) query.append('offset', String(params.offset));
+
+  const url = `${getApiBaseUrl()}/audit/logs?${query.toString()}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao buscar logs de auditoria: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchAdminAuditStatsApi(): Promise<AuditStatsItem> {
+  const url = `${getApiBaseUrl()}/audit/stats`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao obter estatísticas de auditoria: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

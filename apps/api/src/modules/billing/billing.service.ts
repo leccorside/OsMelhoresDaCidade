@@ -12,6 +12,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { AsaasService } from './asaas.service';
 import { MailService } from '../../common/mail/mail.service';
+import { AuditService } from '../audit/audit.service';
 import {
   SubscriptionPlan,
   PaymentStatus,
@@ -49,6 +50,7 @@ export class BillingService implements OnApplicationBootstrap {
     private readonly asaasService: AsaasService,
     private readonly mailService: MailService,
     private readonly webhooksService: WebhooksService,
+    private readonly auditService: AuditService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -479,7 +481,7 @@ export class BillingService implements OnApplicationBootstrap {
       throw new BadRequestException(`Já existe um cupom cadastrado com o código ${code}.`);
     }
 
-    return this.prisma.subscriptionCoupon.create({
+    const coupon = await this.prisma.subscriptionCoupon.create({
       data: {
         code,
         description: dto.description,
@@ -702,7 +704,7 @@ export class BillingService implements OnApplicationBootstrap {
       throw new NotFoundException('Cidade não encontrada.');
     }
 
-    return this.prisma.city.update({
+    const updatedCity = await this.prisma.city.update({
       where: { id: cityId },
       data: {
         franchiseName: dto.franchiseName !== undefined ? dto.franchiseName : city.franchiseName,
@@ -1837,6 +1839,20 @@ export class BillingService implements OnApplicationBootstrap {
     });
 
     // Despachar evento webhook para CRMs e auditoria
+    await this.auditService.log({
+      action: 'PAYOUT_PIX_EXECUTED',
+      entity: 'PAYOUT',
+      entityId: payout.id,
+      details: {
+        cityId: city.id,
+        cityName: city.name,
+        amount: payoutAmount,
+        pixKey: city.franchisePixKey,
+        transactionId: transferResult.id,
+        receiptUrl: transferResult.receiptUrl,
+      },
+    });
+
     this.webhooksService.dispatch('SPLIT_SETTLED', {
       payoutId: payout.id,
       cityId: city.id,

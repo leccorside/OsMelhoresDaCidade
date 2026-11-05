@@ -18,6 +18,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { FranchiseModule } from './modules/franchise/franchise.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { SupportModule } from './modules/support/support.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SupportModule } from './modules/support/support.module';
     PrismaModule,
     MailModule,
     NotificationsModule,
+    AuditModule,
     GeographyModule,
     AuthModule,
     ListingsModule,

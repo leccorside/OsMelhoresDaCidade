@@ -799,6 +799,29 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Exibição do status "Bot Ativo & Monitorando Leads em Tempo Real".
     - Botão interativo "Testar Alerta no Meu WhatsApp" com feedback instantâneo de envio e sucesso.
 
+### AW. Painel de Auditoria e Logs de Ações Administrativas (Audit Trail)
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Novo modelo `AuditLog`: `id`, `userId`, `userName`, `userEmail`, `userRole`, `action` (`PAYOUT_PIX_EXECUTED`, `UPDATE_CITY_SPLIT`, `COUPON_CREATED`), `entity` (`PAYOUT`, `CITY`, `COUPON`, `LISTING`), `entityId`, `details` (JSON estruturado com parâmetros e comprovantes), `ipAddress`, `userAgent` e `createdAt`.
+  - Índices compostos criados para busca otimizada por data, ação e entidade. Sincronizado no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Criação do módulo global [`AuditModule`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/audit/audit.module.ts) com serviço [`AuditService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/audit/audit.service.ts) e controller [`AuditController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/audit/audit.controller.ts):
+    - Método `log` seguro e assíncrono para captura transparente de ações administrativas sem bloquear requisições.
+    - Método `getAuditLogs` com suporte a filtros de ação, entidade, paginação e busca textual flexível.
+    - Método `getAuditStats` agregando contadores de eventos, volume das últimas 24h, repasses PIX e alterações de split.
+    - Endpoints protegidos `GET /api/v1/audit/logs` e `GET /api/v1/audit/stats` restritos a administradores (`JwtAuthGuard`, `RolesGuard`, `Role.ADMIN`).
+  - Instrumentação de auditoria nativa em operações críticas de [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Registro de `PAYOUT_PIX_EXECUTED` a cada liquidação bancária com ID da transferência Asaas e URL do comprovante.
+    - Registro de `UPDATE_CITY_SPLIT` em mudanças de percentuais de praças ou franqueados.
+    - Registro de `COUPON_CREATED` na geração de cupons de desconto para planos VIP.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `AuditLogItem`, `AuditStatsItem` e clientes `fetchAdminAuditLogsApi` e `fetchAdminAuditStatsApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Página completa em [`/admin/auditoria`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/auditoria/page.tsx):
+    - Grid de 4 cards de métricas (Total de Eventos, Atividades em 24h, Repasses PIX auditados, Alterações Críticas).
+    - Barra de filtros com busca por operador/e-mail/ID, filtro por tipo de ação e entidade.
+    - Tabela moderna com tags coloridas por categoria operacional, carimbo de data/hora legível em pt-BR e informações de origem.
+    - Modal interativo de inspeção profunda exibindo payload JSON formatado com destaque visual.
+  - Link de navegação "Auditoria & Logs" adicionado na barra lateral administrativa de [`apps/web/src/app/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -60,6 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: 'Estabelecimentos', href: '/admin/estabelecimentos', icon: Store },
     { label: 'Moderação de Anúncios', href: '/admin/moderacao', icon: CheckSquare },
     { label: 'Cupons & Promoções', href: '/admin/cupons', icon: Ticket },
+    { label: 'Auditoria & Logs', href: '/admin/auditoria', icon: ShieldAlert },
     { label: 'Avisos & Comunicados', href: '/admin/comunicados', icon: Send },
     { label: 'Categorias', href: '/admin/categorias', icon: Layers },
     { label: 'Estados & Cidades', href: '/admin/cidades', icon: MapPin },
