@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Headers,
@@ -11,7 +12,11 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
 import { SubscriptionCronService } from './subscription-cron.service';
 import { AsaasService } from './asaas.service';
-import { CreateCheckoutDto } from './dto/billing.dto';
+import {
+  CreateCheckoutDto,
+  ValidateCouponDto,
+  CreateSubscriptionCouponDto,
+} from './dto/billing.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -49,6 +54,39 @@ export class BillingController {
   @ApiOperation({ summary: 'Obter detalhes e comprovante oficial de prestação de serviço / fatura em PDF' })
   getInvoiceDetails(@CurrentUser() user: any, @Param('id') id: string) {
     return this.billingService.getInvoiceDetails(user, id);
+  }
+
+  @Post('validate-coupon')
+  @ApiOperation({ summary: 'Validar cupom de desconto promocional para contratação de planos' })
+  validateCoupon(@Body() dto: ValidateCouponDto) {
+    return this.billingService.validateCoupon(dto.code, dto.plan, dto.billingCycle);
+  }
+
+  @Get('admin/coupons')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Listar cupons promocionais de assinatura de planos' })
+  getAdminCoupons() {
+    return this.billingService.getSubscriptionCoupons();
+  }
+
+  @Post('admin/coupons')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Criar novo cupom promocional para planos de destaque' })
+  createAdminCoupon(@Body() dto: CreateSubscriptionCouponDto) {
+    return this.billingService.createSubscriptionCoupon(dto);
+  }
+
+  @Patch('admin/coupons/:id/toggle')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Ativar ou desativar cupom promocional de assinatura' })
+  toggleAdminCoupon(@Param('id') id: string) {
+    return this.billingService.toggleSubscriptionCoupon(id);
   }
 
   @Post('checkout')

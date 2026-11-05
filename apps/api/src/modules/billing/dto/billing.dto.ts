@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { SubscriptionPlan, PaymentMethod } from '@prisma/client';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber, IsBoolean, Min } from 'class-validator';
+import { SubscriptionPlan, PaymentMethod, DiscountType } from '@prisma/client';
 
 export class CreateCheckoutDto {
   @IsString({ message: 'ID do estabelecimento é obrigatório' })
@@ -16,5 +16,53 @@ export class CreateCheckoutDto {
   @IsOptional()
   @IsString()
   billingCycle?: string = 'MONTHLY';
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
+
+export class ValidateCouponDto {
+  @IsString({ message: 'Código do cupom é obrigatório' })
+  @IsNotEmpty({ message: 'Código do cupom não pode ser vazio' })
+  code: string;
+
+  @IsEnum(SubscriptionPlan, { message: 'Plano inválido' })
+  plan: SubscriptionPlan;
+
+  @IsOptional()
+  @IsString()
+  billingCycle?: string = 'MONTHLY';
+}
+
+export class CreateSubscriptionCouponDto {
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(DiscountType)
+  discountType?: DiscountType = DiscountType.PERCENTAGE;
+
+  @IsNumber()
+  @Min(0.01)
+  discountValue: number;
+
+  @IsOptional()
+  @IsNumber()
+  maxUses?: number;
+
+  @IsOptional()
+  @IsString()
+  validUntil?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean = true;
+}
+
 

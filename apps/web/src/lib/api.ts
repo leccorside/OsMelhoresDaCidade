@@ -2023,10 +2023,14 @@ export async function createCheckoutApi(data: {
   plan: string;
   billingCycle?: 'MONTHLY' | 'YEARLY';
   paymentMethod?: string;
+  couponCode?: string;
 }): Promise<{
   success: boolean;
   subscriptionId: string;
   plan: BillingPlan;
+  basePrice?: number;
+  discountAmount?: number;
+  couponCode?: string | null;
   price: number;
   billingCycle: string;
   pixQrCode: string;
@@ -2167,6 +2171,7 @@ export interface InvoiceData {
     description: string;
     grossAmount: number;
     discountAmount: number;
+    couponCode?: string | null;
     netAmount: number;
     paymentMethod: string;
     gatewayPaymentId: string | null;
@@ -2191,6 +2196,90 @@ export async function fetchInvoiceDetailsApi(subscriptionId: string): Promise<In
 
   return res.json();
 }
+
+export interface CouponValidationResult {
+  valid: boolean;
+  couponId: string;
+  code: string;
+  description?: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  basePrice: number;
+  discountAmount: number;
+  finalPrice: number;
+}
+
+export async function validateSubscriptionCouponApi(data: {
+  code: string;
+  plan: string;
+  billingCycle: string;
+}): Promise<CouponValidationResult> {
+  const url = `${getApiBaseUrl()}/billing/validate-coupon`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Cupom inválido ou expirado.');
+  }
+
+  return res.json();
+}
+
+export interface SubscriptionCouponItem {
+  id: string;
+  code: string;
+  description?: string | null;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  maxUses?: number | null;
+  usedCount: number;
+  validUntil?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  _count?: { subscriptions: number };
+}
+
+export async function fetchAdminSubscriptionCouponsApi(): Promise<SubscriptionCouponItem[]> {
+  const url = `${getApiBaseUrl()}/billing/admin/coupons`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Erro ao buscar cupons de assinatura.');
+  }
+
+  return res.json();
+}
+
+export async function toggleAdminSubscriptionCouponApi(id: string): Promise<SubscriptionCouponItem> {
+  const url = `${getApiBaseUrl()}/billing/admin/coupons/${id}/toggle`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Erro ao alterar status do cupom.');
+  }
+
+  return res.json();
+}
+
 
 
 

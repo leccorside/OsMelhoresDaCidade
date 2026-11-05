@@ -186,3 +186,4 @@ export class AsaasService {
     return receivedToken === this.webhookToken;
   }
 }
+

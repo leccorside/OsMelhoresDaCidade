@@ -23,6 +23,8 @@ import {
   Flame,
   Award,
   FileText,
+  Tag,
+  Ticket,
 } from 'lucide-react';
 import {
   fetchBillingPlansApi,
@@ -30,9 +32,11 @@ import {
   createCheckoutApi,
   confirmSubscriptionPaymentApi,
   fetchMerchantListings,
+  validateSubscriptionCouponApi,
   BillingPlan,
   MerchantSubscriptionItem,
   MerchantListing,
+  CouponValidationResult,
 } from '@/lib/api';
 
 export default function MerchantPlansPage() {
@@ -58,6 +62,12 @@ export default function MerchantPlansPage() {
   const [confirming, setConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Cupom de Desconto State
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -89,7 +99,35 @@ export default function MerchantPlansPage() {
     setCheckoutResult(null);
     setCopied(false);
     setFeedback(null);
+    setCouponInput('');
+    setAppliedCoupon(null);
+    setCouponError(null);
     setModalOpen(true);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !selectedPlan) return;
+    try {
+      setValidatingCoupon(true);
+      setCouponError(null);
+      const res = await validateSubscriptionCouponApi({
+        code: couponInput.trim(),
+        plan: selectedPlan.id,
+        billingCycle,
+      });
+      setAppliedCoupon(res);
+    } catch (err: any) {
+      setCouponError(err.message || 'Cupom inválido ou expirado.');
+      setAppliedCoupon(null);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponError(null);
   };
 
   const handleGenerateCheckout = async () => {
@@ -103,6 +141,7 @@ export default function MerchantPlansPage() {
         plan: selectedPlan.id,
         billingCycle,
         paymentMethod: 'PIX',
+        couponCode: appliedCoupon?.code,
       });
 
       setCheckoutResult({
@@ -522,6 +561,66 @@ export default function MerchantPlansPage() {
                   )}
                 </div>
 
+                {/* Cupom Promocional */}
+                <div className="bg-neutral-50/80 rounded-2xl p-4 border border-neutral-200/70">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
+                    <Ticket className="w-4 h-4 text-amber-500" />
+                    Cupom Promocional de Desconto:
+                  </label>
+
+                  {!appliedCoupon ? (
+                    <div className="space-y-1.5">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                          placeholder="Ex: PRIMEIRO_MES"
+                          className="flex-1 px-3.5 py-2 rounded-xl border border-neutral-300 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          disabled={validatingCoupon || !couponInput.trim()}
+                          className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                        >
+                          {validatingCoupon ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Tag className="w-3.5 h-3.5" />
+                          )}
+                          Aplicar
+                        </button>
+                      </div>
+                      {couponError && (
+                        <p className="text-xs text-rose-600 font-medium">{couponError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <div>
+                          <span className="font-bold text-emerald-800 font-mono">
+                            {appliedCoupon.code}
+                          </span>
+                          <span className="text-emerald-700 ml-1.5 font-medium">
+                            (-R$ {appliedCoupon.discountAmount.toFixed(2)})
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-neutral-400 hover:text-neutral-700 p-1"
+                        title="Remover cupom"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {/* Resumo de Valores */}
                 <div className="bg-neutral-50 rounded-2xl p-4 space-y-2 border border-neutral-200/70 text-sm">
                   <div className="flex justify-between text-neutral-600">
@@ -534,10 +633,26 @@ export default function MerchantPlansPage() {
                       {billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'}
                     </span>
                   </div>
+                  {appliedCoupon && (
+                    <>
+                      <div className="flex justify-between text-neutral-600 text-xs">
+                        <span>Valor original:</span>
+                        <span className="line-through font-mono">
+                          R$ {(billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-emerald-700 text-xs font-semibold">
+                        <span>Desconto ({appliedCoupon.code}):</span>
+                        <span className="font-mono">- R$ {appliedCoupon.discountAmount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between text-neutral-900 font-bold pt-2 border-t border-neutral-200">
                     <span>Valor a pagar:</span>
-                    <span className="text-lg text-emerald-600">
-                      R$ {(billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly).toFixed(2)}
+                    <span className="text-lg text-emerald-600 font-mono">
+                      R$ {appliedCoupon
+                        ? appliedCoupon.finalPrice.toFixed(2)
+                        : (billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly).toFixed(2)}
                     </span>
                   </div>
                 </div>

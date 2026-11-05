@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -13,8 +14,13 @@ import {
   PaymentStatus,
   PaymentMethod,
   NotificationType,
+  DiscountType,
 } from '@prisma/client';
-import { CreateCheckoutDto } from './dto/billing.dto';
+import {
+  CreateCheckoutDto,
+  ValidateCouponDto,
+  CreateSubscriptionCouponDto,
+} from './dto/billing.dto';
 
 export interface PlanDetails {
   id: SubscriptionPlan;
@@ -28,7 +34,7 @@ export interface PlanDetails {
 }
 
 @Injectable()
-export class BillingService {
+export class BillingService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BillingService.name);
 
   constructor(
@@ -36,6 +42,35 @@ export class BillingService {
     private readonly notificationsService: NotificationsService,
     private readonly asaasService: AsaasService,
   ) {}
+
+  async onApplicationBootstrap() {
+    try {
+      const count = await this.prisma.subscriptionCoupon.count();
+      if (count === 0) {
+        await this.prisma.subscriptionCoupon.createMany({
+          data: [
+            {
+              code: 'PRIMEIRO_MES',
+              description: '50% de desconto no primeiro mês ou anuidade',
+              discountType: DiscountType.PERCENTAGE,
+              discountValue: 50,
+              maxUses: 1000,
+            },
+            {
+              code: 'INAUGURACAO20',
+              description: '20% de desconto especial de inauguração',
+              discountType: DiscountType.PERCENTAGE,
+              discountValue: 20,
+              maxUses: 500,
+            },
+          ],
+        });
+        this.logger.log('Cupons padrão de assinatura inicializados com sucesso.');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Erro ao inicializar cupons padrão: ${err.message}`);
+    }
+  }
 
   getAvailablePlans(): PlanDetails[] {
     return [
@@ -137,14 +172,31 @@ export class BillingService {
       throw new BadRequestException('Plano de destaque inválido.');
     }
 
-    const price = dto.billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly;
+    const basePrice = dto.billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly;
+    let finalPrice = basePrice;
+    let discountAmount = 0;
+    let couponId: string | null = null;
+    let appliedCouponCode: string | null = null;
+
+    if (dto.couponCode) {
+      const couponValidation = await this.validateCoupon(dto.couponCode, dto.plan, dto.billingCycle);
+      discountAmount = couponValidation.discountAmount;
+      finalPrice = couponValidation.finalPrice;
+      couponId = couponValidation.couponId;
+      appliedCouponCode = couponValidation.code;
+
+      await this.prisma.subscriptionCoupon.update({
+        where: { id: couponId },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
 
     // Integração Asaas: Obter/Criar cliente e gerar cobrança PIX
     const asaasCustomerId = await this.asaasService.getOrCreateCustomer(merchant.id);
     const asaasCharge = await this.asaasService.createPixCharge({
       customerId: asaasCustomerId,
-      value: price,
-      description: `Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'}) - Os Melhores da Cidade`,
+      value: finalPrice,
+      description: `Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'})${appliedCouponCode ? ` [Cupom ${appliedCouponCode}]` : ''} - Os Melhores da Cidade`,
       externalReference: `sub_${Math.random().toString(36).substring(2, 10)}`,
       dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     });
@@ -160,7 +212,9 @@ export class BillingService {
         listingId: dto.listingId,
         plan: dto.plan,
         status: PaymentStatus.PENDING,
-        price,
+        price: finalPrice,
+        discountAmount,
+        couponId,
         billingCycle: dto.billingCycle || 'MONTHLY',
         pixQrCode,
         gatewayPaymentId,
@@ -174,7 +228,7 @@ export class BillingService {
     await this.prisma.subscriptionPayment.create({
       data: {
         subscriptionId: subscription.id,
-        amount: price,
+        amount: finalPrice,
         method: dto.paymentMethod || PaymentMethod.PIX,
         status: PaymentStatus.PENDING,
       },
@@ -184,7 +238,10 @@ export class BillingService {
       success: true,
       subscriptionId: subscription.id,
       plan: selectedPlan,
-      price,
+      basePrice,
+      discountAmount,
+      price: finalPrice,
+      couponCode: appliedCouponCode,
       billingCycle: subscription.billingCycle,
       pixQrCode,
       gatewayInvoiceUrl,
@@ -192,6 +249,106 @@ export class BillingService {
       listing: subscription.listing,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h para pagamento
     };
+  }
+
+  /**
+   * Valida um cupom de desconto para plano de assinatura
+   */
+  async validateCoupon(code: string, plan: SubscriptionPlan, billingCycle = 'MONTHLY') {
+    if (!code) {
+      throw new BadRequestException('Código do cupom é obrigatório.');
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    const coupon = await this.prisma.subscriptionCoupon.findUnique({
+      where: { code: cleanCode },
+    });
+
+    if (!coupon || !coupon.isActive) {
+      throw new NotFoundException(`Cupom "${cleanCode}" inválido ou inativo.`);
+    }
+
+    if (coupon.validUntil && new Date(coupon.validUntil) < new Date()) {
+      throw new BadRequestException(`O cupom "${cleanCode}" expirou.`);
+    }
+
+    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+      throw new BadRequestException(`Limite de usos do cupom "${cleanCode}" foi atingido.`);
+    }
+
+    const plans = this.getAvailablePlans();
+    const selectedPlan = plans.find((p) => p.id === plan);
+    if (!selectedPlan) {
+      throw new BadRequestException('Plano informado inválido.');
+    }
+
+    const basePrice = billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly;
+    let discountAmount = 0;
+
+    if (coupon.discountType === DiscountType.PERCENTAGE) {
+      discountAmount = (basePrice * Number(coupon.discountValue)) / 100;
+    } else {
+      discountAmount = Number(coupon.discountValue);
+    }
+
+    discountAmount = Math.min(basePrice, Math.max(0, discountAmount));
+    const finalPrice = Math.max(1.0, basePrice - discountAmount);
+
+    return {
+      valid: true,
+      couponId: coupon.id,
+      code: coupon.code,
+      description: coupon.description,
+      discountType: coupon.discountType,
+      discountValue: Number(coupon.discountValue),
+      basePrice,
+      discountAmount: Number(discountAmount.toFixed(2)),
+      finalPrice: Number(finalPrice.toFixed(2)),
+    };
+  }
+
+  /**
+   * Gestão administrativa de cupons
+   */
+  async getSubscriptionCoupons() {
+    return this.prisma.subscriptionCoupon.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { subscriptions: true } },
+      },
+    });
+  }
+
+  async createSubscriptionCoupon(dto: CreateSubscriptionCouponDto) {
+    const code = dto.code.trim().toUpperCase();
+    const existing = await this.prisma.subscriptionCoupon.findUnique({
+      where: { code },
+    });
+    if (existing) {
+      throw new BadRequestException(`Já existe um cupom cadastrado com o código ${code}.`);
+    }
+
+    return this.prisma.subscriptionCoupon.create({
+      data: {
+        code,
+        description: dto.description,
+        discountType: dto.discountType || DiscountType.PERCENTAGE,
+        discountValue: dto.discountValue,
+        maxUses: dto.maxUses,
+        validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
+      },
+    });
+  }
+
+  async toggleSubscriptionCoupon(id: string) {
+    const coupon = await this.prisma.subscriptionCoupon.findUnique({ where: { id } });
+    if (!coupon) throw new NotFoundException('Cupom não encontrado.');
+
+    return this.prisma.subscriptionCoupon.update({
+      where: { id },
+      data: { isActive: !coupon.isActive },
+    });
   }
 
   async confirmPaymentByGateway(gatewayPaymentId: string, externalReference?: string) {
@@ -285,6 +442,9 @@ export class BillingService {
         listing: {
           select: { id: true, name: true, slug: true, coverUrl: true },
         },
+        coupon: {
+          select: { code: true, description: true },
+        },
         payments: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -361,6 +521,9 @@ export class BillingService {
             user: { select: { id: true, name: true, email: true } },
           },
         },
+        coupon: {
+          select: { code: true, description: true },
+        },
         payments: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -409,6 +572,9 @@ export class BillingService {
             address: true,
             user: { select: { id: true, name: true, email: true, phone: true } },
           },
+        },
+        coupon: {
+          select: { code: true, description: true },
         },
         payments: {
           orderBy: { createdAt: 'desc' },
@@ -484,8 +650,9 @@ export class BillingService {
         periodStart: subscription.startDate,
         periodEnd: subscription.endDate,
         description: `Prestação de serviços de publicidade digital, indexação institucional e destaque prioritário no Guia Comercial Oficial Os Melhores da Cidade (${planNames[subscription.plan] || subscription.plan}).`,
-        grossAmount: Number(subscription.price),
-        discountAmount: 0.0,
+        grossAmount: Number(subscription.price) + Number(subscription.discountAmount || 0),
+        discountAmount: Number(subscription.discountAmount || 0),
+        couponCode: subscription.coupon?.code || null,
         netAmount: Number(subscription.price),
         paymentMethod: latestPayment?.method || 'PIX',
         gatewayPaymentId: subscription.gatewayPaymentId,

@@ -526,6 +526,24 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Botão "Imprimir / Salvar em PDF" com regras avançadas de estilo `@media print` (ocultamento de controles e barra superior na impressão, escala A4 limpa e nítida).
   - Ação "Recibo / PDF" integrada à listagem de assinaturas do painel do comerciante em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) com ícone `FileText` e abertura direta do documento.
 
+### AD. Gestão de Cupons Promocionais no Checkout de Assinaturas
+- **Modelagem Prisma (`apps/api/prisma/schema.prisma`)**:
+  - Novo modelo `SubscriptionCoupon` com código único, tipo de desconto (`PERCENTAGE` ou `FIXED_AMOUNT`), valor, limite de usos (`maxUses`), contador (`usedCount`), vigência e status ativo.
+  - Campos `discountAmount` e `couponId` com relacionamento adicionados ao modelo `MerchantSubscription`. Sincronizado com o PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Métodos `validateCoupon`, `getSubscriptionCoupons`, `createSubscriptionCoupon` e `toggleSubscriptionCoupon` em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts).
+  - Inicialização automática via `OnApplicationBootstrap` de cupons padrão (`PRIMEIRO_MES` com 50% OFF e `INAUGURACAO20` com 20% OFF).
+  - Integração do abatimento no checkout e gateway Asaas: cálculo do valor líquido com desconto, incremento de usos e vinculação na assinatura e fatura.
+  - Endpoints em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts):
+    - `POST /api/v1/billing/validate-coupon`
+    - `GET /api/v1/billing/admin/coupons` (Admin)
+    - `POST /api/v1/billing/admin/coupons` (Admin)
+    - `PATCH /api/v1/billing/admin/coupons/:id/toggle` (Admin)
+- **Frontend Next.js (`apps/web`)**:
+  - Cliente e tipagens `validateSubscriptionCouponApi`, `CouponValidationResult` e `SubscriptionCouponItem` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Campo interativo de cupom de desconto promocional no modal de contratação em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx), com validação em tempo real, visualização de economia e recálculo dinâmico do valor do PIX.
+  - Discriminação do cupom e abatimento no comprovante oficial de prestação de serviços (`/comerciante/fatura/[id]`).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

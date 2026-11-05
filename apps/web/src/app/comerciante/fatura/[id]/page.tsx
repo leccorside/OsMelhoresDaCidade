@@ -303,8 +303,13 @@ export default function InvoicePage() {
                 <span className="font-mono">R$ {invoice.service.grossAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-neutral-600 text-xs">
-                <span>Desconto / Isenções:</span>
-                <span className="font-mono">R$ {invoice.service.discountAmount.toFixed(2)}</span>
+                <span>
+                  Desconto / Isenções
+                  {invoice.service.couponCode ? ` (${invoice.service.couponCode})` : ''}:
+                </span>
+                <span className={`font-mono ${invoice.service.discountAmount > 0 ? 'text-emerald-700 font-semibold' : ''}`}>
+                  {invoice.service.discountAmount > 0 ? '- ' : ''}R$ {invoice.service.discountAmount.toFixed(2)}
+                </span>
               </div>
               <div className="border-t border-neutral-200 pt-2 flex justify-between items-center font-extrabold text-neutral-900 text-base">
                 <span>Valor Líquido Pago:</span>
