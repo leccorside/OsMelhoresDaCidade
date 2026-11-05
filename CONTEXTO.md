@@ -544,6 +544,14 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Campo interativo de cupom de desconto promocional no modal de contratação em [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx), com validação em tempo real, visualização de economia e recálculo dinâmico do valor do PIX.
   - Discriminação do cupom e abatimento no comprovante oficial de prestação de serviços (`/comerciante/fatura/[id]`).
 
+### AE. Envio Automático de Fatura e Comprovante de Pagamento por E-mail
+- **Backend NestJS (`apps/api`)**:
+  - Novo método `sendSubscriptionPaidInvoiceEmail` em [`MailService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/common/mail/mail.service.ts):
+    - Disparo de e-mail transacional HTML estilizado com identidade visual completa do guia (cabeçalho esmeralda, resumo tabular da contratação, dados do estabelecimento, valor liquidado, vigência, número da fatura e chave criptográfica de autenticação digital).
+    - Botão CTA destacado com link direto e seguro para o recibo/fatura oficial em PDF (`/comerciante/fatura/[id]`).
+  - Integração com o fluxo de liquidação no [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Acionado instantaneamente tanto na confirmação direta via PIX quanto no recebimento de webhooks do gateway Asaas (`PAYMENT_RECEIVED` e `PAYMENT_CONFIRMED`).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

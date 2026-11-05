@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AsaasService } from './asaas.service';
+import { MailService } from '../../common/mail/mail.service';
 import {
   SubscriptionPlan,
   PaymentStatus,
@@ -41,6 +42,7 @@ export class BillingService implements OnApplicationBootstrap {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly asaasService: AsaasService,
+    private readonly mailService: MailService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -377,7 +379,12 @@ export class BillingService implements OnApplicationBootstrap {
       where: { id: subscriptionId },
       include: {
         listing: true,
-        merchantProfile: { select: { userId: true } },
+        merchantProfile: {
+          select: {
+            userId: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
       },
     });
 
@@ -424,6 +431,39 @@ export class BillingService implements OnApplicationBootstrap {
         metadata: { subscriptionId: updatedSub.id, plan: updatedSub.plan },
       });
     } catch (e) {}
+
+    // Envio automático da Fatura / Comprovante em PDF por E-mail
+    try {
+      if (subscription.merchantProfile?.user?.email) {
+        const planNames: Record<string, string> = {
+          FREE: 'Gratuito',
+          BRONZE_DESTAQUE: 'Bronze Destaque VIP',
+          PRATA_REGIONAL: 'Prata Regional VIP',
+          OURO_MASTER: 'Ouro Master VIP',
+        };
+
+        const year = new Date(subscription.createdAt).getFullYear();
+        const invoiceNumber = `FAT-${year}-${subscription.id.substring(0, 8).toUpperCase()}`;
+        const verificationCode = `OSM-${subscription.id.replace(/-/g, '').substring(0, 16).toUpperCase()}`;
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4100';
+        const invoiceUrl = `${siteUrl}/comerciante/fatura/${subscription.id}`;
+
+        await this.mailService.sendSubscriptionPaidInvoiceEmail({
+          merchantName: subscription.merchantProfile.user.name || 'Parceiro',
+          merchantEmail: subscription.merchantProfile.user.email,
+          listingName: subscription.listing?.name || 'Seu Estabelecimento',
+          planName: planNames[subscription.plan] || subscription.plan,
+          billingCycle: subscription.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal',
+          amountPaid: Number(subscription.price),
+          invoiceNumber,
+          verificationCode,
+          invoiceUrl,
+          validUntilDate: endDate.toLocaleDateString('pt-BR'),
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Falha ao disparar e-mail de fatura paga: ${err.message}`);
+    }
 
     return {
       success: true,

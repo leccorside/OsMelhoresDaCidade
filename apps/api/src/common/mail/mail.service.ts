@@ -239,6 +239,104 @@ export class MailService {
       return { success: false, error: err.message };
     }
   }
+
+  async sendSubscriptionPaidInvoiceEmail(data: {
+    merchantName: string;
+    merchantEmail: string;
+    listingName: string;
+    planName: string;
+    billingCycle: string;
+    amountPaid: number;
+    invoiceNumber: string;
+    verificationCode: string;
+    invoiceUrl: string;
+    validUntilDate: string;
+  }) {
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fatura Quitado - ${data.listingName}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8F9FA; margin: 0; padding: 24px; color: #1C1B1B; }
+    .card { max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid #E5E7EB; }
+    .header { background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #FFFFFF; padding: 32px 28px; text-align: center; }
+    .content { padding: 32px 28px; font-size: 14px; line-height: 1.6; }
+    .summary-box { background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 14px; padding: 20px; margin: 24px 0; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #E5E7EB; }
+    .row:last-child { border-bottom: none; }
+    .btn { background: #F59E0B; color: #FFFFFF !important; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 800; display: inline-block; font-size: 14px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+    .btn:hover { background: #D97706; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
+      <h2 style="margin: 0; font-size: 22px; font-weight: 800;">Pagamento Confirmado & Destaque Ativo!</h2>
+      <p style="margin: 6px 0 0; opacity: 0.9; font-size: 13px;">O comprovante oficial e fatura de serviços já estão disponíveis.</p>
+    </div>
+    <div class="content">
+      <p>Olá, <strong>${data.merchantName}</strong>,</p>
+      <p>Confirmamos com sucesso o recebimento do seu pagamento via PIX. O selo oficial e o posicionamento VIP do seu anúncio <strong>${data.listingName}</strong> já estão ativos no guia oficial!</p>
+
+      <div class="summary-box">
+        <div style="font-weight: 700; color: #374151; margin-bottom: 12px; font-size: 13px; text-transform: uppercase;">Resumo do Serviço Contratado:</div>
+        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #6B7280;">Estabelecimento:</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #111827;">${data.listingName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6B7280;">Plano Contratado:</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #D97706;">${data.planName} (${data.billingCycle})</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6B7280;">Valor Quitado:</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 800; color: #10B981;">R$ ${data.amountPaid.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6B7280;">Vigência do Destaque:</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #111827;">Até ${data.validUntilDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6B7280;">Fatura N°:</td>
+            <td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: 700;">${data.invoiceNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6B7280;">Autenticação Digital:</td>
+            <td style="padding: 6px 0; text-align: right; font-family: monospace; font-size: 11px; color: #4B5563;">${data.verificationCode}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin: 32px 0 20px;">
+        <a href="${data.invoiceUrl}" class="btn" target="_blank">Visualizar & Baixar Recibo em PDF</a>
+      </div>
+
+      <p style="font-size: 12px; color: #6B7280; text-align: center; margin-top: 24px;">
+        Este documento comprova a prestação dos serviços de publicidade digital pelo Portal Os Melhores da Cidade. Guarde para sua declaração contábil.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: '"Os Melhores da Cidade" <faturamento@osmelhoresdacidade.com.br>',
+        to: data.merchantEmail,
+        subject: `🧾 Comprovante de Pagamento & Fatura #${data.invoiceNumber} - ${data.listingName}`,
+        html,
+      });
+      this.logger.log(`E-mail com fatura enviado com sucesso para ${data.merchantEmail}`);
+      return { success: true, info };
+    } catch (err: any) {
+      this.logger.error(`Erro ao enviar fatura por e-mail para ${data.merchantEmail}: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
 }
 
 
