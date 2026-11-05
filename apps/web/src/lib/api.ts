@@ -3139,3 +3139,124 @@ export async function fetchFranchisePayoutsApi(cityId?: string): Promise<Franchi
 
   return res.json();
 }
+
+export interface SupportTicketMessageItem {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  message: string;
+  attachments?: string[];
+  createdAt: string;
+}
+
+export interface SupportTicketItem {
+  id: string;
+  ticketNumber: string;
+  merchantId: string;
+  cityId?: string | null;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  assignedRole: string;
+  createdAt: string;
+  updatedAt: string;
+  messages?: SupportTicketMessageItem[];
+  _count?: { messages: number };
+}
+
+export async function fetchMerchantTicketsApi(): Promise<SupportTicketItem[]> {
+  const url = `${getApiBaseUrl()}/support/tickets/my`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao carregar chamados: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createMerchantTicketApi(payload: {
+  subject: string;
+  category: string;
+  priority?: string;
+  message: string;
+}): Promise<SupportTicketItem> {
+  const url = `${getApiBaseUrl()}/support/tickets`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao abrir chamado: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function fetchTicketDetailsApi(ticketId: string): Promise<SupportTicketItem> {
+  const url = `${getApiBaseUrl()}/support/tickets/${ticketId}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao buscar detalhes do chamado: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function replyTicketApi(ticketId: string, message: string): Promise<SupportTicketMessageItem> {
+  const url = `${getApiBaseUrl()}/support/tickets/${ticketId}/reply`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao responder chamado: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function resolveTicketApi(ticketId: string): Promise<any> {
+  const url = `${getApiBaseUrl()}/support/tickets/${ticketId}/resolve`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao finalizar chamado: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

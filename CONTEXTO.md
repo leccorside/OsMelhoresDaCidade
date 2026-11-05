@@ -767,6 +767,24 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Modal interativo de confirmação com valor personalizável ou total apurado.
     - Tabela de "Histórico de Repasses PIX Realizados" com ID da transferência Asaas, comprovante bancário e data.
 
+### AU. Central de Atendimento e Tickets de Suporte do Lojista
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Modelos `SupportTicket` e `SupportTicketMessage` vinculados ao `MerchantProfile`:
+    - `SupportTicket`: `ticketNumber` (`TK-YYYY-XXXXXX`), `subject`, `category` (`FINANCEIRO`, `PLANO_VIP`, `ANUNCIO`, `DUVIDAS`, `TECNICO`), `priority` (`BAIXA`, `NORMAL`, `ALTA`, `URGENTE`), `status` (`ABERTO`, `EM_ANDAMENTO`, `RESPONDIDO`, `RESOLVIDO`), `assignedRole` e timestamps.
+    - `SupportTicketMessage`: `senderId`, `senderName`, `senderRole` (`MERCHANT`, `FRANCHISEE`, `ADMIN`), texto da mensagem e data.
+  - Sincronização executada com sucesso no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Módulo [`SupportModule`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/support/support.module.ts) com serviço [`SupportService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/support/support.service.ts) e controller [`SupportController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/support/support.controller.ts):
+    - Abertura de chamados com identificação automática da cidade para direcionamento prioritário ao franqueado local ou matriz.
+    - Endpoints de listagem, detalhes de conversas em timeline, respostas bidirecionais e encerramento de chamado.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `SupportTicketItem`, `SupportTicketMessageItem` e clientes de API em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Tela completa de atendimento em [`/comerciante/suporte`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/suporte/page.tsx):
+    - Lista lateral com badges de status e data de atualização.
+    - Chat interativo com balões de mensagem estilizados para lojista vs atendimento oficial da franquia.
+    - Modal de abertura de chamado com seleção de categoria e prioridade.
+    - Botão de finalizar chamado e atalho adicionado no menu lateral do painel do comerciante.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -22,6 +22,7 @@ import {
   Ticket,
   Bell,
   QrCode,
+  LifeBuoy,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { clearAuthCookies } from '@/services/auth';
@@ -63,6 +64,7 @@ export default function MerchantLayout({ children }: { children: React.ReactNode
     { label: 'Galeria de Fotos', href: '/comerciante/galeria', icon: ImageIcon },
     { label: 'Avaliações', href: '/comerciante/avaliacoes', icon: Star },
     { label: 'Estatísticas', href: '/comerciante/estatisticas', icon: BarChart3 },
+    { label: 'Suporte & Ajuda', href: '/comerciante/suporte', icon: LifeBuoy },
     { label: 'Configurações', href: '/comerciante/configuracoes', icon: Settings },
   ];
 

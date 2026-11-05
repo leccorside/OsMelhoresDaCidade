@@ -17,6 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { BillingModule } from './modules/billing/billing.module';
 import { FranchiseModule } from './modules/franchise/franchise.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     BillingModule,
     FranchiseModule,
     WebhooksModule,
+    SupportModule,
     FavoritesModule,
     AdminModule,
     BlogModule,
