@@ -659,6 +659,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - **Fatura e Recibo Oficial**: validação dos padrões de identificador fiscal `FAT-YYYY-XXXXXXXX` e código de verificação digital `OSM-XXXXXXXXXXXXXXXX`.
     - **Notificações de Vencimento**: verificação de urgência (<= 3 dias) e cálculo dos dias restantes para disparo de lembretes automáticos.
 
+### AN. Integração de Checkout Transparente com Cartão de Crédito (Asaas Gateway)
+- **Backend NestJS (`apps/api`)**:
+  - `AsaasService` expandido com `createCreditCardCharge` suportando payload de cartão de crédito (`holderName`, `number`, `expiryMonth`, `expiryYear`, `ccv`), dados do portador (`creditCardHolderInfo`), configuração de split de comissões por cidade e fallback dinâmico para ambiente local.
+  - `CreateCheckoutDto` atualizado com enum `PaymentMethod.CREDIT_CARD`, `creditCard` e `creditCardHolderInfo` validados com `class-validator`.
+  - `BillingService.createCheckout`:
+    - Processamento imediato de cobranças via cartão.
+    - Aprovação instantânea ativando o plano (`status: PAID`), calculando `endDate` (30 dias para mensal ou 365 dias para anual) e aplicando o selo `isFeatured: true` no anúncio selecionado.
+    - Contabilização automática do uso de cupons de desconto aplicados.
+    - Disparo automático de e-mail com fatura e recibo detalhado para o lojista via `MailService`.
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `CreditCardPayload` e `CreditCardHolderPayload` integradas em `apps/web/src/lib/api.ts`.
+  - Interface do modal de assinatura em `apps/web/src/app/comerciante/planos/page.tsx`:
+    - Seletor de abas estilizado entre **PIX Instantâneo** e **Cartão de Crédito**.
+    - Formulário seguro com campos formatados: Nome impresso, Número do cartão, Mês/Ano de validade, Código de segurança (CVV) e CPF/CNPJ do titular.
+    - Feedback visual em tempo real e ativação imediata do destaque ao concluir a transação sem necessidade de aguardar compensação bancária.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

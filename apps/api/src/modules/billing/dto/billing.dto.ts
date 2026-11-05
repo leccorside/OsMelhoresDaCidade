@@ -1,5 +1,54 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber, IsBoolean, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber, IsBoolean, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SubscriptionPlan, PaymentMethod, DiscountType } from '@prisma/client';
+
+export class CreditCardDto {
+  @IsString({ message: 'Nome impresso no cartão é obrigatório' })
+  @IsNotEmpty()
+  holderName: string;
+
+  @IsString({ message: 'Número do cartão é obrigatório' })
+  @IsNotEmpty()
+  number: string;
+
+  @IsString({ message: 'Mês de vencimento é obrigatório' })
+  @IsNotEmpty()
+  expiryMonth: string;
+
+  @IsString({ message: 'Ano de vencimento é obrigatório' })
+  @IsNotEmpty()
+  expiryYear: string;
+
+  @IsString({ message: 'Código de segurança (CVV) é obrigatório' })
+  @IsNotEmpty()
+  ccv: string;
+}
+
+export class CreditCardHolderInfoDto {
+  @IsString({ message: 'Nome do titular é obrigatório' })
+  @IsNotEmpty()
+  name: string;
+
+  @IsString({ message: 'E-mail do titular é obrigatório' })
+  @IsNotEmpty()
+  email: string;
+
+  @IsString({ message: 'CPF ou CNPJ do titular é obrigatório' })
+  @IsNotEmpty()
+  cpfCnpj: string;
+
+  @IsOptional()
+  @IsString()
+  postalCode?: string;
+
+  @IsOptional()
+  @IsString()
+  addressNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+}
 
 export class CreateCheckoutDto {
   @IsString({ message: 'ID do estabelecimento é obrigatório' })
@@ -20,6 +69,16 @@ export class CreateCheckoutDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreditCardDto)
+  creditCard?: CreditCardDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreditCardHolderInfoDto)
+  creditCardHolderInfo?: CreditCardHolderInfoDto;
 }
 
 export class ValidateCouponDto {

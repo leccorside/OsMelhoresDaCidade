@@ -91,6 +91,15 @@ export default function MerchantPlansPage() {
   // Relatório de ROI State
   const [roiData, setRoiData] = useState<MerchantRoiPerformanceData | null>(null);
 
+  // Forma de Pagamento & Cartão de Crédito State
+  const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CREDIT_CARD'>('PIX');
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiryMonth, setCardExpiryMonth] = useState('');
+  const [cardExpiryYear, setCardExpiryYear] = useState('');
+  const [cardCcv, setCardCcv] = useState('');
+  const [cardCpfCnpj, setCardCpfCnpj] = useState('');
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -126,6 +135,13 @@ export default function MerchantPlansPage() {
     setCouponInput('');
     setAppliedCoupon(null);
     setCouponError(null);
+    setPaymentMethod('PIX');
+    setCardHolderName('');
+    setCardNumber('');
+    setCardExpiryMonth('');
+    setCardExpiryYear('');
+    setCardCcv('');
+    setCardCpfCnpj('');
     setModalOpen(true);
   };
 
@@ -217,7 +233,7 @@ export default function MerchantPlansPage() {
       setUpgradeModalOpen(false);
       setCheckoutResult({
         subscriptionId: res.subscriptionId,
-        pixQrCode: res.pixQrCode,
+        pixQrCode: res.pixQrCode || '',
         price: res.price,
         billingCycle: res.billingCycle,
       });
@@ -236,22 +252,60 @@ export default function MerchantPlansPage() {
     try {
       setCheckoutLoading(true);
       setFeedback(null);
+
+      if (paymentMethod === 'CREDIT_CARD') {
+        if (!cardHolderName.trim() || !cardNumber.trim() || !cardExpiryMonth.trim() || !cardExpiryYear.trim() || !cardCcv.trim() || !cardCpfCnpj.trim()) {
+          setFeedback({ type: 'error', message: 'Preencha todos os dados do cartão de crédito e CPF/CNPJ do titular.' });
+          setCheckoutLoading(false);
+          return;
+        }
+      }
+
       const res = await createCheckoutApi({
         listingId: selectedListingId,
         plan: selectedPlan.id,
         billingCycle,
-        paymentMethod: 'PIX',
+        paymentMethod,
         couponCode: appliedCoupon?.code,
+        ...(paymentMethod === 'CREDIT_CARD'
+          ? {
+              creditCard: {
+                holderName: cardHolderName.trim(),
+                number: cardNumber.replace(/\D/g, ''),
+                expiryMonth: cardExpiryMonth.trim().padStart(2, '0'),
+                expiryYear: cardExpiryYear.trim().length === 2 ? `20${cardExpiryYear.trim()}` : cardExpiryYear.trim(),
+                ccv: cardCcv.trim(),
+              },
+              creditCardHolderInfo: {
+                name: cardHolderName.trim(),
+                cpfCnpj: cardCpfCnpj.replace(/\D/g, ''),
+                postalCode: '47800000',
+                addressNumber: '100',
+                phone: '77999999999',
+              },
+            }
+          : {}),
       });
 
+      if (res.isPaid) {
+        setFeedback({
+          type: 'success',
+          message: '🎉 Pagamento com Cartão de Crédito aprovado instantaneamente! Seu plano já está ativo.',
+        });
+        setModalOpen(false);
+        setCheckoutResult(null);
+        await loadData();
+        return;
+      }
+
       setCheckoutResult({
-        subscriptionId: res.subscriptionId,
-        pixQrCode: res.pixQrCode,
+        subscriptionId: res.subscriptionId || '',
+        pixQrCode: res.pixQrCode || '',
         price: res.price,
         billingCycle: res.billingCycle,
       });
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Erro ao gerar cobrança PIX.' });
+      setFeedback({ type: 'error', message: err.message || 'Erro ao processar cobrança.' });
     } finally {
       setCheckoutLoading(false);
     }
@@ -810,6 +864,127 @@ export default function MerchantPlansPage() {
                   )}
                 </div>
 
+                {/* Escolha da Forma de Pagamento */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">
+                    Forma de Pagamento:
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('PIX')}
+                      className={`p-3 rounded-2xl border flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+                        paymentMethod === 'PIX'
+                          ? 'border-emerald-500 bg-emerald-50/60 text-emerald-800 shadow-sm'
+                          : 'border-neutral-200 hover:border-neutral-300 text-neutral-600'
+                      }`}
+                    >
+                      <QrCode className="w-4 h-4 text-emerald-600" />
+                      PIX Instantâneo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('CREDIT_CARD')}
+                      className={`p-3 rounded-2xl border flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+                        paymentMethod === 'CREDIT_CARD'
+                          ? 'border-amber-500 bg-amber-50/60 text-amber-900 shadow-sm'
+                          : 'border-neutral-200 hover:border-neutral-300 text-neutral-600'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4 text-amber-600" />
+                      Cartão de Crédito
+                    </button>
+                  </div>
+                </div>
+
+                {/* Formulário de Cartão de Crédito */}
+                {paymentMethod === 'CREDIT_CARD' && (
+                  <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-neutral-700">
+                      <CreditCard className="w-4 h-4 text-amber-600" />
+                      Dados do Cartão (Gateway Seguro Asaas)
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                        Nome impresso no cartão
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: JOAO S SILVA"
+                        value={cardHolderName}
+                        onChange={(e) => setCardHolderName(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                        Número do cartão
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="0000 0000 0000 0000"
+                        maxLength={19}
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                          Mês (MM)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="12"
+                          maxLength={2}
+                          value={cardExpiryMonth}
+                          onChange={(e) => setCardExpiryMonth(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                          Ano (AA/AAAA)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="2028"
+                          maxLength={4}
+                          value={cardExpiryYear}
+                          onChange={(e) => setCardExpiryYear(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                          CVV
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="123"
+                          maxLength={4}
+                          value={cardCcv}
+                          onChange={(e) => setCardCcv(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-neutral-600 mb-1">
+                        CPF ou CNPJ do titular
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="000.000.000-00"
+                        value={cardCpfCnpj}
+                        onChange={(e) => setCardCpfCnpj(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Cupom Promocional */}
                 <div className="bg-neutral-50/80 rounded-2xl p-4 border border-neutral-200/70">
                   <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2 flex items-center gap-1.5">
@@ -909,12 +1084,21 @@ export default function MerchantPlansPage() {
                 <button
                   onClick={handleGenerateCheckout}
                   disabled={checkoutLoading || listings.length === 0}
-                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                  className={`w-full py-4 rounded-2xl text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 ${
+                    paymentMethod === 'CREDIT_CARD'
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                  }`}
                 >
                   {checkoutLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Gerando QR Code PIX...
+                      {paymentMethod === 'CREDIT_CARD' ? 'Processando Cartão...' : 'Gerando QR Code PIX...'}
+                    </>
+                  ) : paymentMethod === 'CREDIT_CARD' ? (
+                    <>
+                      <CreditCard className="w-5 h-5" />
+                      Pagar com Cartão de Crédito
                     </>
                   ) : (
                     <>

@@ -133,6 +133,7 @@ export class BillingService implements OnApplicationBootstrap {
   private async ensureMerchantProfile(user: any) {
     let merchant = await this.prisma.merchantProfile.findUnique({
       where: { userId: user.id },
+      include: { user: true },
     });
 
     if (!merchant) {
@@ -143,6 +144,7 @@ export class BillingService implements OnApplicationBootstrap {
           isApproved: true,
           approvedAt: new Date(),
         },
+        include: { user: true },
       });
     }
 
@@ -213,6 +215,116 @@ export class BillingService implements OnApplicationBootstrap {
           percentualValue: Number(listingWithCity.city.franchiseFeePercent || 80),
         },
       ];
+    }
+
+    // Checkout com Cartão de Crédito
+    if (dto.paymentMethod === PaymentMethod.CREDIT_CARD) {
+      if (!dto.creditCard || !dto.creditCardHolderInfo) {
+        throw new BadRequestException('Dados do cartão de crédito e do titular são obrigatórios.');
+      }
+
+      const cardCharge = await this.asaasService.createCreditCardCharge({
+        customerId: asaasCustomerId,
+        value: finalPrice,
+        description: `Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'})${appliedCouponCode ? ` [Cupom ${appliedCouponCode}]` : ''} - Os Melhores da Cidade`,
+        externalReference: `sub_${Math.random().toString(36).substring(2, 10)}`,
+        dueDate: new Date().toISOString().split('T')[0],
+        split: splitConfig,
+        creditCard: dto.creditCard,
+        creditCardHolderInfo: dto.creditCardHolderInfo,
+      });
+
+      const isApproved = cardCharge.isApproved;
+      const days = dto.billingCycle === 'YEARLY' ? 365 : 30;
+      const now = new Date();
+      const endDate = isApproved ? new Date(now.getTime() + days * 24 * 60 * 60 * 1000) : null;
+
+      const subscription = await this.prisma.merchantSubscription.create({
+        data: {
+          merchantProfileId: merchant.id,
+          listingId: dto.listingId,
+          plan: dto.plan,
+          status: isApproved ? PaymentStatus.PAID : PaymentStatus.PENDING,
+          price: finalPrice,
+          discountAmount,
+          couponId,
+          billingCycle: dto.billingCycle || 'MONTHLY',
+          startDate: now,
+          endDate,
+          gatewayPaymentId: cardCharge.paymentId,
+          gatewayInvoiceUrl: cardCharge.invoiceUrl,
+        },
+        include: {
+          listing: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      await this.prisma.subscriptionPayment.create({
+        data: {
+          subscriptionId: subscription.id,
+          amount: finalPrice,
+          method: PaymentMethod.CREDIT_CARD,
+          status: isApproved ? PaymentStatus.PAID : PaymentStatus.PENDING,
+          paidAt: isApproved ? now : null,
+        },
+      });
+
+      if (isApproved) {
+        await this.prisma.listing.update({
+          where: { id: dto.listingId },
+          data: { isFeatured: true },
+        });
+
+        if (couponId) {
+          await this.prisma.subscriptionCoupon
+            .update({
+              where: { id: couponId },
+              data: { usedCount: { increment: 1 } },
+            })
+            .catch(() => {});
+        }
+
+        if (merchant.user?.email && endDate) {
+          const year = now.getFullYear();
+          const invoiceNumber = `FAT-${year}-${subscription.id.substring(0, 8).toUpperCase()}`;
+          const verificationCode = `OSM-${subscription.id.replace(/-/g, '').substring(0, 16).toUpperCase()}`;
+          const webBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://osmelhoresdacidade.com.br';
+
+          this.mailService
+            .sendSubscriptionPaidInvoiceEmail({
+              merchantName: merchant.user.name,
+              merchantEmail: merchant.user.email,
+              listingName: subscription.listing?.name || 'Seu Estabelecimento',
+              planName: selectedPlan.name,
+              billingCycle: dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal',
+              amountPaid: finalPrice,
+              validUntilDate: endDate.toLocaleDateString('pt-BR'),
+              invoiceNumber,
+              invoiceUrl: `${webBaseUrl}/comerciante/fatura/${subscription.id}`,
+              verificationCode,
+            })
+            .catch(() => {});
+        }
+      }
+
+      return {
+        success: true,
+        isPaid: isApproved,
+        status: isApproved ? 'PAID' : 'PENDING',
+        subscriptionId: subscription.id,
+        plan: selectedPlan,
+        basePrice,
+        discountAmount,
+        price: finalPrice,
+        couponCode: appliedCouponCode,
+        billingCycle: subscription.billingCycle,
+        gatewayInvoiceUrl: cardCharge.invoiceUrl,
+        gatewayPaymentId: cardCharge.paymentId,
+        listing: subscription.listing,
+        message: isApproved
+          ? 'Pagamento com cartão aprovado instantaneamente!'
+          : 'Aguardando processamento do cartão.',
+      };
     }
 
     const asaasCharge = await this.asaasService.createPixCharge({

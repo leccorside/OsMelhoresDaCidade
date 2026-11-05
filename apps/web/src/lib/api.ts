@@ -1293,7 +1293,7 @@ export interface MerchantReviewItem {
     id: string;
     name: string;
     avatarUrl?: string | null;
-    email: string;
+    email?: string;
   };
   rating: number;
   comment?: string | null;
@@ -2018,14 +2018,36 @@ export async function fetchMerchantSubscriptionsApi(): Promise<MerchantSubscript
   return res.json();
 }
 
+export interface CreditCardPayload {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
+export interface CreditCardHolderPayload {
+  name: string;
+  email?: string;
+  cpfCnpj: string;
+  postalCode?: string;
+  addressNumber?: string;
+  phone?: string;
+}
+
 export async function createCheckoutApi(data: {
   listingId: string;
   plan: string;
   billingCycle?: 'MONTHLY' | 'YEARLY';
-  paymentMethod?: string;
+  paymentMethod?: 'PIX' | 'CREDIT_CARD';
   couponCode?: string;
+  creditCard?: CreditCardPayload;
+  creditCardHolderInfo?: CreditCardHolderPayload;
 }): Promise<{
   success: boolean;
+  isPaid?: boolean;
+  status?: string;
+  message?: string;
   subscriptionId: string;
   plan: BillingPlan;
   basePrice?: number;
@@ -2033,10 +2055,10 @@ export async function createCheckoutApi(data: {
   couponCode?: string | null;
   price: number;
   billingCycle: string;
-  pixQrCode: string;
+  pixQrCode?: string;
   gatewayInvoiceUrl: string;
   listing: { id: string; name: string; slug: string };
-  expiresAt: string;
+  expiresAt?: string;
 }> {
   const url = `${getApiBaseUrl()}/billing/checkout`;
   const res = await fetch(url, {
