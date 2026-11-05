@@ -16,6 +16,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { FranchiseModule } from './modules/franchise/franchise.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { FranchiseModule } from './modules/franchise/franchise.module';
     CouponsModule,
     BillingModule,
     FranchiseModule,
+    WebhooksModule,
     FavoritesModule,
     AdminModule,
     BlogModule,

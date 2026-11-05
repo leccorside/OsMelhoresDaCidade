@@ -704,6 +704,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Bloco de anotações com persistência rápida ("Salvar Nota").
     - Botão direto para WhatsApp com disparo do pitch comercial estruturado para conversão de planos VIP.
 
+### AQ. Webhooks para Sistemas Externos e Automações (Zapier / CRM / Make)
+- **Modelagem Prisma & PostgreSQL (`apps/api/prisma/schema.prisma`)**:
+  - Novo modelo `WebhookEndpoint` com campos: `id`, `url`, `secret` (chave secreta para HMAC-SHA256), `description`, `events` (array de strings), `isActive`, `createdAt` e `updatedAt`. Sincronizado no banco PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Módulo e serviço [`WebhooksService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/webhooks/webhooks.service.ts):
+    - Assinatura criptográfica `X-Signature: sha256={hmac}` e header de evento `X-Event`.
+    - Método `dispatch(event, payload)` assíncrono em lote com timeout e tratamento de falhas resiliente.
+    - Conectado ao funil de faturamento em [`BillingService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts) despachando o evento `SUBSCRIPTION_PAID` automaticamente quando pagamentos são quitados (Cartão de Crédito ou PIX).
+  - Controller [`WebhooksController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/webhooks/webhooks.controller.ts) com rotas protegidas sob `/api/v1/admin/webhooks` (`GET /`, `POST /`, `DELETE /:id`, `POST /:id/test`).
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens e clientes `fetchAdminWebhooksApi`, `createAdminWebhookApi`, `deleteAdminWebhookApi` e `testAdminWebhookApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Seção dedicada em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx):
+    - Formulário para cadastro de novos webhooks com seleção de eventos (`SUBSCRIPTION_PAID`, `SPLIT_SETTLED`).
+    - Tabela de endpoints ativos com visualização de secret mascarado.
+    - Botão de **Testar Ping** simulando evento de conectividade em tempo real com indicador visual de status HTTP.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { AsaasService } from './asaas.service';
 import { MailService } from '../../common/mail/mail.service';
 import {
@@ -47,6 +48,7 @@ export class BillingService implements OnApplicationBootstrap {
     private readonly notificationsService: NotificationsService,
     private readonly asaasService: AsaasService,
     private readonly mailService: MailService,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -284,6 +286,19 @@ export class BillingService implements OnApplicationBootstrap {
             })
             .catch(() => {});
         }
+
+        // Despachar webhook
+        this.webhooksService.dispatch('SUBSCRIPTION_PAID', {
+          subscriptionId: subscription.id,
+          plan: subscription.plan,
+          price: Number(subscription.price),
+          billingCycle: subscription.billingCycle,
+          listingId: subscription.listingId,
+          merchantName: merchant.user?.name || merchant.companyName,
+          merchantEmail: merchant.user?.email,
+          paymentMethod: dto.paymentMethod || 'CREDIT_CARD',
+          paidAt: now.toISOString(),
+        });
 
         if (merchant.user?.email && endDate) {
           const year = now.getFullYear();
@@ -799,6 +814,20 @@ export class BillingService implements OnApplicationBootstrap {
         const verificationCode = `OSM-${subscription.id.replace(/-/g, '').substring(0, 16).toUpperCase()}`;
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4100';
         const invoiceUrl = `${siteUrl}/comerciante/fatura/${subscription.id}`;
+
+        
+        // Despachar evento para Webhooks externos (CRMs, Zapier, Make)
+        this.webhooksService.dispatch('SUBSCRIPTION_PAID', {
+          subscriptionId: subscription.id,
+          plan: subscription.plan,
+          price: Number(subscription.price),
+          billingCycle: subscription.billingCycle,
+          listingId: subscription.listingId,
+          merchantName: subscription.merchantProfile?.user?.name || 'Comerciante',
+          merchantEmail: subscription.merchantProfile?.user?.email,
+          paymentMethod: 'ONLINE_PAYMENT',
+          paidAt: new Date().toISOString(),
+        });
 
         await this.mailService.sendSubscriptionPaidInvoiceEmail({
           merchantName: subscription.merchantProfile.user.name || 'Parceiro',

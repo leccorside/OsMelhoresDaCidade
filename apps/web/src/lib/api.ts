@@ -2887,3 +2887,88 @@ export async function updateFranchiseLeadPipelineApi(
 
   return res.json();
 }
+
+export interface WebhookEndpointItem {
+  id: string;
+  url: string;
+  description?: string;
+  events: string[];
+  secret: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export async function fetchAdminWebhooksApi(): Promise<WebhookEndpointItem[]> {
+  const url = `${getApiBaseUrl()}/admin/webhooks`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao buscar webhooks: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createAdminWebhookApi(payload: {
+  url: string;
+  description?: string;
+  events: string[];
+  secret?: string;
+}): Promise<WebhookEndpointItem> {
+  const url = `${getApiBaseUrl()}/admin/webhooks`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao cadastrar webhook: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteAdminWebhookApi(id: string): Promise<any> {
+  const url = `${getApiBaseUrl()}/admin/webhooks/${id}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao excluir webhook: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function testAdminWebhookApi(id: string): Promise<{ success: boolean; status?: number; error?: string; url: string }> {
+  const url = `${getApiBaseUrl()}/admin/webhooks/${id}/test`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao testar webhook: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

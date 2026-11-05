@@ -938,3 +938,16 @@ model SubscriptionPayment {
   @@index([subscriptionId])
   @@map("subscription_payments")
 }
+
+model WebhookEndpoint {
+  id          String   @id @default(uuid())
+  url         String
+  secret      String   @default(uuid())
+  description String?
+  events      String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("webhook_endpoints")
+}
