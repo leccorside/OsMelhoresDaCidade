@@ -2520,6 +2520,136 @@ export async function processSubscriptionRenewalsApi(): Promise<ProcessRenewalsR
   return res.json();
 }
 
+// -----------------------------------------------------------------------------
+// FRANQUIA REGIONAL & GESTÃO DA CIDADE
+// -----------------------------------------------------------------------------
+
+export interface FranchiseOverviewData {
+  city: {
+    id: string;
+    name: string;
+    slug: string;
+    uf: string;
+    franchiseName: string;
+    franchiseCnpj: string | null;
+    franchisePixKey: string | null;
+    franchisePixType: string | null;
+    franchiseFeePercent: number;
+    platformFeePercent: number;
+    splitEnabled: boolean;
+  };
+  stats: {
+    totalListings: number;
+    publishedListings: number;
+    pendingListings: number;
+    activeVipCount: number;
+    monthlyRevenue: number;
+    franchiseCommission: number;
+    platformCommission: number;
+    vipPlansBreakdown: {
+      bronze: number;
+      prata: number;
+      ouro: number;
+    };
+  };
+}
+
+export interface FranchiseMerchantItem {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  categoryName: string;
+  address: string;
+  phone: string;
+  ownerName: string;
+  ownerEmail: string | null;
+  isVip: boolean;
+  currentPlan: string;
+  planExpiresAt: string | null;
+  whatsAppLink: string | null;
+}
+
+export interface FranchiseSubscriptionItem {
+  id: string;
+  listingName: string;
+  merchantName: string;
+  plan: string;
+  status: string;
+  billingCycle: string;
+  grossAmount: number;
+  franchiseCut: number;
+  platformCut: number;
+  startDate: string;
+  endDate: string | null;
+  createdAt: string;
+}
+
+export async function fetchFranchiseOverviewApi(cityId?: string): Promise<FranchiseOverviewData> {
+  const query = cityId ? `?cityId=${cityId}` : '';
+  const url = `${getApiBaseUrl()}/franchise/overview${query}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao carregar dados da franquia.');
+  }
+
+  return res.json();
+}
+
+export async function fetchFranchiseMerchantsApi(params?: {
+  search?: string;
+  status?: string;
+  cityId?: string;
+}): Promise<FranchiseMerchantItem[]> {
+  const q = new URLSearchParams();
+  if (params?.search) q.append('search', params.search);
+  if (params?.status) q.append('status', params.status);
+  if (params?.cityId) q.append('cityId', params.cityId);
+
+  const url = `${getApiBaseUrl()}/franchise/merchants?${q.toString()}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao buscar lojistas da franquia.');
+  }
+
+  return res.json();
+}
+
+export async function fetchFranchiseSubscriptionsApi(cityId?: string): Promise<FranchiseSubscriptionItem[]> {
+  const query = cityId ? `?cityId=${cityId}` : '';
+  const url = `${getApiBaseUrl()}/franchise/subscriptions${query}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Erro ao buscar assinaturas da cidade.');
+  }
+
+  return res.json();
+}
+
 
 
 

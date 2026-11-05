@@ -10,6 +10,7 @@ generator client {
 enum Role {
   USER
   MERCHANT
+  FRANCHISEE
   ADMIN
 }
 
@@ -94,6 +95,7 @@ model City {
   blogPosts       BlogPost[]
   banners         Banner[]
   citySettings    CitySetting[]
+  franchisees     User[]         @relation("FranchiseManager")
 
   @@index([slug])
   @@index([isPublished])
@@ -128,6 +130,8 @@ model User {
   preferredCityId        String?
   preferredLocale        String                   @default("pt-BR")
   role                   Role                     @default(USER)
+  franchiseCityId        String?
+  franchiseCity          City?                    @relation("FranchiseManager", fields: [franchiseCityId], references: [id], onDelete: SetNull)
   isEmailVerified        Boolean                  @default(false)
   isActive               Boolean                  @default(true)
   createdAt              DateTime                 @default(now())

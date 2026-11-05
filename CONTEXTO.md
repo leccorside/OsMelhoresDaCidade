@@ -608,6 +608,20 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Banner dinâmico de atenção no painel [`/comerciante/planos`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/planos/page.tsx) alertando sobre vencimento próximo (<= 7 dias) com botão de renovação em 1 clique.
   - Seção "Lembretes de Renovação & Vencimentos (WhatsApp & E-mail)" no painel [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx) com botão de envio em lote e acionamento direto via WhatsApp Web com mensagem pré-formatada.
 
+### AJ. Painel Restrito do Franqueado Regional da Cidade
+- **Modelagem Prisma & Shared**:
+  - Adicionada role `FRANCHISEE` no enum `Role` e `UserRole` (`@os-melhores-da-cidade/shared`).
+  - Campo `franchiseCityId` e relação `City.franchisees` no modelo `User` sincronizados no PostgreSQL (porta 4103).
+- **Backend NestJS (`apps/api`)**:
+  - Novo módulo dedicado `FranchiseModule` com [`FranchiseService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.service.ts) e [`FranchiseController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/franchise/franchise.controller.ts) protegidos por `JwtAuthGuard` e `Roles(Role.FRANCHISEE, Role.ADMIN)`:
+    - `GET /api/v1/franchise/overview`: consolidação dos estabelecimentos da cidade, assinaturas VIP ativas, faturamento bruto da praça e comissão líquida do franqueado.
+    - `GET /api/v1/franchise/merchants`: busca e filtragem dos comerciantes locais com dados de contato, status do plano e links diretos para WhatsApp.
+    - `GET /api/v1/franchise/subscriptions`: extrato detalhado de pagamentos da cidade com cálculo transparente do split (80% Local / 20% Matriz).
+- **Frontend Next.js (`apps/web`)**:
+  - Tipagens `FranchiseOverviewData`, `FranchiseMerchantItem`, `FranchiseSubscriptionItem` e funções clientes em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Página dedicada [`/franqueado`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/franqueado/page.tsx) com 4 cards de KPIs da praça, abas interativas de "Comércios da Sua Praça" e "Extrato de Splits", busca de lojistas e botões de contato direto via WhatsApp.
+  - Atalho no menu do painel administrativo [`/admin/layout.tsx`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/layout.tsx).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

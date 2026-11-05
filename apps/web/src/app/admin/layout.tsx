@@ -28,6 +28,7 @@ import {
   Ticket,
   Send,
   DollarSign,
+  Building2,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -53,6 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Financeiro & Planos', href: '/admin/financeiro', icon: DollarSign },
+    { label: 'Painel do Franqueado', href: '/franqueado', icon: Building2 },
     { label: 'Usuários', href: '/admin/usuarios', icon: Users },
     { label: 'Comerciantes', href: '/admin/comerciantes', icon: Briefcase },
     { label: 'Estabelecimentos', href: '/admin/estabelecimentos', icon: Store },
