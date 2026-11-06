@@ -3024,3 +3024,26 @@ export async function fetchAdminAuditStatsApi(): Promise<AuditStatsItem> {
 
   return res.json();
 }
+
+
+export async function sendInvoiceWhatsAppApi(
+  invoiceId: string,
+  phone?: string,
+): Promise<{ success: boolean; phone: string; message: string; simulated?: boolean }> {
+  const url = `${getApiBaseUrl()}/billing/invoices/${encodeURIComponent(invoiceId)}/send-whatsapp`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(phone ? { phone } : {}),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `Erro ao disparar WhatsApp: HTTP ${res.status}`);
+  }
+
+  return res.json();
+}

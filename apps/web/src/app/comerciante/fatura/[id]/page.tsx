@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   FileText,
   Printer,
+  MessageCircle,
   ArrowLeft,
   CheckCircle2,
   Clock,
@@ -20,7 +21,7 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react';
-import { fetchInvoiceDetailsApi, InvoiceData } from '@/lib/api';
+import { fetchInvoiceDetailsApi, sendInvoiceWhatsAppApi, InvoiceData } from '@/lib/api';
 
 export default function InvoicePage() {
   const params = useParams();
@@ -30,6 +31,23 @@ export default function InvoicePage() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const [whatsAppFeedback, setWhatsAppFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleSendWhatsApp = async () => {
+    try {
+      setSendingWhatsApp(true);
+      setWhatsAppFeedback(null);
+      const res = await sendInvoiceWhatsAppApi(subscriptionId);
+      setWhatsAppFeedback({ type: 'success', message: res.message });
+      setTimeout(() => setWhatsAppFeedback(null), 6000);
+    } catch (err: any) {
+      setWhatsAppFeedback({ type: 'error', message: err.message || 'Erro ao enviar WhatsApp.' });
+      setTimeout(() => setWhatsAppFeedback(null), 6000);
+    } finally {
+      setSendingWhatsApp(false);
+    }
+  };
 
   useEffect(() => {
     if (!subscriptionId) return;
@@ -100,16 +118,38 @@ export default function InvoicePage() {
             Voltar para Planos de Destaque
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleSendWhatsApp}
+              disabled={sendingWhatsApp}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+            >
+              <MessageCircle className="w-4 h-4" />
+              {sendingWhatsApp ? 'Disparando...' : 'Receber no WhatsApp'}
+            </button>
+
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <Printer className="w-4 h-4" />
-              Imprimir / Salvar em PDF
+              Imprimir / PDF
             </button>
           </div>
         </div>
+
+        {whatsAppFeedback && (
+          <div
+            className={`mt-3 p-4 rounded-2xl text-xs font-semibold flex items-center gap-3 shadow-sm transition-all ${
+              whatsAppFeedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                : 'bg-rose-50 text-rose-800 border border-rose-300'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4 shrink-0" />
+            <span>{whatsAppFeedback.message}</span>
+          </div>
+        )}
       </div>
 
       {/* DOCUMENTO OFICIAL A4 DA FATURA */}

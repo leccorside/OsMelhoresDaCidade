@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../../common/mail/mail.service';
+import { WhatsAppBotService } from '../notifications/whatsapp-bot.service';
 import { PaymentStatus, NotificationType } from '@prisma/client';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class SubscriptionCronService
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
+    private readonly whatsAppBot: WhatsAppBotService,
   ) {}
 
   onApplicationBootstrap() {
@@ -72,7 +74,7 @@ export class SubscriptionCronService
           select: {
             id: true,
             companyName: true,
-            user: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true, email: true, phone: true } },
           },
         },
       },
@@ -154,7 +156,7 @@ export class SubscriptionCronService
           select: {
             id: true,
             companyName: true,
-            user: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true, email: true, phone: true } },
           },
         },
       },

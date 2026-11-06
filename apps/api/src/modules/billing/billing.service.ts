@@ -13,6 +13,7 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 import { AsaasService } from './asaas.service';
 import { MailService } from '../../common/mail/mail.service';
 import { AuditService } from '../audit/audit.service';
+import { WhatsAppBotService } from '../notifications/whatsapp-bot.service';
 import {
   SubscriptionPlan,
   PaymentStatus,
@@ -50,6 +51,7 @@ export class BillingService implements OnApplicationBootstrap {
     private readonly mailService: MailService,
     private readonly webhooksService: WebhooksService,
     private readonly auditService: AuditService,
+    private readonly whatsAppBot: WhatsAppBotService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -275,7 +277,20 @@ export class BillingService implements OnApplicationBootstrap {
         }
 
         // Despachar webhook
-        this.webhooksService.dispatch('SUBSCRIPTION_PAID', {
+        
+    // Notificar lojista via WhatsApp Bot
+    if (user?.phone) {
+      this.whatsAppBot.notifyMerchantInvoicePaid({
+        phone: user.phone,
+        merchantName: user.name || 'Lojista',
+        listingName: merchant.companyName || selectedPlan.name,
+        invoiceNumber: `FAT-${subscription.id.substring(0, 8).toUpperCase()}`,
+        amount: Number(subscription.price),
+        planName: subscription.plan.replace(/_/g, ' '),
+      }).catch(() => {});
+    }
+
+    this.webhooksService.dispatch('SUBSCRIPTION_PAID', {
           subscriptionId: subscription.id,
           plan: subscription.plan,
           price: Number(subscription.price),
@@ -689,7 +704,7 @@ export class BillingService implements OnApplicationBootstrap {
         merchantProfile: {
           select: {
             userId: true,
-            user: { select: { name: true, email: true } },
+            user: { select: { name: true, email: true, phone: true } },
           },
         },
       },
@@ -1610,4 +1625,52 @@ export class BillingService implements OnApplicationBootstrap {
 
 
   
+
+  /**
+   * Disparo sob demanda de Link de Fatura, Boleto e Código PIX para o WhatsApp do Lojista
+   */
+  async sendInvoiceWhatsApp(user: any, subscriptionId: string, customPhone?: string) {
+    const invoice = await this.getInvoiceDetails(user, subscriptionId);
+    const targetPhone = customPhone || (invoice.customer.contactPhone !== 'Não informado' ? invoice.customer.contactPhone : null);
+
+    if (!targetPhone) {
+      throw new BadRequestException('Nenhum número de telefone/WhatsApp localizado para envio da fatura.');
+    }
+
+    const invoiceUrl = `http://localhost:4100/comerciante/fatura/${subscriptionId}`;
+
+    const result = await this.whatsAppBot.notifyMerchantInvoiceDue({
+      phone: targetPhone,
+      merchantName: invoice.customer.companyName || invoice.customer.tradeName,
+      listingName: invoice.service.listingName,
+      invoiceNumber: invoice.invoiceNumber,
+      amount: invoice.service.netAmount,
+      dueDate: invoice.service.periodEnd ? new Date(invoice.service.periodEnd).toLocaleDateString('pt-BR') : 'Imediato',
+      invoiceUrl,
+      bankSlipUrl: invoice.service.gatewayInvoiceUrl || undefined,
+    });
+
+    await this.auditService.log({
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      action: 'INVOICE_WHATSAPP_SENT',
+      entity: 'INVOICE',
+      entityId: subscriptionId,
+      details: {
+        phone: targetPhone,
+        invoiceNumber: invoice.invoiceNumber,
+        amount: invoice.service.netAmount,
+        simulated: result.simulated,
+      },
+    });
+
+    return {
+      success: result.success,
+      phone: targetPhone,
+      message: `Fatura ${invoice.invoiceNumber} enviada com sucesso para o WhatsApp ${targetPhone}!`,
+      simulated: result.simulated,
+    };
+  }
+
 }

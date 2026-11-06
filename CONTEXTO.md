@@ -840,6 +840,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Atualização do relatório mensal `/admin/financeiro/fechamento` para modelo de balanço analítico direto.
   - Limpeza de todos os clientes e interfaces de franquia em `apps/web/src/lib/api.ts`.
 
+### AY. Disparo de Boletos Bancários e Notificação de Vencimento via WhatsApp Bot
+- **Backend NestJS (`apps/api`)**:
+  - Evolução do [`WhatsAppBotService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/whatsapp-bot.service.ts):
+    - `notifyMerchantInvoiceDue`: dispara mensagem estruturada e profissional com número da fatura, valor, data de vencimento, link da fatura web, link do boleto bancário PDF e código PIX Copia e Cola.
+    - `notifyMerchantSubscriptionExpiring`: dispara lembrete preventivo antes da expiração do plano para evitar perda de visibilidade e suspensão do selo VIP.
+    - `notifyMerchantInvoicePaid`: confirmação instantânea de recebimento do pagamento e ativação dos benefícios.
+  - Rotina automatizada em [`SubscriptionCronService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/subscription-cron.service.ts) acionando lembretes de WhatsApp para lojistas a vencer em até 3 dias.
+  - Endpoint `POST /api/v1/billing/invoices/:id/send-whatsapp` em [`BillingController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.controller.ts) com registro de trilha em `AuditLog`.
+- **Frontend Next.js (`apps/web`)**:
+  - Função `sendInvoiceWhatsAppApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
+  - Botão interativo "Receber no WhatsApp" com feedback visual em tempo real na página de fatura [`/comerciante/fatura/[id]`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/fatura/[id]/page.tsx).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -197,6 +197,19 @@ export class BillingController {
     return this.billingService.getMonthlyClosingReport(currentYear, currentMonth);
   }
 
+  @Post('invoices/:id/send-whatsapp')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.MERCHANT, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enviar fatura, boleto e código PIX para o WhatsApp do lojista' })
+  sendInvoiceWhatsApp(
+    @CurrentUser() user: any,
+    @Param('id') invoiceId: string,
+    @Body('phone') phone?: string,
+  ) {
+    return this.billingService.sendInvoiceWhatsApp(user, invoiceId, phone);
+  }
+
   @Post('webhook/asaas')
   @ApiOperation({ summary: 'Webhook oficial do Asaas para recebimento e confirmação de pagamentos PIX' })
   async handleAsaasWebhook(
