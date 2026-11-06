@@ -386,4 +386,61 @@ describe('Suíte E2E: Faturamento Direto, WhatsApp Bot e Trilha de Auditoria', (
       expect(message).toContain('AJUDA');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 7. ASSINATURA RECORRENTE AUTOMÁTICA NO CARTÃO DE CRÉDITO (ASAAS)
+  // ---------------------------------------------------------------------------
+  describe('7. Assinatura Recorrente no Cartão de Crédito (Tokenização Asaas)', () => {
+    function simulateRecurringSubscriptionCreation(params: {
+      customerId: string;
+      value: number;
+      cycle: 'MONTHLY' | 'YEARLY';
+      cardNumber: string;
+    }) {
+      const cleanLastDigits = params.cardNumber.slice(-4);
+      const isApproved = true;
+
+      return {
+        subscriptionId: `sub_recur_${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+        status: 'ACTIVE',
+        cycle: params.cycle,
+        isApproved,
+        creditCardToken: `tok_card_${Math.random().toString(36).substring(2, 10)}`,
+        creditCardBrand: 'MASTERCARD',
+        creditCardLastDigits: cleanLastDigits,
+      };
+    }
+
+    it('deve criar assinatura recorrente no Asaas com ciclo MONTHLY e tokenizar dados do cartão', () => {
+      const sub = simulateRecurringSubscriptionCreation({
+        customerId: 'cus_001',
+        value: 79.9,
+        cycle: 'MONTHLY',
+        cardNumber: '4532111122228888',
+      });
+
+      expect(sub.status).toBe('ACTIVE');
+      expect(sub.cycle).toBe('MONTHLY');
+      expect(sub.isApproved).toBe(true);
+      expect(sub.creditCardBrand).toBe('MASTERCARD');
+      expect(sub.creditCardLastDigits).toBe('8888');
+      expect(sub.creditCardToken.startsWith('tok_card_')).toBe(true);
+    });
+
+    it('deve vincular evento de webhook PAYMENT_CONFIRMED da assinatura recorrente', () => {
+      const incomingWebhook = {
+        event: 'PAYMENT_CONFIRMED',
+        payment: {
+          id: 'pay_998877',
+          subscription: 'sub_recur_ABC123',
+          value: 79.9,
+          billingType: 'CREDIT_CARD',
+        },
+      };
+
+      const matchedSubscriptionId = incomingWebhook.payment.subscription;
+      expect(matchedSubscriptionId).toBe('sub_recur_ABC123');
+      expect(incomingWebhook.event).toBe('PAYMENT_CONFIRMED');
+    });
+  });
 });

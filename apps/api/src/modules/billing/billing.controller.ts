@@ -227,6 +227,7 @@ export class BillingController {
       return this.billingService.confirmPaymentByGateway(
         payment?.id,
         payment?.externalReference,
+        payment?.subscription,
       );
     }
 

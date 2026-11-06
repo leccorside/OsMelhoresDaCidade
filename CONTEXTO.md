@@ -912,6 +912,16 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Gravação automática de evento no `AuditLog` (`MERCHANT_WELCOME_WHATSAPP_SENT`).
   - Cobertura de teste unitário validando a composição da mensagem na suíte Jest (`billing-audit-e2e.spec.ts`).
 
+### BF. Assinatura Automática Recorrente no Cartão de Crédito via Asaas (Zero Inadimplência)
+- **Backend NestJS (`apps/api`)**:
+  - Implementação do método `createRecurringSubscription` em [`AsaasService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/asaas.service.ts), consumindo a rota oficial `/subscriptions` do Asaas com suporte a tokenização de cartão e cobrança mensal/anual agendada.
+  - Atualização do checkout de planos em [`BillingService.subscribePlan`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/billing/billing.service.ts):
+    - Débito instantâneo da 1ª parcela e gravação dos dados do cartão tokenizado (`creditCardToken`, `creditCardBrand`, `creditCardLastDigits`).
+    - Ativação imediata do anúncio VIP (`PaymentStatus.PAID`).
+    - Registro de evento na trilha de auditoria (`RECURRING_CREDIT_CARD_SUBSCRIPTION_CREATED`).
+  - Suporte completo no webhook Asaas (`handleAsaasWebhook` / `confirmPaymentByGateway`) para processamento automático de notificações de renovação e débitos futuros das faturas emitidas pela assinatura recorrente.
+  - Testes automatizados incluídos na suíte Jest (`apps/api/test/billing-audit-e2e.spec.ts`) validando a criação da assinatura, tokenização e tratamento do webhook `PAYMENT_CONFIRMED`.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

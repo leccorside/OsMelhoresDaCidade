@@ -209,24 +209,24 @@ export class BillingService implements OnApplicationBootstrap {
 
     let splitConfig: any = undefined;
 
-    // Checkout com Cartão de Crédito
+    // Checkout com Cartão de Crédito Recorrente (Tokenização e Débito Automático no Asaas)
     if (dto.paymentMethod === PaymentMethod.CREDIT_CARD) {
       if (!dto.creditCard || !dto.creditCardHolderInfo) {
         throw new BadRequestException('Dados do cartão de crédito e do titular são obrigatórios.');
       }
 
-      const cardCharge = await this.asaasService.createCreditCardCharge({
+      const recurringSub = await this.asaasService.createRecurringSubscription({
         customerId: asaasCustomerId,
         value: finalPrice,
-        description: `Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'})${appliedCouponCode ? ` [Cupom ${appliedCouponCode}]` : ''} - Os Melhores da Cidade`,
-        externalReference: `sub_${Math.random().toString(36).substring(2, 10)}`,
-        dueDate: new Date().toISOString().split('T')[0],
+        description: `Assinatura Automática - Plano ${selectedPlan.name} (${dto.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'})${appliedCouponCode ? ` [Cupom ${appliedCouponCode}]` : ''} - Os Melhores da Cidade`,
+        cycle: dto.billingCycle === 'YEARLY' ? 'YEARLY' : 'MONTHLY',
+        nextDueDate: new Date().toISOString().split('T')[0],
         split: splitConfig,
         creditCard: dto.creditCard,
         creditCardHolderInfo: dto.creditCardHolderInfo,
       });
 
-      const isApproved = cardCharge.isApproved;
+      const isApproved = recurringSub.isApproved;
       const days = dto.billingCycle === 'YEARLY' ? 365 : 30;
       const now = new Date();
       const endDate = isApproved ? new Date(now.getTime() + days * 24 * 60 * 60 * 1000) : null;
@@ -243,8 +243,8 @@ export class BillingService implements OnApplicationBootstrap {
           billingCycle: dto.billingCycle || 'MONTHLY',
           startDate: now,
           endDate,
-          gatewayPaymentId: cardCharge.paymentId,
-          gatewayInvoiceUrl: cardCharge.invoiceUrl,
+          gatewayPaymentId: recurringSub.subscriptionId,
+          gatewayInvoiceUrl: recurringSub.invoiceUrl,
         },
         include: {
           listing: { select: { id: true, name: true, slug: true } },
@@ -258,6 +258,32 @@ export class BillingService implements OnApplicationBootstrap {
           method: PaymentMethod.CREDIT_CARD,
           status: isApproved ? PaymentStatus.PAID : PaymentStatus.PENDING,
           paidAt: isApproved ? now : null,
+          gatewayResponse: {
+            asaasSubscriptionId: recurringSub.subscriptionId,
+            creditCardToken: recurringSub.creditCardToken,
+            creditCardBrand: recurringSub.creditCardBrand,
+            creditCardLastDigits: recurringSub.creditCardLastDigits,
+            cycle: recurringSub.cycle,
+            isRecurring: true,
+          },
+        },
+      });
+
+      await this.auditService.log({
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'RECURRING_CREDIT_CARD_SUBSCRIPTION_CREATED',
+        entity: 'SUBSCRIPTION',
+        entityId: subscription.id,
+        details: {
+          asaasSubscriptionId: recurringSub.subscriptionId,
+          plan: dto.plan,
+          cycle: recurringSub.cycle,
+          brand: recurringSub.creditCardBrand,
+          lastDigits: recurringSub.creditCardLastDigits,
+          value: finalPrice,
         },
       });
 
@@ -336,11 +362,11 @@ export class BillingService implements OnApplicationBootstrap {
         price: finalPrice,
         couponCode: appliedCouponCode,
         billingCycle: subscription.billingCycle,
-        gatewayInvoiceUrl: cardCharge.invoiceUrl,
-        gatewayPaymentId: cardCharge.paymentId,
+        gatewayInvoiceUrl: recurringSub.invoiceUrl,
+        gatewayPaymentId: recurringSub.subscriptionId,
         listing: subscription.listing,
         message: isApproved
-          ? 'Pagamento com cartão aprovado instantaneamente!'
+          ? 'Assinatura recorrente com cartão ativada com sucesso!'
           : 'Aguardando processamento do cartão.',
       };
     }
@@ -673,9 +699,13 @@ export class BillingService implements OnApplicationBootstrap {
   }
 
   /**
-   * Gestão de Splits e Franquias Regionais por Cidade
+   * Confirmação de recebimento de pagamentos via Gateway Asaas (PIX ou Cartão Recorrente)
    */
-  async confirmPaymentByGateway(gatewayPaymentId: string, externalReference?: string) {
+  async confirmPaymentByGateway(
+    gatewayPaymentId: string,
+    externalReference?: string,
+    asaasSubscriptionId?: string,
+  ) {
     let subscription = null;
     if (externalReference) {
       subscription = await this.prisma.merchantSubscription.findFirst({
@@ -687,9 +717,14 @@ export class BillingService implements OnApplicationBootstrap {
         where: { gatewayPaymentId },
       });
     }
+    if (!subscription && asaasSubscriptionId) {
+      subscription = await this.prisma.merchantSubscription.findFirst({
+        where: { gatewayPaymentId: asaasSubscriptionId },
+      });
+    }
 
     if (!subscription) {
-      this.logger.warn(`Assinatura não localizada para webhook Asaas: ${gatewayPaymentId}`);
+      this.logger.warn(`Assinatura não localizada para webhook Asaas: ${gatewayPaymentId || asaasSubscriptionId}`);
       return { success: false, message: 'Assinatura não localizada' };
     }
 

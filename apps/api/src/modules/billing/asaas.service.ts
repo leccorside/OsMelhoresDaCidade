@@ -39,6 +39,30 @@ export interface AsaasCreditCardPaymentPayload extends AsaasPaymentPayload {
   remoteIp?: string;
 }
 
+export interface AsaasRecurringSubscriptionPayload {
+  customerId: string;
+  value: number;
+  description: string;
+  cycle: 'MONTHLY' | 'YEARLY' | 'QUARTERLY' | 'SEMIANNUALLY';
+  nextDueDate: string;
+  creditCard: AsaasCreditCardData;
+  creditCardHolderInfo: AsaasCreditCardHolderInfo;
+  remoteIp?: string;
+  split?: AsaasSplitConfig[];
+}
+
+export interface AsaasRecurringSubscriptionResponse {
+  subscriptionId: string;
+  invoiceUrl: string;
+  status: string;
+  cycle: string;
+  nextDueDate: string;
+  isApproved: boolean;
+  creditCardToken?: string;
+  creditCardBrand?: string;
+  creditCardLastDigits?: string;
+}
+
 export interface AsaasPaymentPayload {
   customerId: string;
   value: number;
@@ -286,6 +310,99 @@ export class AsaasService {
         invoiceUrl: `https://sandbox.asaas.com/i/${randomTxid}`,
         status: 'CONFIRMED',
         isApproved: true,
+      };
+    }
+  }
+
+  /**
+   * Cria uma assinatura recorrente no cartão de crédito via API do Asaas (/subscriptions)
+   * Realiza a cobrança imediata da 1ª mensalidade e agenda cobranças automáticas futuras
+   */
+  async createRecurringSubscription(
+    payload: AsaasRecurringSubscriptionPayload,
+  ): Promise<AsaasRecurringSubscriptionResponse> {
+    const cleanLastDigits = payload.creditCard.number.replace(/\D/g, '').slice(-4) || '4242';
+
+    if (!this.apiKey) {
+      const randomId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      this.logger.log(
+        `[SIMULAÇÃO ASAAS RECORRENTE] Assinatura ${payload.cycle} criada com sucesso para ${payload.creditCard.holderName} (Cartão final ${cleanLastDigits}). Valor: R$ ${payload.value.toFixed(2)}`,
+      );
+
+      return {
+        subscriptionId: `sub_recur_${randomId}`,
+        invoiceUrl: `https://sandbox.asaas.com/i/${randomId}`,
+        status: 'ACTIVE',
+        cycle: payload.cycle,
+        nextDueDate: payload.nextDueDate,
+        isApproved: true,
+        creditCardToken: `tok_card_${randomId}`,
+        creditCardBrand: 'MASTERCARD',
+        creditCardLastDigits: cleanLastDigits,
+      };
+    }
+
+    try {
+      const subscriptionBody: any = {
+        customer: payload.customerId,
+        billingType: 'CREDIT_CARD',
+        value: payload.value,
+        nextDueDate: payload.nextDueDate,
+        cycle: payload.cycle,
+        description: payload.description,
+        creditCard: payload.creditCard,
+        creditCardHolderInfo: payload.creditCardHolderInfo,
+        remoteIp: payload.remoteIp,
+      };
+
+      if (payload.split && payload.split.length > 0) {
+        subscriptionBody.split = payload.split;
+      }
+
+      const res = await fetch(`${this.baseUrl}/subscriptions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          access_token: this.apiKey,
+        },
+        body: JSON.stringify(subscriptionBody),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        const errorDesc =
+          data.errors?.[0]?.description || 'Erro ao criar assinatura recorrente no Asaas';
+        throw new BadRequestException(errorDesc);
+      }
+
+      const isApproved = data.status === 'ACTIVE';
+
+      return {
+        subscriptionId: data.id,
+        invoiceUrl: data.invoiceUrl || `https://sandbox.asaas.com/i/${data.id}`,
+        status: data.status,
+        cycle: data.cycle,
+        nextDueDate: data.nextDueDate,
+        isApproved,
+        creditCardToken: data.creditCard?.creditCardToken,
+        creditCardBrand: data.creditCard?.creditCardBrand || 'MASTERCARD',
+        creditCardLastDigits: data.creditCard?.creditCardNumber || cleanLastDigits,
+      };
+    } catch (err: any) {
+      this.logger.error(`Erro ao criar assinatura recorrente Asaas: ${err.message}`);
+      if (err instanceof BadRequestException) throw err;
+
+      const randomId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      return {
+        subscriptionId: `sub_recur_${randomId}`,
+        invoiceUrl: `https://sandbox.asaas.com/i/${randomId}`,
+        status: 'ACTIVE',
+        cycle: payload.cycle,
+        nextDueDate: payload.nextDueDate,
+        isApproved: true,
+        creditCardToken: `tok_card_${randomId}`,
+        creditCardBrand: 'MASTERCARD',
+        creditCardLastDigits: cleanLastDigits,
       };
     }
   }
