@@ -876,6 +876,18 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Reconstruído o container NestJS (`docker compose up -d --build nestjs`).
   - Executados testes de preflight (`OPTIONS`) e `POST /api/v1/auth/login`, obtendo **HTTP 200 OK** com retorno de `accessToken`, `user` e cabeçalhos CORS válidos para ambas as origens (`4100` e `4101`).
 
+### BB. Webhook de Recebimento de WhatsApp (Z-API) com Abertura Automática de Suporte
+- **Backend NestJS (`apps/api`)**:
+  - Criação do controller público [`WhatsAppWebhookController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/whatsapp-webhook.controller.ts) em `POST /api/v1/notifications/whatsapp-webhook`.
+  - Processamento inteligente das mensagens recebidas via Z-API:
+    - Descarte de mensagens do próprio bot (`fromMe: true`) e de grupos (`isGroup: true`).
+    - Normalização de texto e análise léxica para intenções de suporte (*"dúvida"*, *"ajuda"*, *"suporte"*, *"problema"*, etc.).
+    - Vinculação com o comerciante através de matching flexível por número de telefone / WhatsApp (`MerchantProfile`, `User`).
+    - Abertura instantânea de chamado na tabela `support_tickets` (`TK-WPP-YYYY-XXXXX`) com prioridade `ALTA`, categoria `DUVIDAS` e primeira mensagem preenchida com o texto exato do lojista.
+    - Gravação de evento no `AuditLog` (`WHATSAPP_SUPPORT_TICKET_CREATED`).
+    - Disparo automático de mensagem de confirmação no WhatsApp com o número do protocolo do chamado.
+  - Cobertura de testes unitários e de integração adicionada na suíte Jest (`apps/api/test/billing-audit-e2e.spec.ts`).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

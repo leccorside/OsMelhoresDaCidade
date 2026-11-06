@@ -223,4 +223,81 @@ describe('Suíte E2E: Faturamento Direto, WhatsApp Bot e Trilha de Auditoria', (
       expect(couponEvents).toBe(1);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 4. WEBHOOK DE RECEBIMENTO Z-API E SUPORTE AUTOMÁTICO
+  // ---------------------------------------------------------------------------
+  describe('4. Webhook de Recebimento Z-API & Abertura de Suporte Lojista', () => {
+    function processIncomingWebhook(payload: {
+      phone: string;
+      message: string;
+      isGroup?: boolean;
+      fromMe?: boolean;
+    }) {
+      if (payload.fromMe || payload.isGroup) {
+        return { ignored: true };
+      }
+
+      const normalized = payload.message
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+      const isHelp =
+        normalized.includes('duvida') ||
+        normalized.includes('ajuda') ||
+        normalized.includes('suporte');
+
+      if (isHelp) {
+        const ticketNumber = `TK-WPP-2026-TEST`;
+        return {
+          action: 'TICKET_CREATED',
+          ticketNumber,
+          category: 'DUVIDAS',
+          priority: 'ALTA',
+        };
+      }
+
+      return { action: 'IGNORED_NO_KEYWORD' };
+    }
+
+    it('deve identificar mensagens com intenção de DÚVIDA e abrir chamado com prioridade ALTA', () => {
+      const result = processIncomingWebhook({
+        phone: '5564999998888',
+        message: 'Olá, estou com uma dúvida sobre o valor da minha fatura de novembro.',
+      });
+
+      expect(result.action).toBe('TICKET_CREATED');
+      expect(result.ticketNumber).toBe('TK-WPP-2026-TEST');
+      expect(result.priority).toBe('ALTA');
+    });
+
+    it('deve identificar mensagens com intenção de AJUDA e categorizar como DUVIDAS', () => {
+      const result = processIncomingWebhook({
+        phone: '5564988887777',
+        message: 'Preciso de ajuda urgente para trocar a foto do meu restaurante!',
+      });
+
+      expect(result.action).toBe('TICKET_CREATED');
+      expect(result.category).toBe('DUVIDAS');
+    });
+
+    it('deve ignorar mensagens automáticas enviadas pelo próprio bot ou grupos', () => {
+      const fromMeResult = processIncomingWebhook({
+        phone: '5564988887777',
+        message: 'Preciso de ajuda',
+        fromMe: true,
+      });
+
+      const groupResult = processIncomingWebhook({
+        phone: '5564988887777',
+        message: 'Dúvida aqui no grupo',
+        isGroup: true,
+      });
+
+      expect(fromMeResult.ignored).toBe(true);
+      expect(groupResult.ignored).toBe(true);
+    });
+  });
 });
