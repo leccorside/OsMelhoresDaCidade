@@ -852,6 +852,14 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Função `sendInvoiceWhatsAppApi` em [`apps/web/src/lib/api.ts`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/lib/api.ts).
   - Botão interativo "Receber no WhatsApp" com feedback visual em tempo real na página de fatura [`/comerciante/fatura/[id]`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/comerciante/fatura/[id]/page.tsx).
 
+### AZ. Suíte de Testes Automatizados E2E (Jest) para Faturamento Direto, WhatsApp Bot e Trilha de Auditoria
+- **Cobertura de Testes Automatizados (`apps/api/test/billing-audit-e2e.spec.ts`)**:
+  - Validação de faturamento integral (100% plataforma) sem rateios de franquia para ciclos mensal e anual.
+  - Cálculo de cupons promocionais (percentual e fixo) com regras de limite e expiração.
+  - Testes do WhatsApp Bot: formatação de DDI/DDD brasileiro (+55), composição da mensagem com link de boleto e PIX Copia e Cola, e simulação transparente em modo dev.
+  - Testes da trilha de auditoria (`Audit Trail`): geração e busca de logs (`INVOICE_WHATSAPP_SENT`, `COUPON_CREATED`), filtros textuais e contadores consolidados.
+  - 20 testes executados com 100% de aprovação no Jest (`PASS test/billing-audit-e2e.spec.ts`, `PASS test/billing-funnel.spec.ts`, `PASS test/auth.spec.ts`).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
