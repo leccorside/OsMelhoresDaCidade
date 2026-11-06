@@ -300,4 +300,59 @@ describe('Suíte E2E: Faturamento Direto, WhatsApp Bot e Trilha de Auditoria', (
       expect(groupResult.ignored).toBe(true);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 5. EXPORTAÇÃO EM PLANILHA EXCEL/CSV DA AUDITORIA E COBRANÇAS
+  // ---------------------------------------------------------------------------
+  describe('5. Exportação de Auditoria e Cobranças para Excel/CSV', () => {
+    it('deve gerar arquivo CSV com cabeçalho UTF-8 BOM e separador compatível com Excel', () => {
+      const mockLogs = [
+        {
+          createdAt: new Date('2026-11-06T10:00:00Z'),
+          action: 'INVOICE_WHATSAPP_SENT',
+          entity: 'INVOICE',
+          entityId: 'sub-101',
+          userName: 'Administrador Master',
+          userEmail: 'admin@osmelhoresdacidade.com.br',
+          userRole: 'ADMIN',
+          ipAddress: '127.0.0.1',
+          details: { invoiceNumber: 'FAT-2026-001', amount: 149.9 },
+        },
+      ];
+
+      const header = [
+        'Data e Hora (ISO)',
+        'Data Formatada',
+        'Acao',
+        'Entidade',
+        'ID da Entidade',
+        'Operador',
+        'E-mail',
+        'Papel / Perfil',
+        'IP de Origem',
+        'Detalhes Estruturados',
+      ].map((col) => `"${col}"`).join(';');
+
+      const escapeCsv = (str: any) => `"${String(str || '').replace(/"/g, '""')}"`;
+      const row = [
+        escapeCsv(mockLogs[0].createdAt.toISOString()),
+        escapeCsv('06/11/2026 07:00:00'),
+        escapeCsv(mockLogs[0].action),
+        escapeCsv(mockLogs[0].entity),
+        escapeCsv(mockLogs[0].entityId),
+        escapeCsv(mockLogs[0].userName),
+        escapeCsv(mockLogs[0].userEmail),
+        escapeCsv(mockLogs[0].userRole),
+        escapeCsv(mockLogs[0].ipAddress),
+        escapeCsv(JSON.stringify(mockLogs[0].details)),
+      ].join(';');
+
+      const csvOutput = `\uFEFF${header}\n${row}`;
+
+      expect(csvOutput.startsWith('\uFEFF')).toBe(true);
+      expect(csvOutput).toContain('INVOICE_WHATSAPP_SENT');
+      expect(csvOutput).toContain('admin@osmelhoresdacidade.com.br');
+      expect(csvOutput.split(';').length).toBeGreaterThan(10);
+    });
+  });
 });

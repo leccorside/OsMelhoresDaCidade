@@ -17,6 +17,8 @@ import {
   FileText,
   DollarSign,
   Layers,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   fetchAdminAuditLogsApi,
@@ -31,6 +33,7 @@ export default function AdminAuditoriaPage() {
   const [stats, setStats] = useState<AuditStatsItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Filtros
   const [selectedAction, setSelectedAction] = useState('ALL');
@@ -73,6 +76,73 @@ export default function AdminAuditoriaPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     loadData();
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+      const res = await fetchAdminAuditLogsApi({
+        action: selectedAction,
+        entity: selectedEntity,
+        search: search.trim() || undefined,
+        limit: 1000,
+      });
+
+      const listToExport = res.logs && res.logs.length > 0 ? res.logs : logs;
+
+      if (!listToExport || listToExport.length === 0) {
+        alert('Nenhum registro de auditoria disponível para exportação.');
+        return;
+      }
+
+      const header = [
+        'Data e Hora (ISO)',
+        'Data Formatada',
+        'Ação',
+        'Entidade',
+        'ID Entidade',
+        'Operador',
+        'E-mail',
+        'Perfil',
+        'IP de Origem',
+        'Detalhes JSON',
+      ].map((c) => `"${c}"`).join(';');
+
+      const escapeVal = (v: any) => {
+        if (v === null || v === undefined) return '""';
+        return `"${String(v).replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+      };
+
+      const rows = listToExport.map((l) =>
+        [
+          escapeVal(l.createdAt),
+          escapeVal(new Date(l.createdAt).toLocaleString('pt-BR')),
+          escapeVal(l.action),
+          escapeVal(l.entity),
+          escapeVal(l.entityId || ''),
+          escapeVal(l.userName || 'Sistema'),
+          escapeVal(l.userEmail || ''),
+          escapeVal(l.userRole || ''),
+          escapeVal(l.ipAddress || ''),
+          escapeVal(l.details ? JSON.stringify(l.details) : ''),
+        ].join(';')
+      );
+
+      const csvContent = `\uFEFF${header}\n${rows.join('\n')}`;
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `trilha_auditoria_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(`Falha ao exportar relatório CSV: ${err.message || 'Erro inesperado'}`);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getActionBadge = (action: string) => {
@@ -141,14 +211,27 @@ export default function AdminAuditoriaPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => loadData(true)}
-          disabled={loading || refreshing}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold transition-all border border-gray-700 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Atualizar Logs
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exporting || loading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-all shadow-sm disabled:opacity-50"
+            title="Exportar planilha Excel/CSV para controle contábil"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            {exporting ? 'Gerando Planilha...' : 'Exportar Excel / CSV'}
+          </button>
+
+          <button
+            onClick={() => loadData(true)}
+            disabled={loading || refreshing}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold transition-all border border-gray-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Atualizar Logs
+          </button>
+        </div>
       </div>
 
       {/* Cards de Métricas */}

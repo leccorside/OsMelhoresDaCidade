@@ -173,28 +173,48 @@ export default function AdminFinancialPage() {
 
   // Exportar CSV
   const handleExportCSV = () => {
-    if (!data || !data.transactions) return;
+    if (!data || !data.transactions || data.transactions.length === 0) {
+      alert('Nenhuma transação financeira disponível para exportação.');
+      return;
+    }
 
-    const headers = ['ID,Estabelecimento,Empresa,Plano,Valor,Ciclo,Status,Data'];
-    const rows = data.transactions.map((t) => [
-      t.id,
-      `"${t.listing?.name || ''}"`,
-      `"${t.merchantProfile?.companyName || ''}"`,
-      t.plan,
-      t.price,
-      t.billingCycle,
-      t.status,
-      new Date(t.createdAt).toLocaleDateString('pt-BR'),
-    ].join(','));
+    const headers = [
+      'ID Assinatura',
+      'Estabelecimento',
+      'Empresa / Lojista',
+      'Plano',
+      'Valor (R$)',
+      'Ciclo',
+      'Status Pagamento',
+      'Data de Criacao',
+    ].map((c) => `"${c}"`).join(';');
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const escapeVal = (v: any) => {
+      if (v === null || v === undefined) return '""';
+      return `"${String(v).replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+    };
+
+    const rows = (filteredTransactions.length > 0 ? filteredTransactions : data.transactions).map((t) => [
+      escapeVal(t.id),
+      escapeVal(t.listing?.name || 'Sem estabelecimento'),
+      escapeVal(t.merchantProfile?.companyName || 'Lojista'),
+      escapeVal(t.plan),
+      escapeVal(Number(t.price).toFixed(2)),
+      escapeVal(t.billingCycle === 'YEARLY' ? 'Anual' : 'Mensal'),
+      escapeVal(t.status === 'PAID' ? 'Pago / Ativo' : t.status),
+      escapeVal(new Date(t.createdAt).toLocaleDateString('pt-BR')),
+    ].join(';'));
+
+    const csvContent = `\uFEFF${headers}\n${rows.join('\n')}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = url;
+    link.setAttribute('download', `relatorio_cobrancas_financeiro_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const filteredTransactions = (data?.transactions || []).filter((item) => {

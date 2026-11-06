@@ -896,6 +896,14 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Feedback em tempo real com indicador de carregamento e confirmação visual *"Cobrança Enviada"*.
     - Mantido atalho secundário para abertura manual no WhatsApp Web.
 
+### BD. Exportação em Planilha Excel/CSV do Histórico de Cobranças e Logs de Auditoria
+- **Backend NestJS (`apps/api`)**:
+  - Implementação do método `exportAuditLogsCsv` em [`AuditService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/audit/audit.service.ts) e rota protegida `GET /api/v1/audit/export/csv` em [`AuditController`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/audit/audit.controller.ts).
+  - Formatação com cabeçalho UTF-8 BOM (`\uFEFF`) e separador de ponto-e-vírgula (`;`), garantindo abertura e alinhamento perfeito no Microsoft Excel (pt-BR) e suítes contábeis.
+- **Frontend Next.js (`apps/web`)**:
+  - Botão *"Exportar Excel / CSV"* com ícone `FileSpreadsheet` integrado na página [`/admin/auditoria`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/auditoria/page.tsx), permitindo download instantâneo de até 1.000 registros filtrados.
+  - Atualização do exportador de transações financeiras em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx) com suporte a codificação BOM UTF-8 e escape de campos contábeis.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
