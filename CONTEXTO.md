@@ -888,6 +888,14 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
     - Disparo automático de mensagem de confirmação no WhatsApp com o número do protocolo do chamado.
   - Cobertura de testes unitários e de integração adicionada na suíte Jest (`apps/api/test/billing-audit-e2e.spec.ts`).
 
+### BC. Disparo de Fatura em 1 Clique por WhatsApp no Painel Financeiro Admin
+- **Frontend Next.js (`apps/web`)**:
+  - Evolução da tabela de assinaturas a vencer em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx).
+  - Adicionado botão interativo *"Enviar Fatura Bot"* na coluna de Ação Rápida:
+    - Dispara em 1 clique o envio oficial da cobrança via Z-API/WhatsApp Bot consumindo `sendInvoiceWhatsAppApi(subscriptionId, phone)`.
+    - Feedback em tempo real com indicador de carregamento e confirmação visual *"Cobrança Enviada"*.
+    - Mantido atalho secundário para abertura manual no WhatsApp Web.
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

@@ -36,6 +36,7 @@ import {
   fetchAdminFinancialOverviewApi,
   fetchExpiringSubscriptionsApi,
   processSubscriptionRenewalsApi,
+  sendInvoiceWhatsAppApi,
   FinancialOverviewData,
   ExpiringSubscriptionItem,
   fetchAdminWebhooksApi,
@@ -54,6 +55,8 @@ export default function AdminFinancialPage() {
   const [expiringSubs, setExpiringSubs] = useState<ExpiringSubscriptionItem[]>([]);
   const [processingRenewals, setProcessingRenewals] = useState(false);
   const [renewalFeedback, setRenewalFeedback] = useState<string | null>(null);
+  const [sendingInvoiceWhatsAppId, setSendingInvoiceWhatsAppId] = useState<string | null>(null);
+  const [sentInvoiceWhatsAppMap, setSentInvoiceWhatsAppMap] = useState<Record<string, string>>({});
 
   // Webhooks State
   const [webhooks, setWebhooks] = useState<WebhookEndpointItem[]>([]);
@@ -146,6 +149,21 @@ export default function AdminFinancialPage() {
       setRenewalFeedback(`Erro: ${err.message || 'Falha ao processar notificações.'}`);
     } finally {
       setProcessingRenewals(false);
+    }
+  };
+
+  const handleSendWhatsAppInvoice = async (subscriptionId: string, phone?: string) => {
+    try {
+      setSendingInvoiceWhatsAppId(subscriptionId);
+      const res = await sendInvoiceWhatsAppApi(subscriptionId, phone);
+      setSentInvoiceWhatsAppMap((prev) => ({
+        ...prev,
+        [subscriptionId]: `Fatura enviada com sucesso para +${res.phone || phone || 'contato'}!`,
+      }));
+    } catch (err: any) {
+      alert(`Falha ao disparar fatura via WhatsApp: ${err.message || 'Erro inesperado'}`);
+    } finally {
+      setSendingInvoiceWhatsAppId(null);
     }
   };
 
@@ -595,18 +613,52 @@ export default function AdminFinancialPage() {
                         <div className="text-neutral-400 font-mono">{item.merchantPhone || 'Sem telefone'}</div>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        {item.whatsAppLink ? (
-                          <a
-                            href={item.whatsAppLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-colors"
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSendWhatsAppInvoice(item.id, item.merchantPhone)}
+                            disabled={sendingInvoiceWhatsAppId === item.id}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition-all ${
+                              sentInvoiceWhatsAppMap[item.id]
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            }`}
+                            title="Dispara fatura oficial em PDF, link web e PIX Copia e Cola pelo WhatsApp Bot"
                           >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            WhatsApp
-                          </a>
-                        ) : (
-                          <span className="text-xs text-neutral-400 italic">Sem WhatsApp</span>
+                            {sendingInvoiceWhatsAppId === item.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Enviando...
+                              </>
+                            ) : sentInvoiceWhatsAppMap[item.id] ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                                Cobrança Enviada
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-3.5 h-3.5" />
+                                Enviar Fatura Bot
+                              </>
+                            )}
+                          </button>
+
+                          {item.whatsAppLink && (
+                            <a
+                              href={item.whatsAppLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-600 transition-colors"
+                              title="Abrir WhatsApp Web para contato manual"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            </a>
+                          )}
+                        </div>
+                        {sentInvoiceWhatsAppMap[item.id] && (
+                          <div className="text-[10px] text-emerald-600 mt-1 font-semibold text-right">
+                            {sentInvoiceWhatsAppMap[item.id]}
+                          </div>
                         )}
                       </td>
                     </tr>
