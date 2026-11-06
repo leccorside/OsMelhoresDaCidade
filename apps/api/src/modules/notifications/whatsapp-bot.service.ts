@@ -32,6 +32,14 @@ export interface InvoicePaidParams {
   planName: string;
 }
 
+export interface MerchantWelcomeParams {
+  phone: string;
+  merchantName: string;
+  companyName: string;
+  setupUrl?: string;
+  plansUrl?: string;
+}
+
 @Injectable()
 export class WhatsAppBotService {
   private readonly logger = new Logger(WhatsAppBotService.name);
@@ -167,6 +175,25 @@ export class WhatsAppBotService {
       `Confirmamos o pagamento da fatura *${params.invoiceNumber}* no valor de *${formattedAmount}* para o comércio *${params.listingName}*.\n\n` +
       `O seu plano *${params.planName}* permanece 100% ativo e seu estabelecimento continua em destaque para milhares de moradores da região.\n\n` +
       `Agradecemos pela parceria contínua! ⭐`;
+
+    return this.sendTextMessage(params.phone, message);
+  }
+
+  /**
+   * Mensagem automática de boas-vindas ao lojista logo após a criação da conta
+   */
+  async notifyMerchantWelcome(params: MerchantWelcomeParams) {
+    const setupUrl = params.setupUrl || 'http://localhost:4100/comerciante/estabelecimentos/novo';
+    const plansUrl = params.plansUrl || 'http://localhost:4100/comerciante/planos';
+
+    const message =
+      `🎉 *BEM-VINDO AO PORTAL OS MELHORES DA CIDADE!* 🚀\n\n` +
+      `Olá, *${params.merchantName}*! Tudo bem?\n\n` +
+      `É um prazer ter a empresa *${params.companyName}* em nossa plataforma! Sua conta de comerciante parceiro foi criada com sucesso.\n\n` +
+      `Agora você já pode colocar seu comércio em evidência para milhares de clientes e turistas da região:\n\n` +
+      `1️⃣ *Cadastre e configure seu anúncio:*\n${setupUrl}\n\n` +
+      `2️⃣ *Conheça nossos Planos VIP e escolha seu destaque:*\n${plansUrl}\n\n` +
+      `Se tiver qualquer pergunta, basta responder esta mensagem com a palavra *DÚVIDA* ou *AJUDA* que nosso suporte entrará em contato direto com você! ⭐`;
 
     return this.sendTextMessage(params.phone, message);
   }

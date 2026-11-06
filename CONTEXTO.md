@@ -904,6 +904,14 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Botão *"Exportar Excel / CSV"* com ícone `FileSpreadsheet` integrado na página [`/admin/auditoria`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/auditoria/page.tsx), permitindo download instantâneo de até 1.000 registros filtrados.
   - Atualização do exportador de transações financeiras em [`/admin/financeiro`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/web/src/app/admin/financeiro/page.tsx) com suporte a codificação BOM UTF-8 e escape de campos contábeis.
 
+### BE. Notificação Automática por WhatsApp no Cadastro do Comerciante
+- **Backend NestJS (`apps/api`)**:
+  - Criação do método `notifyMerchantWelcome` em [`WhatsAppBotService`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/notifications/whatsapp-bot.service.ts).
+  - Disparo imediato e não-bloqueante no fluxo de registro [`AuthService.register`](file:///d:/PROJETOS/os-melhores-da-cidade/apps/api/src/modules/auth/auth.service.ts) quando a conta é criada com papel de comerciante (`Role.MERCHANT`).
+  - Mensagem contendo saudações personalizadas à empresa, orientações para criação do anúncio comercial (`/comerciante/estabelecimentos/novo`), link de escolha dos Planos VIP (`/comerciante/planos`) e instrução de suporte em 1 palavra (*"DÚVIDA"* ou *"AJUDA"*).
+  - Gravação automática de evento no `AuditLog` (`MERCHANT_WELCOME_WHATSAPP_SENT`).
+  - Cobertura de teste unitário validando a composição da mensagem na suíte Jest (`billing-audit-e2e.spec.ts`).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.

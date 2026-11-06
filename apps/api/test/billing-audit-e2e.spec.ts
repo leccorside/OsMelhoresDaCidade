@@ -355,4 +355,35 @@ describe('Suíte E2E: Faturamento Direto, WhatsApp Bot e Trilha de Auditoria', (
       expect(csvOutput.split(';').length).toBeGreaterThan(10);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 6. NOTIFICAÇÃO DE BOAS-VINDAS POR WHATSAPP NO CADASTRO DO LOJISTA
+  // ---------------------------------------------------------------------------
+  describe('6. Boas-Vindas Automáticas por WhatsApp ao Comerciante', () => {
+    it('deve formatar mensagem de boas-vindas contendo links para anúncio e planos VIP', () => {
+      const merchantData = {
+        name: 'Carlos Oliveira',
+        companyName: 'Churrascaria Boiadeiro',
+        phone: '64993332211',
+      };
+
+      const setupUrl = 'http://localhost:4100/comerciante/estabelecimentos/novo';
+      const plansUrl = 'http://localhost:4100/comerciante/planos';
+
+      const message =
+        `🎉 *BEM-VINDO AO PORTAL OS MELHORES DA CIDADE!* 🚀\n\n` +
+        `Olá, *${merchantData.name}*! Tudo bem?\n\n` +
+        `É um prazer ter a empresa *${merchantData.companyName}* em nossa plataforma! Sua conta de comerciante parceiro foi criada com sucesso.\n\n` +
+        `Agora você já pode colocar seu comércio em evidência para milhares de clientes e turistas da região:\n\n` +
+        `1️⃣ *Cadastre e configure seu anúncio:*\n${setupUrl}\n\n` +
+        `2️⃣ *Conheça nossos Planos VIP e escolha seu destaque:*\n${plansUrl}\n\n` +
+        `Se tiver qualquer pergunta, basta responder esta mensagem com a palavra *DÚVIDA* ou *AJUDA* que nosso suporte entrará em contato direto com você! ⭐`;
+
+      expect(message).toContain('Churrascaria Boiadeiro');
+      expect(message).toContain(setupUrl);
+      expect(message).toContain(plansUrl);
+      expect(message).toContain('DÚVIDA');
+      expect(message).toContain('AJUDA');
+    });
+  });
 });

@@ -5,9 +5,13 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  Optional,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { WhatsAppBotService } from '../notifications/whatsapp-bot.service';
+import { AuditService } from '../audit/audit.service';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { RegisterDto } from './dto/register.dto';
@@ -16,9 +20,13 @@ import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    @Optional() private readonly whatsAppBot?: WhatsAppBotService,
+    @Optional() private readonly auditService?: AuditService,
   ) {}
 
   async onModuleInit() {
@@ -163,6 +171,35 @@ export class AuthService implements OnModuleInit {
         expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
       },
     });
+
+    // Notificação automática de boas-vindas via WhatsApp Bot para novo lojista
+    if (chosenRole === Role.MERCHANT && dto.phone && this.whatsAppBot) {
+      this.whatsAppBot
+        .notifyMerchantWelcome({
+          phone: dto.phone,
+          merchantName: dto.name,
+          companyName: dto.companyName || dto.name,
+        })
+        .catch((err) => {
+          this.logger.warn(`Falha não-bloqueante no envio do WhatsApp de boas-vindas: ${err.message}`);
+        });
+
+      if (this.auditService) {
+        this.auditService.log({
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          userRole: 'MERCHANT',
+          action: 'MERCHANT_WELCOME_WHATSAPP_SENT',
+          entity: 'USER',
+          entityId: user.id,
+          details: {
+            phone: dto.phone,
+            companyName: dto.companyName || dto.name,
+          },
+        }).catch(() => {});
+      }
+    }
 
     return {
       message: 'Cadastro realizado com sucesso! Verifique seu e-mail para ativar sua conta.',
