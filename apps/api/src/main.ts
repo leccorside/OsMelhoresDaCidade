@@ -18,9 +18,31 @@ async function bootstrap() {
   const cookieMiddleware = (cookieParser as any).default || cookieParser;
   app.use(cookieMiddleware());
 
+  const rawCors = process.env.CORS_ORIGIN || 'http://localhost:4100,http://localhost:4101,http://localhost:3000';
+  const allowedOrigins = rawCors
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Permite requisições sem origin (como mobile, curl, server-side) ou se bater com origens permitidas/localhost
+      if (!origin || allowedOrigins.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'asaas-access-token',
+    ],
   });
 
   const uploadsPath = path.join(process.cwd(), 'uploads');

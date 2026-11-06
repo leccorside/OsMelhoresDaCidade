@@ -860,6 +860,22 @@ Implementado componente adaptável de altíssima fidelidade (`PlaceDetailView.ts
   - Testes da trilha de auditoria (`Audit Trail`): geração e busca de logs (`INVOICE_WHATSAPP_SENT`, `COUPON_CREATED`), filtros textuais e contadores consolidados.
   - 20 testes executados com 100% de aprovação no Jest (`PASS test/billing-audit-e2e.spec.ts`, `PASS test/billing-funnel.spec.ts`, `PASS test/auth.spec.ts`).
 
+### BA. Correção de CORS Dinâmico para Múltiplas Origens e Validação das Credenciais de Login
+- **Diagnóstico da Causa Raiz**:
+  - Na tentativa de login (Admin Master e Comerciante), o navegador emitia `NetworkError when attempting to fetch resource` acompanhado pelo erro de console do Firefox:
+    `Requisição cross-origin bloqueada: A diretiva Same Origin não permite a leitura do recurso remoto em http://localhost:4102/api/v1/auth/login (motivo: cabeçalho 'Access-Control-Allow-Origin' do CORS não corresponde a 'http://localhost:4100,http://localhost:4101')`.
+  - A variável `CORS_ORIGIN` no ambiente continha valores separados por vírgula (`http://localhost:4100,http://localhost:4101`). O middleware CORS anterior repassava a string inteira como cabeçalho HTTP, o que viola a especificação W3C/MDN (que só aceita um único origin ou `*`).
+- **Solução Implementada no Backend NestJS (`apps/api/src/main.ts`)**:
+  - Configuração do `app.enableCors` para processar origens em lista e utilizar uma função callback dinâmica:
+    `(origin, callback) => { if (!origin || allowedOrigins.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) { callback(null, true); } }`.
+  - Desta forma, o NestJS reflete de volta a origem exata da requisição (`http://localhost:4101` para o frontend Next.js ou `http://localhost:4100` para o proxy Nginx) com os cabeçalhos `Access-Control-Allow-Origin: <origem>`, `Access-Control-Allow-Credentials: true` e métodos/headers autorizados.
+- **Validação das Credenciais e Fluxo de Autenticação**:
+  - Validada a presença e hash Argon2 dos usuários no PostgreSQL:
+    - **Admin Master**: `admin@osmelhoresdacidade.com.br` / `Admin@123456`
+    - **Comerciante**: `comerciante@osmelhoresdacidade.com.br` / `Comerciante@123456`
+  - Reconstruído o container NestJS (`docker compose up -d --build nestjs`).
+  - Executados testes de preflight (`OPTIONS`) e `POST /api/v1/auth/login`, obtendo **HTTP 200 OK** com retorno de `accessToken`, `user` e cabeçalhos CORS válidos para ambas as origens (`4100` e `4101`).
+
 ## 7. Diretrizes Persistidas de Memória
 Conforme regra do usuário registrada em `GEMINI.md` no workspace e na configuração global:
 - Todas as alterações, correções e implementações devem obrigatoriamente manter o `CONTEXTO.md` atualizado com o histórico, decisões e status da plataforma.
